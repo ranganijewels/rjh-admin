@@ -1,0 +1,250 @@
+"use client";
+
+import React, { useCallback, useEffect, useState } from "react";
+import { Button } from "@/components/common/ui/button";
+import { Input } from "@/components/common/ui/input";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import {
+  Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle,
+} from "@/components/common/ui/sheet";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/common/ui/select";
+
+const authHeaders = () => {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
+};
+
+const fmt = (v, type) => {
+  if (v === null || v === undefined || v === "") return "—";
+  if (type === "date") return new Date(v).toLocaleDateString();
+  if (type === "money") return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
+  return String(v);
+};
+
+// Config-driven CRUD for any effective-dated pricing master.
+export default function RateMasterManager({ title, description, resource, columns, fields }) {
+  const [list, setList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({});
+  const [editId, setEditId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+  const [touched, setTouched] = useState({});
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/pricing-master/${resource}`, { headers: authHeaders() });
+      const json = await res.json();
+      setList(json?.data || []);
+    } catch {
+      toast.error("Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }, [resource]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const blank = () =>
+    fields.reduce((a, f) => ({ ...a, [f.key]: f.default ?? "" }), { status: "active" });
+
+  const openAdd = () => { setForm(blank()); setEditId(null); setTouched({}); setOpen(true); };
+  const openEdit = (row) => {
+    const f = {};
+    fields.forEach((fl) => {
+      f[fl.key] = fl.type === "date" && row[fl.key]
+        ? new Date(row[fl.key]).toISOString().slice(0, 10)
+        : row[fl.key] ?? "";
+    });
+    f.status = row.status ?? "active";
+    setForm(f); setEditId(row.id); setTouched({}); setOpen(true);
+  };
+
+  const isFieldInvalid = (f) => !f.optional && touched[f.key] && !form[f.key];
+
+  const save = async () => {
+    const selectFields = fields.filter((f) => f.type === "select" && !f.optional);
+    const hasMissing = selectFields.some((f) => !form[f.key]);
+    if (hasMissing) {
+      setTouched((t) => ({ ...t, ...Object.fromEntries(selectFields.map((f) => [f.key, true])) }));
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      fields.forEach((f) => {
+        if (f.type === "number" && payload[f.key] !== "" && payload[f.key] != null)
+          payload[f.key] = Number(payload[f.key]);
+        if (payload[f.key] === "") delete payload[f.key];
+      });
+      const url = editId
+        ? `/api/pricing-master/${resource}/${editId}`
+        : `/api/pricing-master/${resource}`;
+      const res = await fetch(url, {
+        method: editId ? "PUT" : "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(Array.isArray(j?.message) ? j.message.join(", ") : j?.message || "Save failed");
+      }
+      toast.success(editId ? "Updated" : "Added — new rate is live immediately");
+      setOpen(false);
+      fetchData();
+    } catch (e) {
+      toast.error(e.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const doDelete = async () => {
+    try {
+      await fetch(`/api/pricing-master/${resource}/${deleteId}`, { method: "DELETE", headers: authHeaders() });
+      toast.success("Deleted");
+      setConfirmOpen(false); setDeleteId(null); fetchData();
+    } catch { toast.error("Delete failed"); }
+  };
+
+  if (loading) return <ContentLoader />;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-semibold">{title}</h1>
+          {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        </div>
+        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> Add Rate</Button>
+      </div>
+
+      <div className="overflow-x-auto border border-border rounded-lg">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50">
+            <tr className="text-left">
+              {columns.map((c) => (
+                <th key={c.key} className="p-3 font-medium whitespace-nowrap">{c.label}</th>
+              ))}
+              <th className="p-3 font-medium text-center">Status</th>
+              <th className="p-3 font-medium text-center">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((row) => (
+              <tr key={row.id} className="border-t border-border">
+                {columns.map((c) => (
+                  <td key={c.key} className="p-3 whitespace-nowrap">{fmt(row[c.key], c.type)}</td>
+                ))}
+                <td className="p-3 text-center">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    row.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
+                  }`}>{row.status}</span>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center justify-center gap-2">
+                    <Button variant="outline" mode="icon" size="sm" onClick={() => openEdit(row)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="outline" mode="icon" size="sm" onClick={() => { setDeleteId(row.id); setConfirmOpen(true); }}>
+                      <Trash2 className="h-4 w-4 text-red-500" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {list.length === 0 && (
+              <tr><td colSpan={columns.length + 2} className="p-6 text-center text-muted-foreground">No rates configured yet.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Sheet open={open} onOpenChange={(v) => !v && setOpen(false)}>
+        <SheetContent side="right" className="w-[92%] md:max-w-[50vw] lg:max-w-[34vw] inset-4 start-auto h-auto rounded-lg p-0">
+          <SheetHeader className="border-b py-3.5 px-5 border-border">
+            <SheetTitle>{editId ? "Edit" : "Add"} {title}</SheetTitle>
+          </SheetHeader>
+          <SheetBody className="px-5 py-4 space-y-4 max-h-[70vh] overflow-auto">
+            {fields.map((f) => {
+              const invalid = isFieldInvalid(f);
+              return (
+                <div key={f.key} className="space-y-1.5">
+                  <label htmlFor={`field-${f.key}`} className="text-sm font-medium">{f.label}</label>
+                  {f.type === "select" ? (
+                    <>
+                      <Select
+                        value={form[f.key] ? form[f.key] : "__any__"}
+                        onValueChange={(v) => setForm((s) => ({ ...s, [f.key]: v === "__any__" ? "" : v }))}
+                        onOpenChange={(isOpen) => {
+                          if (!isOpen) setTouched((t) => ({ ...t, [f.key]: true }));
+                        }}
+                      >
+                        <SelectTrigger id={`field-${f.key}`} aria-invalid={invalid || undefined}>
+                          <SelectValue placeholder={`Select${f.optional ? " (any)" : ""}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {f.optional && <SelectItem value="__any__">Any</SelectItem>}
+                          {f.options.filter((o) => o !== "").map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      {invalid && (
+                        <p className="text-xs text-destructive">{f.label} is required</p>
+                      )}
+                    </>
+                  ) : (
+                    <Input
+                      id={`field-${f.key}`}
+                      type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+                      step={f.type === "number" ? "any" : undefined}
+                      value={form[f.key] ?? ""}
+                      placeholder={f.placeholder || ""}
+                      onChange={(e) => setForm((s) => ({ ...s, [f.key]: e.target.value }))}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            <div className="space-y-1.5">
+              <label htmlFor="field-status" className="text-sm font-medium">Status</label>
+              <Select
+                value={form.status ?? "active"}
+                onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
+              >
+                <SelectTrigger id="field-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </SheetBody>
+          <SheetFooter className="border-t px-5 py-3 gap-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={doDelete}
+        title="Delete Rate"
+        message="Remove this rate? History is preserved by effective dates; deleting removes the row entirely."
+      />
+    </div>
+  );
+}
