@@ -1,6 +1,8 @@
 // Column + field definitions for each pricing master (drives RateMasterManager).
-const METALS = ["Gold", "Silver", "Platinum", "Rose Gold", "White Gold"];
-const PURITIES = ["24K", "22K", "18K", "14K", "999 (Silver)", "925 (Silver)", "800 (Silver)", "950 (Platinum)", "Custom"];
+const METALS = ["Gold", "Silver", "Platinum"];
+// Gold day-to-day needs ONLY a 24K row — 22/18/14/10K derive automatically from
+// the KT master factors (24K × factor ÷ 99.9). Explicit rows here override.
+const PURITIES = ["24K", "22K", "18K", "14K", "10K", "999", "925", "800", "950", "900", "Custom"];
 const SHAPES = ["Round", "Princess", "Cushion", "Oval", "Emerald", "Pear", "Marquise", "Custom"];
 const CATEGORIES = ["Rings", "Necklaces", "Wedding Bands", "Bracelets", "Earrings", "Pendants"];
 

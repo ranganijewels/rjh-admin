@@ -31,12 +31,17 @@ const METAL_PURITIES = ["24K", "22K", "18K", "14K", "999 (Silver)", "925 (Silver
 // Each metal type and the purities + colors it can be offered in. Drives the
 // "Metal Options" builder so a product can offer e.g. Gold (14/18/22K) AND
 // Silver (925/999), each in its own set of colors.
+// Fallback only — the live catalog (metal types, KT purities, colors incl.
+// two-tone + swatch hexes) loads from Catalog Masters and is admin-managed.
 const METAL_CATALOG = {
-  Gold: { purities: ["14K", "18K", "22K", "24K"], colors: ["White", "Yellow", "Rose"] },
-  Silver: { purities: ["925", "999", "800"], colors: ["Silver"] },
-  Platinum: { purities: ["950", "900"], colors: ["Platinum"] },
+  Gold: {
+    purities: ["10K", "14K", "18K"],
+    colors: ["White", "Yellow", "Rose"],
+    colorHex: { White: "#E8E8E8", Yellow: "#E6C200", Rose: "#E0A899" },
+  },
+  Silver: { purities: ["925", "999", "800"], colors: ["Silver"], colorHex: { Silver: "#C0C0C0" } },
+  Platinum: { purities: ["950", "900"], colors: ["Platinum"], colorHex: { Platinum: "#D6D6D6" } },
 };
-const METAL_TYPE_OPTIONS = Object.keys(METAL_CATALOG);
 const emptyMetalOption = () => ({ type: "Gold", purities: [], colors: [] });
 const emptyWeightRow = () => ({ carat: "", weightG: "" });
 
@@ -53,7 +58,22 @@ const colorsFromMetalOptions = (opts) => {
 //   "Nirvana 1 ctw Pear Lab Grown Diamond Solitaire Ring"  → "NIRVANA"
 //   "Audrey 1 ½ Ctw Round Half Bezel Two Tone Engagement Ring" → "AUDREY"
 const CARAT_CUE = "\\d|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]"; // digit OR a unicode vulgar fraction
-const deriveDesignGroup = (title) => {
+const deriveDesignGroup = (designNo, title) => {
+  // PRIMARY: the Design No minus its trailing numeric suffix, so
+  // "NIRVANA-003" / "NIRVANA-007" → "NIRVANA" and "RJ-RING-01" → "RJ-RING".
+  const code = (designNo || "").trim();
+  if (code) {
+    const base = code.replace(/[-_ ]*\d+$/g, "").trim() || code;
+    const fromCode = base
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 40);
+    if (fromCode) return fromCode;
+  }
+  // FALLBACK (no design number): leading words of the product name.
   if (!title || !title.trim()) return "";
   // Strip accents first ("Étoile" → "Etoile") so the A–Z filter below can't
   // corrupt the name (uppercase "É" is not in A–Z and would be dropped).
@@ -93,13 +113,8 @@ const EMPTY_MATERIAL = {
   color: "", size: "", setting: "", pcs: "", wt: "",
 };
 
-// Every color any metal can be offered in — each gets a media bucket so the
-// columns can be shown/hidden as the user picks colors.
-const ALL_MEDIA_COLORS = [
-  ...new Set(Object.values(METAL_CATALOG).flatMap((m) => m.colors)),
-];
-const emptyColorMedia = () =>
-  ALL_MEDIA_COLORS.reduce((acc, c) => ({ ...acc, [c]: [] }), {});
+// Media buckets are keyed by color NAME and created lazily — colors are
+// admin-managed master data (incl. two-tone entries), so the set is dynamic.
 
 export default function ProductForm({ id }) {
   const router = useRouter();
@@ -108,8 +123,69 @@ export default function ProductForm({ id }) {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [materials, setMaterials] = useState([]);
-  const [colorMedia, setColorMedia] = useState(emptyColorMedia()); // { White:[{id?,url,type,role}], ... }
+  const [colorMedia, setColorMedia] = useState({}); // { White:[{id?,url,type,role}], ... } — buckets created lazily per color
   const [existingMediaIds, setExistingMediaIds] = useState([]); // ids present at load
+
+  // ── Live catalog from Catalog Masters (types → purities/colors + hexes) ────
+  // Falls back to the static METAL_CATALOG if the API is unreachable.
+  const [metalCatalog, setMetalCatalog] = useState(METAL_CATALOG);
+  const [shapeOptions, setShapeOptions] = useState(SHAPES);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [types, purities, colors, shapes] = await Promise.all(
+          ["metal_type", "metal_purity", "metal_color", "diamond_shape"].map((k) =>
+            fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
+              r.ok ? r.json() : []
+            )
+          )
+        );
+        if (!Array.isArray(types) || !types.length) return;
+        const bySort = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+        const cat = {};
+        [...types].sort(bySort).forEach((t) => {
+          const KEY = (t.code || t.name || "").toUpperCase();
+          const label = t.name || t.code;
+          const p = (Array.isArray(purities) ? purities : [])
+            .filter((x) => (x.metadata?.applicableMetals || []).includes(KEY))
+            .sort(bySort)
+            .map((x) => x.code);
+          const c = (Array.isArray(colors) ? colors : [])
+            .filter((x) => (x.metadata?.applicableMetals || []).includes(KEY))
+            .sort(bySort);
+          cat[label] = {
+            purities: p.length ? p : METAL_CATALOG[label]?.purities || [],
+            colors: c.length ? c.map((x) => x.name) : METAL_CATALOG[label]?.colors || [],
+            colorHex: c.length
+              ? Object.fromEntries(
+                  c.map((x) => [x.name, { hex: x.metadata?.hex, hex2: x.metadata?.hex2 }])
+                )
+              : Object.fromEntries(
+                  Object.entries(METAL_CATALOG[label]?.colorHex || {}).map(([k, v]) => [
+                    k,
+                    { hex: v },
+                  ])
+                ),
+          };
+        });
+        if (Object.keys(cat).length) setMetalCatalog(cat);
+        if (Array.isArray(shapes) && shapes.length) {
+          setShapeOptions([...shapes].sort(bySort).map((s) => s.name));
+        }
+      } catch {
+        /* keep the static fallback */
+      }
+    })();
+  }, []);
+  const metalTypeOptions = Object.keys(metalCatalog);
+  // Swatch lookup across all metals (color pills + media column headers).
+  const colorHexFor = (name) => {
+    for (const m of Object.values(metalCatalog)) {
+      const h = m.colorHex?.[name];
+      if (h) return typeof h === "string" ? { hex: h } : h;
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (!isEdit) return;
@@ -172,17 +248,17 @@ export default function ProductForm({ id }) {
         setMaterials(Array.isArray(p.materials) ? p.materials : []);
         // Reconstruct per-color media lists (role in altText, type in mediaType)
         const media = Array.isArray(p.media) ? p.media : [];
-        const cm = emptyColorMedia();
+        const cm = {};
         const ids = [];
         media.forEach((m) => {
           const url = m.url ?? m.fileUrl;
-          const color = ALL_MEDIA_COLORS.includes(m.metalColor) ? m.metalColor : null;
+          const color = m.metalColor || null; // buckets are dynamic — any color name works
           const role = ["main", "rollover"].includes((m.altText || "").toLowerCase())
             ? m.altText.toLowerCase()
             : "gallery";
           const type =
             m.mediaType && m.mediaType !== "image" ? m.mediaType : detectType(url);
-          if (color) cm[color].push({ id: m.id, url, type, role });
+          if (color) (cm[color] = cm[color] || []).push({ id: m.id, url, type, role });
           if (m.id) ids.push(m.id);
         });
         setColorMedia(cm);
@@ -231,7 +307,7 @@ export default function ProductForm({ id }) {
   // Pick the overall cover — always an IMAGE (never a video/.glb, which would
   // render broken as an <img> on the storefront). First an image tagged "main",
   // else the first image of any selected color, else the uploaded cover, else "".
-  const coverColors = availableColors.length ? availableColors : ALL_MEDIA_COLORS;
+  const coverColors = availableColors.length ? availableColors : Object.keys(colorMedia);
   const isImageMedia = (m) => ((m?.type || detectType(m?.url)) === "image");
   const pickCover = () => {
     for (const color of coverColors) {
@@ -276,8 +352,8 @@ export default function ProductForm({ id }) {
         metal_color: primary.colors?.[0] || form.metal_color,
         product_image: cover,
         metadata: {
-          // Auto-derived from the product name so same-name shapes link automatically.
-          designGroup: deriveDesignGroup(form.title) || undefined,
+          // Auto-derived from the DESIGN NO (name as fallback) — no manual field.
+          designGroup: deriveDesignGroup(form.design_no, form.title) || undefined,
           metalOptions: cleanMetalOptions,
           weightMatrix: cleanWeightMatrix,
         },
@@ -387,6 +463,12 @@ export default function ProductForm({ id }) {
           </Field>
           <Field label="Design No">
             <Input value={form.design_no} onChange={(e) => set("design_no", e.target.value)} placeholder="RJ-RING-01" />
+            {(form.design_no || form.title) && (
+              <p className="text-[11px] text-muted-foreground">
+                Group (auto): <b>{deriveDesignGroup(form.design_no, form.title) || "—"}</b>
+                {" "}· same prefix = same design group
+              </p>
+            )}
           </Field>
           <Field label="Category">
             <Select value={form.category} onChange={(e) => set("category", e.target.value)} options={CATEGORIES} />
@@ -396,13 +478,6 @@ export default function ProductForm({ id }) {
           </Field>
           <Field label="Gender">
             <Select value={form.gender} onChange={(e) => set("gender", e.target.value)} options={GENDERS} />
-          </Field>
-          <Field label="Design Group (auto-linked from name)">
-            <div className="flex h-9 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
-              {deriveDesignGroup(form.title) || (
-                <span className="text-muted-foreground">— enter a product name —</span>
-              )}
-            </div>
           </Field>
         </Grid>
         <Field label="Description" full>
@@ -443,7 +518,7 @@ export default function ProductForm({ id }) {
         </p>
         <div className="space-y-3">
           {form.metal_options.map((opt, i) => {
-            const cat = METAL_CATALOG[opt.type] || { purities: [], colors: [] };
+            const cat = metalCatalog[opt.type] || { purities: [], colors: [] };
             return (
               <div key={i} className="border border-border rounded-lg p-4 bg-muted/30">
                 <div className="flex items-center justify-between mb-3">
@@ -456,7 +531,7 @@ export default function ProductForm({ id }) {
                       }
                       className="border border-input rounded-md px-2.5 py-1.5 text-sm bg-white"
                     >
-                      {METAL_TYPE_OPTIONS.map((t) => (
+                      {metalTypeOptions.map((t) => (
                         <option key={t} value={t}>{t}</option>
                       ))}
                     </select>
@@ -496,20 +571,33 @@ export default function ProductForm({ id }) {
                   <div>
                     <div className="text-xs text-secondary-foreground mb-1.5">Colors</div>
                     <div className="flex flex-wrap gap-1.5">
-                      {cat.colors.map((c) => (
-                        <button
-                          type="button"
-                          key={c}
-                          onClick={() => setMetalOption(i, { colors: toggleInList(opt.colors, c) })}
-                          className={`px-2.5 py-1 rounded-full text-xs border ${
-                            opt.colors.includes(c)
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-white text-gray-600 border-input"
-                          }`}
-                        >
-                          {c}
-                        </button>
-                      ))}
+                      {cat.colors.map((c) => {
+                        const sw = colorHexFor(c);
+                        return (
+                          <button
+                            type="button"
+                            key={c}
+                            onClick={() => setMetalOption(i, { colors: toggleInList(opt.colors, c) })}
+                            className={`px-2.5 py-1 rounded-full text-xs border inline-flex items-center gap-1.5 ${
+                              opt.colors.includes(c)
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-white text-gray-600 border-input"
+                            }`}
+                          >
+                            {sw?.hex && (
+                              <span
+                                className="inline-block w-3 h-3 rounded-full border border-black/15"
+                                style={{
+                                  background: sw.hex2
+                                    ? `linear-gradient(135deg, ${sw.hex} 50%, ${sw.hex2} 50%)`
+                                    : sw.hex,
+                                }}
+                              />
+                            )}
+                            {c}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -586,7 +674,7 @@ export default function ProductForm({ id }) {
           Labour is added automatically from the Pricing&nbsp;Engine — you don&apos;t enter it here.
         </p>
         <Grid>
-          <Field label="Diamond Shape"><Select value={form.shape} onChange={(e) => set("shape", e.target.value)} options={SHAPES} /></Field>
+          <Field label="Diamond Shape"><Select value={form.shape} onChange={(e) => set("shape", e.target.value)} options={shapeOptions} /></Field>
           <Field label="Diamond Quality · used for pricing"><Input value={form.diamond_quality} onChange={(e) => set("diamond_quality", e.target.value)} placeholder="VVS-VS / EF" /></Field>
           <Field label="Net Weight (g) · metal only"><Input type="number" value={form.net_weight} onChange={(e) => set("net_weight", e.target.value)} placeholder="0.00" /></Field>
           <Field label="Gross Weight (g) · metal + stones"><Input type="number" value={form.gross_weight} onChange={(e) => set("gross_weight", e.target.value)} placeholder="0.00" /></Field>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Section,
@@ -9,7 +9,6 @@ import {
   Select,
   Input,
   Textarea,
-  Button,
   authHeaders,
 } from "@/components/commonPages/Catalog/_ui";
 
@@ -18,11 +17,13 @@ import {
 const KINDS = [
   { value: "diamond_shape", label: "Diamond Shapes" },
   { value: "metal_type", label: "Metal Types" },
-  { value: "metal_purity", label: "Metal Purities" },
+  { value: "metal_purity", label: "KT / Purity Master" },
   { value: "metal_color", label: "Metal Colors" },
   { value: "diamond_quality", label: "Diamond Qualities" },
   { value: "setting_type", label: "Setting Types" },
 ];
+
+const METALS = ["GOLD", "SILVER", "PLATINUM"];
 
 const EMPTY_FORM = {
   code: "",
@@ -32,6 +33,13 @@ const EMPTY_FORM = {
   synonyms: "",
   metadataNote: "",
   status: "active",
+  // kind-specific metadata fields
+  hex: "",
+  hex2: "",
+  twoTone: false,
+  iconUrl: "",
+  pricingFactor: "",
+  applicableMetals: [],
 };
 
 const NAVY = "#162640";
@@ -45,6 +53,117 @@ function parseSynonyms(raw) {
     .filter(Boolean);
 }
 
+// Round color swatch; renders a diagonal split when a second hex is set (two-tone).
+export function ColorSwatch({ hex, hex2, size = 22 }) {
+  const style = hex2
+    ? { background: `linear-gradient(135deg, ${hex || "#ccc"} 50%, ${hex2} 50%)` }
+    : { background: hex || "#ccc" };
+  return (
+    <span
+      className="inline-block rounded-full border border-gray-300 align-middle"
+      style={{ width: size, height: size, ...style }}
+      title={hex2 ? `${hex} / ${hex2}` : hex}
+    />
+  );
+}
+
+// Small inline image uploader for shape icons (reuses the product upload API).
+function IconUpload({ value, onChange }) {
+  const inputRef = useRef(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/product-management/upload", {
+        method: "POST",
+        headers: authHeaders(),
+        body: fd,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.url) throw new Error(json?.error || "Upload failed");
+      onChange(json.url);
+      toast.success("Icon uploaded");
+    } catch (e) {
+      toast.error(e.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3">
+      <div
+        onClick={() => !uploading && inputRef.current?.click()}
+        className="w-14 h-14 rounded-md border border-dashed border-gray-300 bg-white flex items-center justify-center cursor-pointer overflow-hidden shrink-0"
+        title="Upload icon"
+      >
+        {uploading ? (
+          <span className="text-[10px] text-muted-foreground">…</span>
+        ) : value ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={value} alt="icon" className="w-full h-full object-contain" />
+        ) : (
+          <span className="text-xl text-gray-400">+</span>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="…or paste an image/SVG URL"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange("")}
+            className="text-xs text-red-600 hover:underline mt-1"
+          >
+            Remove icon
+          </button>
+        )}
+      </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFile(e.target.files?.[0])}
+      />
+    </div>
+  );
+}
+
+function MetalChecks({ value, onChange }) {
+  const toggle = (m) =>
+    onChange(value.includes(m) ? value.filter((v) => v !== m) : [...value, m]);
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {METALS.map((m) => (
+        <button
+          type="button"
+          key={m}
+          onClick={() => toggle(m)}
+          className={`px-2.5 py-1 rounded-full text-xs border ${
+            value.includes(m)
+              ? "bg-[#162640] text-white border-[#162640]"
+              : "bg-white text-gray-600 border-gray-300"
+          }`}
+        >
+          {m.charAt(0) + m.slice(1).toLowerCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function CatalogMasters() {
   const [kind, setKind] = useState(KINDS[0].value);
   const [rows, setRows] = useState([]);
@@ -54,6 +173,9 @@ export default function CatalogMasters() {
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  // Full metadata of the row being edited — preserved and merged on save so
+  // kind-specific keys (hex, factors, …) are never wiped by a generic edit.
+  const [baseMetadata, setBaseMetadata] = useState({});
   const [saving, setSaving] = useState(false);
 
   const kindLabel = useMemo(
@@ -87,19 +209,28 @@ export default function CatalogMasters() {
   const openAdd = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setBaseMetadata({});
     setPanelOpen(true);
   };
 
   const openEdit = (row) => {
+    const md = row?.metadata || {};
     setEditingId(row.id);
+    setBaseMetadata(md);
     setForm({
       code: row.code ?? "",
       name: row.name ?? "",
       sortOrder: Number(row.sortOrder ?? 0),
       seoSlug: row.seoSlug ?? "",
       synonyms: Array.isArray(row.synonyms) ? row.synonyms.join(", ") : "",
-      metadataNote: row?.metadata?.note ?? "",
+      metadataNote: md.note ?? "",
       status: row.status ?? "active",
+      hex: md.hex ?? "",
+      hex2: md.hex2 ?? "",
+      twoTone: Boolean(md.hex2),
+      iconUrl: md.iconUrl ?? "",
+      pricingFactor: md.pricingFactor ?? "",
+      applicableMetals: Array.isArray(md.applicableMetals) ? md.applicableMetals : [],
     });
     setPanelOpen(true);
   };
@@ -108,6 +239,7 @@ export default function CatalogMasters() {
     setPanelOpen(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setBaseMetadata({});
   };
 
   const setField = (key) => (e) => {
@@ -122,9 +254,35 @@ export default function CatalogMasters() {
       return;
     }
     setSaving(true);
-    const metadata = form.metadataNote?.trim()
-      ? { note: form.metadataNote.trim() }
-      : {};
+    // Merge: keep whatever metadata the row already had, then apply the
+    // kind-specific fields from the form on top.
+    const metadata = { ...baseMetadata };
+    if (form.metadataNote?.trim()) metadata.note = form.metadataNote.trim();
+    else delete metadata.note;
+
+    if (kind === "metal_color") {
+      if (form.hex) metadata.hex = form.hex;
+      else delete metadata.hex;
+      if (form.twoTone && form.hex2) {
+        metadata.hex2 = form.hex2;
+        metadata.twoTone = true;
+      } else {
+        delete metadata.hex2;
+        delete metadata.twoTone;
+      }
+      metadata.applicableMetals = form.applicableMetals;
+    }
+    if (kind === "metal_purity") {
+      const f = Number(form.pricingFactor);
+      if (Number.isFinite(f) && f > 0) metadata.pricingFactor = f;
+      else delete metadata.pricingFactor;
+      metadata.applicableMetals = form.applicableMetals;
+    }
+    if (kind === "diamond_shape") {
+      if (form.iconUrl?.trim()) metadata.iconUrl = form.iconUrl.trim();
+      else delete metadata.iconUrl;
+    }
+
     const payload = {
       kind,
       code: form.code.trim(),
@@ -178,6 +336,49 @@ export default function CatalogMasters() {
     }
   };
 
+  // Kind-specific "Details" cell for the table.
+  const renderDetails = (row) => {
+    const md = row?.metadata || {};
+    if (kind === "metal_color") {
+      return (
+        <div className="flex items-center gap-2">
+          <ColorSwatch hex={md.hex} hex2={md.hex2} />
+          <span className="text-xs text-muted-foreground">
+            {md.hex2 ? `Two-tone ${md.hex} / ${md.hex2}` : md.hex || "no color"}
+            {Array.isArray(md.applicableMetals) && md.applicableMetals.length
+              ? ` · ${md.applicableMetals.join(", ")}`
+              : ""}
+          </span>
+        </div>
+      );
+    }
+    if (kind === "metal_purity") {
+      return (
+        <span className="text-xs text-muted-foreground">
+          {md.pricingFactor
+            ? `factor ${md.pricingFactor} → price = 24K × ${md.pricingFactor} ÷ 99.9`
+            : "—"}
+          {Array.isArray(md.applicableMetals) && md.applicableMetals.length
+            ? ` · ${md.applicableMetals.join(", ")}`
+            : ""}
+        </span>
+      );
+    }
+    if (kind === "diamond_shape") {
+      return md.iconUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={md.iconUrl}
+          alt={row.name}
+          className="h-8 w-8 object-contain rounded border border-gray-200 bg-white"
+        />
+      ) : (
+        <span className="text-xs text-muted-foreground">no icon</span>
+      );
+    }
+    return <span className="text-xs text-muted-foreground">{md.note || "—"}</span>;
+  };
+
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
       {/* Header */}
@@ -186,8 +387,9 @@ export default function CatalogMasters() {
           Catalog Masters
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Shapes, metals, purities &amp; more — fully admin-extensible (no code
-          changes).
+          Shapes (with icons), KT purities (with pricing factors), metal colors
+          (incl. two-tone) &amp; more — all feed the product form and price
+          dropdowns. No code changes needed.
         </p>
       </div>
 
@@ -216,6 +418,16 @@ export default function CatalogMasters() {
           );
         })}
       </div>
+
+      {kind === "metal_purity" && (
+        <div className="mb-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-xs text-muted-foreground">
+          <b className="text-foreground">How KT pricing works:</b> you enter only
+          the <b>24KT gold rate</b> in Pricing → Metal Rates. Every other karat is
+          priced automatically as <b>24K price × factor ÷ 99.9</b> — e.g. 18KT
+          factor 78, 14KT factor 60, 10KT factor 43. Edit a karat below to change
+          its factor.
+        </div>
+      )}
 
       <Section
         title={kindLabel}
@@ -272,6 +484,102 @@ export default function CatalogMasters() {
                   placeholder="0"
                 />
               </Field>
+
+              {/* ── Kind-specific fields ─────────────────────────────── */}
+              {kind === "metal_color" && (
+                <>
+                  <Field label="Color" hint="Shown as the storefront swatch">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={form.hex || "#cccccc"}
+                        onChange={(e) => setField("hex")(e.target.value)}
+                        className="h-9 w-12 rounded border border-gray-300 bg-white p-0.5 cursor-pointer"
+                      />
+                      <Input
+                        value={form.hex}
+                        onChange={setField("hex")}
+                        placeholder="#E6C200"
+                      />
+                    </div>
+                  </Field>
+                  <Field
+                    label={
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={form.twoTone}
+                          onChange={(e) =>
+                            setForm((f) => ({ ...f, twoTone: e.target.checked }))
+                          }
+                        />
+                        Two-tone (second color)
+                      </span>
+                    }
+                    hint="Storefront shows a split swatch of both colors"
+                  >
+                    {form.twoTone ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={form.hex2 || "#cccccc"}
+                          onChange={(e) => setField("hex2")(e.target.value)}
+                          className="h-9 w-12 rounded border border-gray-300 bg-white p-0.5 cursor-pointer"
+                        />
+                        <Input
+                          value={form.hex2}
+                          onChange={setField("hex2")}
+                          placeholder="#E8E8E8"
+                        />
+                        <ColorSwatch hex={form.hex} hex2={form.hex2} size={28} />
+                      </div>
+                    ) : (
+                      <div className="flex items-center h-9">
+                        <ColorSwatch hex={form.hex} size={28} />
+                      </div>
+                    )}
+                  </Field>
+                  <Field label="Applies to metals">
+                    <MetalChecks
+                      value={form.applicableMetals}
+                      onChange={(v) => setForm((f) => ({ ...f, applicableMetals: v }))}
+                    />
+                  </Field>
+                </>
+              )}
+
+              {kind === "metal_purity" && (
+                <>
+                  <Field
+                    label="Pricing Factor"
+                    hint="price = 24K rate × factor ÷ 99.9 (blank = needs its own rate row)"
+                  >
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={form.pricingFactor}
+                      onChange={setField("pricingFactor")}
+                      placeholder="e.g. 78"
+                    />
+                  </Field>
+                  <Field label="Applies to metals">
+                    <MetalChecks
+                      value={form.applicableMetals}
+                      onChange={(v) => setForm((f) => ({ ...f, applicableMetals: v }))}
+                    />
+                  </Field>
+                </>
+              )}
+
+              {kind === "diamond_shape" && (
+                <Field label="Shape Icon / Image" full>
+                  <IconUpload
+                    value={form.iconUrl}
+                    onChange={(v) => setForm((f) => ({ ...f, iconUrl: v }))}
+                  />
+                </Field>
+              )}
+
               <Field label="SEO Slug">
                 <Input
                   value={form.seoSlug}
@@ -336,8 +644,8 @@ export default function CatalogMasters() {
               <tr className="bg-[#162640] text-white text-left">
                 <th className="px-4 py-2.5 font-medium">Code</th>
                 <th className="px-4 py-2.5 font-medium">Name</th>
+                <th className="px-4 py-2.5 font-medium">Details</th>
                 <th className="px-4 py-2.5 font-medium">Sort</th>
-                <th className="px-4 py-2.5 font-medium">Synonyms</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="px-4 py-2.5 font-medium text-right">Actions</th>
               </tr>
@@ -380,12 +688,8 @@ export default function CatalogMasters() {
                       {row.code}
                     </td>
                     <td className="px-4 py-2.5">{row.name}</td>
+                    <td className="px-4 py-2.5">{renderDetails(row)}</td>
                     <td className="px-4 py-2.5">{row.sortOrder ?? 0}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {Array.isArray(row.synonyms) && row.synonyms.length
-                        ? row.synonyms.join(", ")
-                        : "—"}
-                    </td>
                     <td className="px-4 py-2.5">
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
