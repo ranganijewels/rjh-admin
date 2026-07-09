@@ -99,7 +99,11 @@ function toProductBody(body = {}) {
   set("diamondCertLab", body.cert_lab ?? body.diamondCertLab);
   set("diamondCertNumber", body.cert_number ?? body.diamondCertNumber);
   set("diamondCertUrl", body.cert_url ?? body.diamondCertUrl);
-  set("seoTitle", body.title_line ?? body.seoTitle);
+  // Explicit SEO meta title wins; the marketing Title Line is the fallback.
+  set("seoTitle", body.seo_title ?? body.title_line ?? body.seoTitle);
+  set("seoDescription", body.seo_description ?? body.seoDescription);
+  set("shopifyTags", body.seo_keywords ?? body.shopifyTags);
+  set("ringSize", body.default_size ?? body.ringSize);
   set("description", body.description);
   set("shortDescription", body.short_description ?? body.shortDescription);
   num("grossWeightG", body.gross_weight ?? body.grossWeightG);
@@ -124,6 +128,36 @@ function toProductBody(body = {}) {
   setMeta("titleLine", body.title_line);
   setMeta("remarks", body.remarks);
   setMeta("plan", body.package);
+  // ── ERP Design-Master extras ──────────────────────────────────────────
+  setMeta("productType", body.product_type);
+  setMeta("style", body.design_style);
+  setMeta("makeType", body.make_type);
+  setMeta("vendorCode", body.vendor_code);
+  setMeta("cadDesigner", body.cad_designer);
+  setMeta("parentDesign", body.parent_design);
+  setMeta("designPackage", body.design_package);
+  if (body.mfg && typeof body.mfg === "object") setMeta("mfg", body.mfg);
+  if (Array.isArray(body.size_weight_diff))
+    meta.sizeWeightDiff = body.size_weight_diff.filter(
+      (r) => r && r.size !== "" && r.percent !== ""
+    );
+  const mrp = Number(body.mrp_override);
+  if (Number.isFinite(mrp)) meta.mrpOverride = mrp > 0 ? mrp : undefined;
+  if (meta.mrpOverride === undefined) delete meta.mrpOverride;
+  // SEO + Google Shopping data (schema/feed read these)
+  if (body.seo_og_image !== undefined)
+    meta.seo = { ...(meta.seo || {}), ogImage: body.seo_og_image || undefined };
+  if (body.shopping_availability || body.google_product_category) {
+    meta.shopping = {
+      ...(meta.shopping || {}),
+      ...(body.shopping_availability
+        ? { availability: body.shopping_availability }
+        : {}),
+      ...(body.google_product_category
+        ? { googleProductCategory: body.google_product_category }
+        : {}),
+    };
+  }
   if (Array.isArray(body.materials) && body.materials.length) {
     meta.materials = body.materials.filter(
       (m) => m && Object.values(m).some((v) => v !== "" && v != null)

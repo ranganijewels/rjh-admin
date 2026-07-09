@@ -106,11 +106,39 @@ const EMPTY = {
   // Default offering — one Gold option in white; user can add Silver etc.
   metal_options: [{ type: "Gold", purities: ["18K"], colors: ["White"] }],
   weight_matrix: [],
+  // ── ERP Design-Master fields ──
+  product_type: "", design_style: "", make_type: "", vendor_code: "",
+  cad_designer: "", default_size: "", parent_design: "", design_package: "",
+  remarks: "",
+  mfg_design: "", wax_wt: "", cam_wt: "", molds: [], production_images: [],
+  size_weight_diff: [],
+  mrp_override: "",
+  // ── SEO & Google Shopping ──
+  seo_title: "", seo_description: "", seo_keywords: "", seo_og_image: "",
+  shopping_availability: "", google_product_category: "",
 };
 
+// Material row — mirrors the ERP "Material Added In Design" table.
+const MATERIAL_TYPES = ["Metal", "Diamond", "Stone", "Misc", "Finding"];
 const EMPTY_MATERIAL = {
-  component: "", metalStoneType: "", shape: "", quality: "",
-  color: "", size: "", setting: "", pcs: "", wt: "",
+  component: "", materialType: "", metalStoneType: "", shape: "", quality: "",
+  color: "", size: "", setting: "", pcs: "", wt: "", centerStone: false,
+};
+const emptyMold = () => ({ name: "", locker: "", pcs: "" });
+const emptySizeDiff = () => ({ size: "", percent: "" });
+
+// ERP-style totals line: Metal g || Dia pcs/ct || Stone || Misc || Finding
+const materialSummary = (rows) => {
+  const sum = {};
+  (rows || []).forEach((r) => {
+    const t = r.materialType || "Misc";
+    sum[t] = sum[t] || { pcs: 0, wt: 0 };
+    sum[t].pcs += Number(r.pcs) || 0;
+    sum[t].wt += Number(r.wt) || 0;
+  });
+  const fmt = (t) =>
+    sum[t] ? `${sum[t].pcs ? sum[t].pcs + " pcs / " : ""}${+sum[t].wt.toFixed(3)}` : "—";
+  return `Metal: ${sum.Metal ? +sum.Metal.wt.toFixed(3) + " g" : "—"} || Dia: ${fmt("Diamond")}${sum.Diamond ? " ct" : ""} || Stone: ${fmt("Stone")} || Misc: ${fmt("Misc")} || Finding: ${fmt("Finding")}`;
 };
 
 // Media buckets are keyed by color NAME and created lazily — colors are
@@ -130,11 +158,14 @@ export default function ProductForm({ id }) {
   // Falls back to the static METAL_CATALOG if the API is unreachable.
   const [metalCatalog, setMetalCatalog] = useState(METAL_CATALOG);
   const [shapeOptions, setShapeOptions] = useState(SHAPES);
+  const [productTypeOptions, setProductTypeOptions] = useState([
+    "Diamond Jewellery", "Gold Jewellery", "Silver Jewellery", "Platinum Jewellery",
+  ]);
   useEffect(() => {
     (async () => {
       try {
-        const [types, purities, colors, shapes] = await Promise.all(
-          ["metal_type", "metal_purity", "metal_color", "diamond_shape"].map((k) =>
+        const [types, purities, colors, shapes, ptypes] = await Promise.all(
+          ["metal_type", "metal_purity", "metal_color", "diamond_shape", "product_type"].map((k) =>
             fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
               r.ok ? r.json() : []
             )
@@ -171,6 +202,9 @@ export default function ProductForm({ id }) {
         if (Object.keys(cat).length) setMetalCatalog(cat);
         if (Array.isArray(shapes) && shapes.length) {
           setShapeOptions([...shapes].sort(bySort).map((s) => s.name));
+        }
+        if (Array.isArray(ptypes) && ptypes.length) {
+          setProductTypeOptions([...ptypes].sort(bySort).map((s) => s.name));
         }
       } catch {
         /* keep the static fallback */
@@ -241,9 +275,37 @@ export default function ProductForm({ id }) {
           width: p.width ?? "",
           diamond_wt: p.diamond_wt ?? "",
           diamond_pcs: p.diamond_pcs ?? "",
-          labour_amount: p.labour_amount ?? "",
+          labour_amount: p.labour_amount ?? p.makingCharge ?? "",
           product_image: p.product_image ?? "",
           is_active: p.is_active ?? true,
+          // ── ERP fields (metadata-backed) ──
+          product_type: p.metadata?.productType ?? "",
+          design_style: p.metadata?.style ?? "",
+          make_type: p.metadata?.makeType ?? "",
+          vendor_code: p.metadata?.vendorCode ?? "",
+          cad_designer: p.metadata?.cadDesigner ?? "",
+          default_size: p.ringSize ?? "",
+          parent_design: p.metadata?.parentDesign ?? "",
+          design_package: p.metadata?.designPackage ?? "",
+          remarks: p.metadata?.remarks ?? "",
+          mfg_design: p.metadata?.mfg?.mfgDesign ?? "",
+          wax_wt: p.metadata?.mfg?.waxWt ?? "",
+          cam_wt: p.metadata?.mfg?.camWt ?? "",
+          molds: Array.isArray(p.metadata?.mfg?.molds) ? p.metadata.mfg.molds : [],
+          production_images: Array.isArray(p.metadata?.mfg?.productionImages)
+            ? p.metadata.mfg.productionImages
+            : [],
+          size_weight_diff: Array.isArray(p.metadata?.sizeWeightDiff)
+            ? p.metadata.sizeWeightDiff
+            : [],
+          mrp_override: p.metadata?.mrpOverride ?? "",
+          // ── SEO & Google ──
+          seo_title: p.seoTitle ?? "",
+          seo_description: p.seoDescription ?? "",
+          seo_keywords: p.shopifyTags ?? "",
+          seo_og_image: p.metadata?.seo?.ogImage ?? "",
+          shopping_availability: p.metadata?.shopping?.availability ?? "",
+          google_product_category: p.metadata?.shopping?.googleProductCategory ?? "",
         });
         setMaterials(Array.isArray(p.materials) ? p.materials : []);
         // Reconstruct per-color media lists (role in altText, type in mediaType)
@@ -343,9 +405,22 @@ export default function ProductForm({ id }) {
         .sort((a, b) => a.carat - b.carat);
       const primary = cleanMetalOptions[0] || {};
       const cover = pickCover();
+      // Manufacturing block + size→weight rows (folded into metadata server-side).
+      const mfg = {
+        mfgDesign: form.mfg_design || undefined,
+        waxWt: form.wax_wt !== "" ? Number(form.wax_wt) : undefined,
+        camWt: form.cam_wt !== "" ? Number(form.cam_wt) : undefined,
+        molds: (form.molds || []).filter((m) => m.name || m.locker || m.pcs),
+        productionImages: (form.production_images || []).filter(Boolean),
+      };
+      const cleanSizeDiff = (form.size_weight_diff || [])
+        .filter((r) => r.size !== "" && r.percent !== "")
+        .map((r) => ({ size: String(r.size), percent: Number(r.percent) }));
 
       const payload = {
         ...form,
+        mfg,
+        size_weight_diff: cleanSizeDiff,
         // Primary scalars derived from the first metal option (back-compat).
         metal: primary.type || form.metal,
         metal_purity: primary.purities?.[0] || form.metal_purity,
@@ -470,6 +545,9 @@ export default function ProductForm({ id }) {
               </p>
             )}
           </Field>
+          <Field label="Product Type">
+            <Select value={form.product_type} onChange={(e) => set("product_type", e.target.value)} options={productTypeOptions} />
+          </Field>
           <Field label="Category">
             <Select value={form.category} onChange={(e) => set("category", e.target.value)} options={CATEGORIES} />
           </Field>
@@ -479,9 +557,33 @@ export default function ProductForm({ id }) {
           <Field label="Gender">
             <Select value={form.gender} onChange={(e) => set("gender", e.target.value)} options={GENDERS} />
           </Field>
+          <Field label="Style">
+            <Input value={form.design_style} onChange={(e) => set("design_style", e.target.value)} placeholder="e.g. Solitaire, Halo" />
+          </Field>
+          <Field label="Make Type">
+            <Input value={form.make_type} onChange={(e) => set("make_type", e.target.value)} placeholder="e.g. Casting, Handmade" />
+          </Field>
+          <Field label="Vendor Code">
+            <Input value={form.vendor_code} onChange={(e) => set("vendor_code", e.target.value)} placeholder="Vendor code" />
+          </Field>
+          <Field label="CAD Designer">
+            <Input value={form.cad_designer} onChange={(e) => set("cad_designer", e.target.value)} placeholder="e.g. AKASH" />
+          </Field>
+          <Field label="Default Size">
+            <Input value={form.default_size} onChange={(e) => set("default_size", e.target.value)} placeholder="e.g. US-7" />
+          </Field>
+          <Field label="Parent Design">
+            <Input value={form.parent_design} onChange={(e) => set("parent_design", e.target.value)} placeholder="Parent design no" />
+          </Field>
+          <Field label="Design Package">
+            <Input value={form.design_package} onChange={(e) => set("design_package", e.target.value)} placeholder="Package" />
+          </Field>
         </Grid>
         <Field label="Description" full>
           <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Product description" />
+        </Field>
+        <Field label="Remarks" full>
+          <Input value={form.remarks} onChange={(e) => set("remarks", e.target.value)} placeholder="Internal remarks (not shown on storefront)" />
         </Field>
       </Section>
 
@@ -683,7 +785,103 @@ export default function ProductForm({ id }) {
           <Field label="Length (mm)"><Input type="number" value={form.length} onChange={(e) => set("length", e.target.value)} placeholder="0" /></Field>
           <Field label="Width (mm)"><Input type="number" value={form.width} onChange={(e) => set("width", e.target.value)} placeholder="0" /></Field>
         </Grid>
+        <Grid>
+          <Field label="Design MRP Override ($)">
+            <Input type="number" value={form.mrp_override} onChange={(e) => set("mrp_override", e.target.value)} placeholder="blank = engine price" />
+            <p className="text-[11px] text-muted-foreground">When set, this exact price is charged — the engine price below is ignored.</p>
+          </Field>
+          <Field label="Labour Amount Override ($)">
+            <Input type="number" value={form.labour_amount} onChange={(e) => set("labour_amount", e.target.value)} placeholder="blank = labour master" />
+            <p className="text-[11px] text-muted-foreground">Flat labour for this design; overrides the Labour Rate master.</p>
+          </Field>
+        </Grid>
         <ComputedPrice form={form} materials={materials} />
+      </Section>
+
+      {/* Section: ERP "Desig Size Wt Diff" — ring size → weight increase % */}
+      <Section title="Size → Weight Adjustment">
+        <p className="text-xs text-muted-foreground mb-3">
+          Weight increase per ring size vs the default size ({form.default_size || "e.g. US-7"}).
+          e.g. US-8 → +5% metal weight. Used for size-based pricing.
+        </p>
+        <div className="space-y-2 max-w-[520px]">
+          {form.size_weight_diff.length === 0 && (
+            <p className="text-xs text-muted-foreground italic">No rows — all sizes price at the default weight.</p>
+          )}
+          {form.size_weight_diff.map((row, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input
+                value={row.size}
+                onChange={(e) => set("size_weight_diff", form.size_weight_diff.map((r, idx) => idx === i ? { ...r, size: e.target.value } : r))}
+                placeholder="US-8"
+                className="w-28"
+              />
+              <span className="text-muted-foreground">→ +</span>
+              <Input
+                type="number" step="0.1"
+                value={row.percent}
+                onChange={(e) => set("size_weight_diff", form.size_weight_diff.map((r, idx) => idx === i ? { ...r, percent: e.target.value } : r))}
+                placeholder="5"
+                className="w-24"
+              />
+              <span className="text-xs text-secondary-foreground">%
+                {Number(form.net_weight) > 0 && Number(row.percent) > 0 &&
+                  ` ≈ +${((Number(form.net_weight) * Number(row.percent)) / 100).toFixed(2)} g`}
+              </span>
+              <button type="button" onClick={() => set("size_weight_diff", form.size_weight_diff.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-600 ms-1">
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <Button variant="outline" size="sm" className="mt-3 gap-1.5" onClick={() => set("size_weight_diff", [...form.size_weight_diff, emptySizeDiff()])}>
+          <Plus className="size-3.5" /> Add Size Row
+        </Button>
+      </Section>
+
+      {/* Section: Manufacturing (ERP Design Master) */}
+      <Section title="Manufacturing (ERP)">
+        <Grid>
+          <Field label="MFG Design"><Input value={form.mfg_design} onChange={(e) => set("mfg_design", e.target.value)} placeholder="MFG design ref" /></Field>
+          <Field label="Wax Wt (g)"><Input type="number" value={form.wax_wt} onChange={(e) => set("wax_wt", e.target.value)} placeholder="0.00" /></Field>
+          <Field label="Cam Wt (g)"><Input type="number" value={form.cam_wt} onChange={(e) => set("cam_wt", e.target.value)} placeholder="0.00" /></Field>
+        </Grid>
+        <div className="mt-2">
+          <div className="text-xs font-semibold mb-1.5">Mold Library</div>
+          <div className="space-y-2 max-w-[560px]">
+            {form.molds.map((m, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <Input value={m.name} onChange={(e) => set("molds", form.molds.map((r, idx) => idx === i ? { ...r, name: e.target.value } : r))} placeholder="Mold name" />
+                <Input value={m.locker} onChange={(e) => set("molds", form.molds.map((r, idx) => idx === i ? { ...r, locker: e.target.value } : r))} placeholder="Locker" className="w-32" />
+                <Input type="number" value={m.pcs} onChange={(e) => set("molds", form.molds.map((r, idx) => idx === i ? { ...r, pcs: e.target.value } : r))} placeholder="Pcs" className="w-20" />
+                <button type="button" onClick={() => set("molds", form.molds.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-600">
+                  <Trash2 className="size-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" className="mt-2 gap-1.5" onClick={() => set("molds", [...form.molds, emptyMold()])}>
+            <Plus className="size-3.5" /> Add Mold
+          </Button>
+        </div>
+        <div className="mt-4">
+          <div className="text-xs font-semibold mb-1.5">Production Images (internal — not shown on storefront)</div>
+          <div className="flex flex-wrap gap-3">
+            {form.production_images.map((url, i) => (
+              <div key={i} className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="" className="w-20 h-20 object-cover rounded border border-border" />
+                <button type="button" onClick={() => set("production_images", form.production_images.filter((_, idx) => idx !== i))}
+                  className="absolute -top-2 -right-2 bg-white border border-border rounded-full p-0.5 text-red-500">
+                  <Trash2 className="size-3" />
+                </button>
+              </div>
+            ))}
+            <div className="w-20">
+              <ImageUpload compact value="" onChange={(v) => v && set("production_images", [...form.production_images, v])} />
+            </div>
+          </div>
+        </div>
       </Section>
 
       {/* Section: Diamond Certification & 4Cs */}
@@ -702,17 +900,19 @@ export default function ProductForm({ id }) {
         </Grid>
       </Section>
 
-      {/* Section: Material Details */}
+      {/* Section: Material Added In Design (ERP-style BOM) */}
       <Section
-        title="Material Details"
-        advanced
+        title="Material Added In Design"
         action={<Button variant="outline" size="sm" onClick={addMaterial}><Plus className="h-4 w-4 mr-1" /> Add Material</Button>}
       >
+        <p className="text-xs font-medium mb-2 text-secondary-foreground">
+          {materialSummary(materials)}
+        </p>
         <div className="overflow-x-auto border border-border rounded-lg">
           <table className="w-full text-xs">
             <thead className="bg-muted/50">
               <tr className="text-left">
-                {["Component", "Metal/Stone", "Shape", "Quality", "Color", "Size", "Setting", "Pcs", "Wt", ""].map((h) => (
+                {["Component", "Type", "Metal/Stone", "Shape", "Quality", "Color", "Size (MM)", "Setting", "Pcs", "Wt", "Center", ""].map((h) => (
                   <th key={h} className="p-2 font-medium whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -720,11 +920,35 @@ export default function ProductForm({ id }) {
             <tbody>
               {materials.map((row, i) => (
                 <tr key={i} className="border-t border-border">
-                  {["component", "metalStoneType", "shape", "quality", "color", "size", "setting", "pcs", "wt"].map((k) => (
+                  <td className="p-1">
+                    <Input className="h-8 text-xs min-w-[60px]" value={row.component ?? ""} onChange={(e) => setMaterial(i, "component", e.target.value)} />
+                  </td>
+                  <td className="p-1">
+                    <select
+                      value={row.materialType ?? ""}
+                      onChange={(e) => setMaterial(i, "materialType", e.target.value)}
+                      className="h-8 rounded-md border border-input bg-background px-1.5 text-xs min-w-[86px]"
+                    >
+                      <option value="">Type</option>
+                      {MATERIAL_TYPES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </td>
+                  {["metalStoneType", "shape", "quality", "color", "size", "setting", "pcs", "wt"].map((k) => (
                     <td key={k} className="p-1">
-                      <Input className="h-8 text-xs min-w-[70px]" value={row[k] ?? ""} onChange={(e) => setMaterial(i, k, e.target.value)} />
+                      <Input className="h-8 text-xs min-w-[62px]" value={row[k] ?? ""} onChange={(e) => setMaterial(i, k, e.target.value)} />
                     </td>
                   ))}
+                  <td className="p-1 text-center">
+                    {/* ERP's red/green dot — green marks the center stone */}
+                    <input
+                      type="checkbox"
+                      checked={!!row.centerStone}
+                      onChange={(e) => setMaterial(i, "centerStone", e.target.checked)}
+                      title="Center stone"
+                    />
+                  </td>
                   <td className="p-1 text-center">
                     <Button variant="outline" mode="icon" size="sm" onClick={() => removeMaterial(i)}>
                       <Trash2 className="h-3.5 w-3.5 text-red-500" />
@@ -733,10 +957,57 @@ export default function ProductForm({ id }) {
                 </tr>
               ))}
               {materials.length === 0 && (
-                <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">No materials added.</td></tr>
+                <tr><td colSpan={12} className="p-4 text-center text-muted-foreground">No materials added — e.g. Metal/GOLD/14KT 8.5g, Diamond/CVD/RND 1.40MM ×42.</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+      </Section>
+
+      {/* Section: SEO & Google Shopping / AI search */}
+      <Section title="SEO & Google Shopping">
+        <p className="text-xs text-muted-foreground mb-3">
+          Powers Google search snippets, Google Shopping and AI shopping results
+          (Google AI, Gemini, ChatGPT). Leave blank to use smart defaults from the
+          product name/description.
+        </p>
+        <Grid>
+          <Field label="Meta Title">
+            <Input value={form.seo_title} onChange={(e) => set("seo_title", e.target.value)} placeholder={form.title || "defaults to product name"} maxLength={70} />
+            <p className="text-[11px] text-muted-foreground">{(form.seo_title || "").length}/70</p>
+          </Field>
+          <Field label="Keywords (comma separated)">
+            <Input value={form.seo_keywords} onChange={(e) => set("seo_keywords", e.target.value)} placeholder="lab grown diamond ring, 14k gold…" />
+          </Field>
+          <Field label="Availability (Google)">
+            <select
+              value={form.shopping_availability}
+              onChange={(e) => set("shopping_availability", e.target.value)}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+            >
+              <option value="">Made to order (default — listed as In stock)</option>
+              <option value="preorder">Preorder</option>
+              <option value="out_of_stock">Out of stock</option>
+            </select>
+          </Field>
+          <Field label="Google Product Category" hint="Auto: Rings 200 · Necklaces 196 · Earrings 194 · Bracelets 191 · Pendants 193">
+            <Input value={form.google_product_category} onChange={(e) => set("google_product_category", e.target.value)} placeholder="auto from category" />
+          </Field>
+        </Grid>
+        <Field label="Meta Description" full>
+          <Textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={2} maxLength={170} placeholder="155–160 characters shown in Google results" />
+          <p className="text-[11px] text-muted-foreground">{(form.seo_description || "").length}/160 recommended</p>
+        </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Social Share Image (OG) — optional">
+            <ImageUpload compact value={form.seo_og_image} onChange={(v) => set("seo_og_image", v)} />
+          </Field>
+          <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-1">
+            <div><b>Sent automatically to Google/AI:</b></div>
+            <div>Brand: {form.brand || "Rangani Jewelry House"} · MPN: {form.design_no || "—"} · Condition: New</div>
+            <div>Item group (shape variants): {deriveDesignGroup(form.design_no, form.title) || "—"}</div>
+            <div>No barcode (identifier_exists = no) · Feed: /api/v1/feeds/google.xml</div>
+          </div>
         </div>
       </Section>
 
@@ -914,7 +1185,9 @@ function ComputedPrice({ form, materials }) {
             Computed Price (live, from Pricing Engine — not stored)
           </div>
           <div className="text-lg font-semibold">
-            {loading
+            {Number(form.mrp_override) > 0
+              ? `$${Number(form.mrp_override).toLocaleString()} (MRP override)`
+              : loading
               ? "Calculating…"
               : result
               ? `$${Number(result.finalPrice || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`
