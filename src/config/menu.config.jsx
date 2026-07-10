@@ -140,6 +140,7 @@ export const MENU_SIDEBAR = [
     icon: MessagesSquare,
     children: [
       { title: "Live Chat", path: "/dashboard/communication/live-chat" },
+      { title: "Appointments", path: "/dashboard/communication/appointments" },
       { title: "Support Inbox", path: "/dashboard/support" },
     ],
   },

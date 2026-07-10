@@ -141,6 +141,11 @@ function toProductBody(body = {}) {
     meta.sizeWeightDiff = body.size_weight_diff.filter(
       (r) => r && r.size !== "" && r.percent !== ""
     );
+  const dd = Number(body.display_discount_percent);
+  if (Number.isFinite(dd)) meta.displayDiscountPercent = dd > 0 ? dd : undefined;
+  if (meta.displayDiscountPercent === undefined) delete meta.displayDiscountPercent;
+  if (Array.isArray(body.pairs_with))
+    meta.pairsWith = body.pairs_with.filter(Boolean).slice(0, 4);
   const mrp = Number(body.mrp_override);
   if (Number.isFinite(mrp)) meta.mrpOverride = mrp > 0 ? mrp : undefined;
   if (meta.mrpOverride === undefined) delete meta.mrpOverride;

@@ -116,6 +116,7 @@ const EMPTY = {
   // ── SEO & Google Shopping ──
   seo_title: "", seo_description: "", seo_keywords: "", seo_og_image: "",
   shopping_availability: "", google_product_category: "",
+  display_discount_percent: "",
 };
 
 // Material row — mirrors the ERP "Material Added In Design" table.
@@ -157,6 +158,22 @@ export default function ProductForm({ id }) {
   // ── Live catalog from Catalog Masters (types → purities/colors + hexes) ────
   // Falls back to the static METAL_CATALOG if the API is unreachable.
   const [metalCatalog, setMetalCatalog] = useState(METAL_CATALOG);
+  // "Pairs well with" — manual picks shown on the PDP under the FAQs.
+  const [pairsWithItems, setPairsWithItems] = useState([]); // [{id,title}]
+  const [pairSearch, setPairSearch] = useState("");
+  const [pairResults, setPairResults] = useState([]);
+  useEffect(() => {
+    const q = pairSearch.trim();
+    if (q.length < 2) { setPairResults([]); return; }
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/product-management?limit=8&page=1&search=${encodeURIComponent(q)}`, { headers: authHeaders() });
+        const j = await r.json();
+        setPairResults((j?.data || []).map((x) => ({ id: x.id, title: x.title })));
+      } catch { setPairResults([]); }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [pairSearch]);
   const [shapeOptions, setShapeOptions] = useState(SHAPES);
   const [productTypeOptions, setProductTypeOptions] = useState([
     "Diamond Jewellery", "Gold Jewellery", "Silver Jewellery", "Platinum Jewellery",
@@ -306,7 +323,20 @@ export default function ProductForm({ id }) {
           seo_og_image: p.metadata?.seo?.ogImage ?? "",
           shopping_availability: p.metadata?.shopping?.availability ?? "",
           google_product_category: p.metadata?.shopping?.googleProductCategory ?? "",
+          display_discount_percent: p.metadata?.displayDiscountPercent ?? "",
         });
+        // Hydrate "pairs well with" titles from the stored ids.
+        const pairIds = Array.isArray(p.metadata?.pairsWith) ? p.metadata.pairsWith : [];
+        if (pairIds.length) {
+          Promise.all(
+            pairIds.map((pid) =>
+              fetch(`/api/product-management/${pid}`, { headers: authHeaders() })
+                .then((r) => r.json())
+                .then((j) => ({ id: pid, title: (j?.data || j)?.title || (j?.data || j)?.productName || pid.slice(0, 8) }))
+                .catch(() => ({ id: pid, title: pid.slice(0, 8) }))
+            )
+          ).then(setPairsWithItems);
+        }
         setMaterials(Array.isArray(p.materials) ? p.materials : []);
         // Reconstruct per-color media lists (role in altText, type in mediaType)
         const media = Array.isArray(p.media) ? p.media : [];
@@ -421,6 +451,7 @@ export default function ProductForm({ id }) {
         ...form,
         mfg,
         size_weight_diff: cleanSizeDiff,
+        pairs_with: pairsWithItems.map((x) => x.id),
         // Primary scalars derived from the first metal option (back-compat).
         metal: primary.type || form.metal,
         metal_purity: primary.purities?.[0] || form.metal_purity,
@@ -993,11 +1024,44 @@ export default function ProductForm({ id }) {
           <Field label="Google Product Category" hint="Auto: Rings 200 · Necklaces 196 · Earrings 194 · Bracelets 191 · Pendants 193">
             <Input value={form.google_product_category} onChange={(e) => set("google_product_category", e.target.value)} placeholder="auto from category" />
           </Field>
+          <Field label="Display Discount % (promo)" hint="Storefront shows strikethrough + 'Save X%' + ENDS SOON. Charged price stays the real price. Blank = no promo badge.">
+            <Input type="number" min="0" max="89" value={form.display_discount_percent} onChange={(e) => set("display_discount_percent", e.target.value)} placeholder="e.g. 30" />
+          </Field>
         </Grid>
         <Field label="Meta Description" full>
           <Textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={2} maxLength={170} placeholder="155–160 characters shown in Google results" />
           <p className="text-[11px] text-muted-foreground">{(form.seo_description || "").length}/160 recommended</p>
         </Field>
+        <div className="mb-3">
+          <label className="text-xs font-medium text-muted-foreground">Pairs Well With (max 4) — shown under the FAQs on the product page</label>
+          <div className="flex flex-wrap gap-1.5 mt-1.5">
+            {pairsWithItems.map((it) => (
+              <span key={it.id} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs">
+                {it.title}
+                <button type="button" className="text-red-500" onClick={() => setPairsWithItems(pairsWithItems.filter((x) => x.id !== it.id))}>×</button>
+              </span>
+            ))}
+          </div>
+          {pairsWithItems.length < 4 && (
+            <div className="relative max-w-[380px] mt-1.5">
+              <Input value={pairSearch} onChange={(e) => setPairSearch(e.target.value)} placeholder="Search products to pair…" />
+              {pairResults.length > 0 && (
+                <div className="absolute z-20 mt-1 w-full rounded-md border border-border bg-background shadow">
+                  {pairResults.map((r) => (
+                    <button key={r.id} type="button"
+                      className="block w-full text-left px-3 py-1.5 text-xs hover:bg-muted"
+                      onClick={() => {
+                        if (!pairsWithItems.find((x) => x.id === r.id)) setPairsWithItems([...pairsWithItems, r]);
+                        setPairSearch(""); setPairResults([]);
+                      }}>
+                      {r.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Social Share Image (OG) — optional">
             <ImageUpload compact value={form.seo_og_image} onChange={(v) => set("seo_og_image", v)} />
