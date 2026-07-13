@@ -113,7 +113,11 @@ const DIAMOND_CLARITIES = ["", "FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", 
 
 const EMPTY = {
   title: "", design_no: "", category: "", subcategory: "", collection: "",
-  occasion: "", brand: "", gender: "", designer: "", title_line: "", description: "",
+  occasion: "", brand: "", gender: "", designer: "", title_line: "",
+  // Short description = the 1-2 line teaser shown on the PDP buy box and
+  // product cards. Description (below) is the full storefront copy — the
+  // two are intentionally separate fields, not derived from one another.
+  short_description: "", description: "",
   design_group: "", metal: "Gold", metal_purity: "18K", metal_color: "White",
   shape: "Round", diamond_quality: "", gross_weight: "", net_weight: "", length: "",
   width: "", diamond_wt: "", diamond_pcs: "", labour_amount: "",
@@ -341,6 +345,7 @@ export default function ProductForm({ id }) {
           gender: p.gender ?? "",
           designer: p.designer ?? "",
           title_line: p.title_line ?? "",
+          short_description: p.short_description ?? "",
           description: p.description ?? "",
           design_group: p.metadata?.designGroup ?? "",
           metal: p.metal ?? p.metalType ?? p.metadata?.metalOptions?.[0]?.type ?? "Gold",
@@ -716,6 +721,10 @@ export default function ProductForm({ id }) {
             <Input value={form.design_package} onChange={(e) => set("design_package", e.target.value)} placeholder="Package" />
           </Field>
         </Grid>
+        <Field label="Short Description" full hint="1-2 line teaser shown on the PDP buy box and product cards — separate from the full Description below.">
+          <Textarea value={form.short_description} onChange={(e) => set("short_description", e.target.value)} rows={2} maxLength={160} placeholder="e.g. A sleek half bezel cradles a round brilliant — architectural, modern, unmistakable." />
+          <p className="text-[11px] text-muted-foreground">{(form.short_description || "").length}/160</p>
+        </Field>
         <Field label="Description" full>
           <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Product description" />
         </Field>

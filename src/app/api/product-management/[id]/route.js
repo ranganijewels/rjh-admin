@@ -13,6 +13,7 @@ function mapProductDetail(p) {
     category: p.category,
     subcategory: p.subCategory,
     style: p.subCategory,
+    short_description: p.shortDescription ?? null,
     metal: p.metalType,
     metal_purity: p.metalPurity,
     metal_color: p.metalColor,
