@@ -1,6 +1,5 @@
 import { apiPost } from "@/services/api";
 import { createAsyncThunk } from "@reduxjs/toolkit";
-import { toast } from "sonner";
 
 export const loginUser = createAsyncThunk(
   "auth/loginUser",
@@ -54,23 +53,25 @@ export const logoutUser = createAsyncThunk(
     const token = state.auth.token;
 
     try {
-      const res = await apiPost(`/api/logout`);
-
-      if (!res.ok) throw new Error("Logout failed");
+      // apiPost() (services/api.js) returns the parsed JSON body on success
+      // and already throws internally on any non-2xx response — so `res.ok`
+      // here was always undefined and this threw unconditionally, meaning
+      // logout never got past this line to clear the token or redirect.
+      await apiPost(`/api/logout`);
 
       localStorage.removeItem("authTokenStoreAdmin");
       localStorage.removeItem("auth");
+      localStorage.removeItem("storeId");
 
       document.cookie =
         "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; SameSite=Strict;";
       document.cookie =
         "on_boarding_exists=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; secure; SameSite=Strict;";
 
-      toast.success("Logout successful");
-
+      // Success/error toasts are shown by the caller (SidebarMenu's
+      // .unwrap().then()/.catch()) — not duplicated here.
       return true;
     } catch (err) {
-      toast.error("Logout failed");
       return thunkAPI.rejectWithValue(err.message);
     }
   }

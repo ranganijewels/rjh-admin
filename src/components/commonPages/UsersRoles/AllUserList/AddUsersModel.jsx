@@ -49,7 +49,7 @@ const AddUserModal = ({ open, onClose, onSuccess, editData }) => {
     email: z.string().email("Invalid email address"),
     password: editData
       ? z.string().optional() // not required in edit
-      : z.string().min(6, "Password must be at least 6 characters"),
+      : z.string().min(8, "Password must be at least 8 characters"),
     role: z.string().min(1, "Role is required"),
     department: z.string().min(1, "Department is required"),
 
@@ -127,7 +127,10 @@ const AddUserModal = ({ open, onClose, onSuccess, editData }) => {
         email: values.email,
         password: values.password,
         designation: values.designation || "",
-        role_id: Number(values.role),
+        // Backend's role is a plain string slug (admin/manager/staff/viewer),
+        // not a numeric role_id — sending role_id here silently discarded
+        // whatever the admin picked and every user was created as "staff".
+        role: values.role,
         department_id: Number(values.department),
         is_manager: values.is_manager ? 1 : 0,
       };
@@ -136,11 +139,12 @@ const AddUserModal = ({ open, onClose, onSuccess, editData }) => {
         ? await update(editData.id, payload)
         : await create(payload);
 
-      if (!res?.status) {
-        toast.error(res?.error || res?.message || "Something went wrong");
-        return;
-      }
-
+      // create()/update() (storeAdminCrud.js) already throw on any non-2xx
+      // response with the real backend error message — reaching this line
+      // means the request already succeeded, so there's nothing further to
+      // check here. (Previously this checked `res?.status`, a key neither
+      // response actually returns on success, so it fired an error toast
+      // unconditionally — even when the user really was created.)
       toast.success(editData ? "User updated" : "User added");
 
       onSuccess?.(res.data);
@@ -240,7 +244,7 @@ const AddUserModal = ({ open, onClose, onSuccess, editData }) => {
                   <FormControl>
                     <Input
                       type="password"
-                      placeholder="Enter password"
+                      placeholder="At least 8 characters"
                       {...field}
                     />
                   </FormControl>

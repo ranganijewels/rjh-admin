@@ -25,7 +25,11 @@ export const apiPost = async (url, body) => {
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      ...(token && { Authorization: `${token}` }),
+      // NestJS's JWT guard requires the "Bearer " scheme
+      // (ExtractJwt.fromAuthHeaderAsBearerToken) — sending the raw token
+      // made every authenticated apiPost call (e.g. the logout API's
+      // server-side session revocation) silently fail JWT extraction.
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...(storeId && { "x-tenant-id": storeId }),
     },
     credentials: "include",

@@ -27,7 +27,9 @@ export async function POST(req) {
   const authHeader = req.headers.get("authorization");
   try {
     const body = await req.json();
-    // Create user via auth register endpoint
+    // Create user via auth register endpoint. RegisterDto's `role` is a plain
+    // string enum (admin/manager/staff/viewer/customer) — the admin form's
+    // role picker sends that same slug as `role`, not a numeric role_id.
     const res = await fetch(`${NEST}/api/v1/auth/register`, {
       method: "POST",
       headers: {
@@ -37,15 +39,24 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         email: body.email,
-        password: body.password || "Admin@123",
+        password: body.password,
         fullName: body.name || body.fullName || body.full_name,
         role: body.role || "staff",
         phone: body.phone,
       }),
     });
     const data = await res.json();
-    return NextResponse.json({ success: true, data: data.data });
+    // Previously this always returned success regardless of the backend
+    // result, so real failures (duplicate email, weak password, invalid
+    // role) were silently swallowed and the UI showed a false "User added".
+    if (!res.ok) {
+      return NextResponse.json(
+        { status: false, error: data?.message || "Failed to create user" },
+        { status: res.status }
+      );
+    }
+    return NextResponse.json({ status: true, data: data?.data });
   } catch (err) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ status: false, error: err.message }, { status: 500 });
   }
 }
