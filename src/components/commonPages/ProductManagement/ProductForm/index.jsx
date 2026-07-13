@@ -57,11 +57,29 @@ const colorsFromMetalOptions = (opts) => {
 //   "Nirvana 1 ctw Pear Lab Grown Diamond Solitaire Ring"  → "NIRVANA"
 //   "Audrey 1 ½ Ctw Round Half Bezel Two Tone Engagement Ring" → "AUDREY"
 const CARAT_CUE = "\\d|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]"; // digit OR a unicode vulgar fraction
-const deriveDesignGroup = (designNo, title) => {
-  // PRIMARY: the Design No minus its trailing numeric suffix, so
-  // "NIRVANA-003" / "NIRVANA-007" → "NIRVANA" and "RJ-RING-01" → "RJ-RING".
+// Safety-net shape codes matching the seeded Diamond Shape master — used only
+// until the live master list (fetched below) resolves, or if it's unreachable.
+const FALLBACK_SHAPE_CODES = ["RND", "OVL", "PRI", "EMR", "EME", "CUS", "ELC", "PEA", "MAR", "RAD", "ASC", "HRT"];
+const deriveDesignGroup = (designNo, title, shapeCodes) => {
+  const codes = shapeCodes?.length ? shapeCodes : FALLBACK_SHAPE_CODES;
   const code = (designNo || "").trim();
   if (code) {
+    // ENTERPRISE convention: trailing token is a diamond-shape master code,
+    // e.g. "LR-001-RND" → family "LR-001". Checked first (more specific)
+    // before the generic trailing-number rule below.
+    const shapeMatch = code.match(/^(.*?)[-_ ]+([A-Za-z]{2,4})$/);
+    if (shapeMatch && codes.includes(shapeMatch[2].toUpperCase())) {
+      const fam = shapeMatch[1]
+        .normalize("NFD")
+        .replace(/[̀-ͯ]/g, "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 40);
+      if (fam) return fam;
+    }
+    // PRIMARY (legacy): the Design No minus its trailing numeric suffix, so
+    // "NIRVANA-003" / "NIRVANA-007" → "NIRVANA" and "RJ-RING-01" → "RJ-RING".
     const base = code.replace(/[-_ ]*\d+$/g, "").trim() || code;
     const fromCode = base
       .normalize("NFD")
@@ -241,16 +259,23 @@ export default function ProductForm({ id }) {
   const [productTypeOptions, setProductTypeOptions] = useState([
     "Diamond Jewellery", "Gold Jewellery", "Silver Jewellery", "Platinum Jewellery",
   ]);
+  // Diamond Shape master codes — used by deriveDesignGroup to recognize a
+  // trailing shape token (e.g. "LR-001-RND") and correctly resolve the
+  // family code ("LR-001") for the enterprise naming convention.
+  const [shapeCodes, setShapeCodes] = useState([]);
   useEffect(() => {
     (async () => {
       try {
-        const [types, purities, colors, ptypes] = await Promise.all(
-          ["metal_type", "metal_purity", "metal_color", "product_type"].map((k) =>
+        const [types, purities, colors, ptypes, shapes] = await Promise.all(
+          ["metal_type", "metal_purity", "metal_color", "product_type", "diamond_shape"].map((k) =>
             fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
               r.ok ? r.json() : []
             )
           )
         );
+        if (Array.isArray(shapes) && shapes.length) {
+          setShapeCodes(shapes.map((s) => String(s.code || "").toUpperCase()).filter(Boolean));
+        }
         if (!Array.isArray(types) || !types.length) return;
         const bySort = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
         const cat = {};
@@ -540,7 +565,7 @@ export default function ProductForm({ id }) {
         product_image: cover,
         metadata: {
           // Auto-derived from the DESIGN NO (name as fallback) — no manual field.
-          designGroup: deriveDesignGroup(form.design_no, form.title) || undefined,
+          designGroup: deriveDesignGroup(form.design_no, form.title, shapeCodes) || undefined,
           metalOptions: cleanMetalOptions,
           weightMatrix: cleanWeightMatrix,
         },
@@ -652,7 +677,7 @@ export default function ProductForm({ id }) {
             <Input value={form.design_no} onChange={(e) => set("design_no", e.target.value)} placeholder="RJ-RING-01" />
             {(form.design_no || form.title) && (
               <p className="text-[11px] text-muted-foreground">
-                Group (auto): <b>{deriveDesignGroup(form.design_no, form.title) || "—"}</b>
+                Group (auto): <b>{deriveDesignGroup(form.design_no, form.title, shapeCodes) || "—"}</b>
                 {" "}· same prefix = same design group
               </p>
             )}
@@ -1166,7 +1191,7 @@ export default function ProductForm({ id }) {
           <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-1">
             <div><b>Sent automatically to Google/AI:</b></div>
             <div>Brand: {form.brand || "Rangani Jewelry House"} · MPN: {form.design_no || "—"} · Condition: New</div>
-            <div>Item group (shape variants): {deriveDesignGroup(form.design_no, form.title) || "—"}</div>
+            <div>Item group (shape variants): {deriveDesignGroup(form.design_no, form.title, shapeCodes) || "—"}</div>
             <div>No barcode (identifier_exists = no) · Feed: /api/v1/feeds/google.xml</div>
           </div>
         </div>
