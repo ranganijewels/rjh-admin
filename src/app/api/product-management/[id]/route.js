@@ -91,8 +91,20 @@ function toProductBody(body = {}) {
   set("metalType", body.metal ?? body.metalType ?? body.metal_type);
   set("metalPurity", body.metal_purity ?? body.metalPurity);
   set("metalColor", body.metal_color ?? body.metalColor);
-  set("diamondShape", body.shape ?? body.diamondShape);
-  set("diamondQuality", body.diamond_quality ?? body.diamondQuality);
+  // Written unconditionally (see centerStoneShape below): these now always
+  // mirror the Materials center-stone row, so blank must clear a previous
+  // value instead of being skipped.
+  out.diamondShape = body.shape || body.diamondShape || null;
+  out.diamondQuality = body.diamond_quality || body.diamondQuality || null;
+  // Center stone identity — written unconditionally (unlike set()/num() above)
+  // because blank is meaningful here: it means "no center stone", and must
+  // overwrite a previous value rather than being skipped, or unchecking the
+  // center-stone row in Materials would leave stale data behind and the
+  // storefront customizer would keep showing for a product that no longer
+  // has one.
+  out.centerStoneShape = body.center_stone_shape || body.centerStoneShape || null;
+  out.centerStoneWeightCt =
+    Number(body.center_stone_weight_ct ?? body.centerStoneWeightCt) || 0;
   set("diamondCut", body.diamond_cut ?? body.diamondCut);
   set("diamondColor", body.diamond_color ?? body.diamondColor);
   set("diamondClarity", body.diamond_clarity ?? body.diamondClarity);

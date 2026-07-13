@@ -23,7 +23,6 @@ const authHeaders = () => {
 };
 
 const CATEGORIES = ["Rings", "Necklaces", "Wedding Bands", "Bracelets", "Earrings", "Pendants", "Bangles"];
-const SHAPES = ["Round", "Oval", "Princess", "Emerald", "Cushion", "Pear", "Marquise", "Radiant", "Asscher", "Heart"];
 const METAL_COLORS = ["White", "Yellow", "Rose"];
 const METAL_TYPES = ["Gold", "Silver", "Platinum", "Rose Gold", "White Gold"];
 const METAL_PURITIES = ["24K", "22K", "18K", "14K", "999 (Silver)", "925 (Silver)", "800 (Silver)", "950 (Platinum)", "Custom"];
@@ -113,6 +112,10 @@ const EMPTY = {
   mfg_design: "", wax_wt: "", cam_wt: "", molds: [], production_images: [],
   size_weight_diff: [],
   mrp_override: "",
+  // Center stone identity — derived from the Materials row flagged as the
+  // center stone (see deriveFromMaterials). Blank = no center stone, which
+  // hides the center-stone customizer on the storefront entirely.
+  center_stone_shape: "", center_stone_weight_ct: "",
   // ── SEO & Google Shopping ──
   seo_title: "", seo_description: "", seo_keywords: "", seo_og_image: "",
   shopping_availability: "", google_product_category: "",
@@ -142,30 +145,64 @@ const materialSummary = (rows) => {
   return `Metal: ${sum.Metal ? +sum.Metal.wt.toFixed(3) + " g" : "—"} || Dia: ${fmt("Diamond")}${sum.Diamond ? " ct" : ""} || Stone: ${fmt("Stone")} || Misc: ${fmt("Misc")} || Finding: ${fmt("Finding")}`;
 };
 
-// Derive the Pricing Engine's weight/diamond inputs from the Materials BOM so
-// admins enter them once. Metal rows sum to net (metal-only) weight; Diamond
-// rows sum to diamond weight/pieces; gross weight mirrors the engine's own
-// formula (net + diamond-ct-as-grams). Empty Materials → no derived data, so
-// the flat fields stay manually editable (simple products can skip the BOM).
-function deriveFromMaterials(materials) {
+// Nearest-carat lookup into the per-product "Diamond Carat → Metal Weight"
+// table — mirrors PricingEngineService.resolveMatrixWeight exactly (exact
+// carat wins, else nearest) so the admin preview matches what the engine
+// actually charges.
+function resolveMatrixWeight(matrix, carat) {
+  const rows = (Array.isArray(matrix) ? matrix : [])
+    .filter((r) => r.carat !== "" && r.weightG !== "" && r.carat != null && r.weightG != null)
+    .map((r) => ({ carat: Number(r.carat), weightG: Number(r.weightG) }));
+  if (!rows.length || !carat) return null;
+  const exact = rows.find((r) => r.carat === carat);
+  if (exact) return exact.weightG;
+  let best = null;
+  let bestDiff = Infinity;
+  for (const r of rows) {
+    const d = Math.abs(r.carat - carat);
+    if (d < bestDiff) { bestDiff = d; best = r; }
+  }
+  return best ? best.weightG : null;
+}
+
+// Materials is the ONLY place weight/diamond data is entered — the flat
+// "Diamond, Weights & Live Price" fields are always a read-only mirror of it:
+//   - Net weight = sum of Metal rows, UNLESS a Diamond row is flagged as the
+//     center stone AND the Carat → Metal Weight table has a matching/nearest
+//     row for that stone's carat — a bigger center stone needs more metal for
+//     its setting/prongs, so the matrix row overrides the flat metal sum
+//     (same priority the Pricing Engine itself applies at checkout).
+//   - Gross weight = net + total diamond weight in grams (1 ct = 0.2 g).
+//   - Diamond weight/pieces = sum across ALL Diamond rows (center + accents).
+//   - Shape/Quality/centerStoneWeightCt come ONLY from the row explicitly
+//     flagged as the center stone — never guessed from the first Diamond row.
+//     No flagged row → no center stone → these stay blank (storefront hides
+//     the center-stone customizer entirely when this is blank).
+function deriveFromMaterials(materials, weightMatrix) {
   const rows = Array.isArray(materials) ? materials : [];
   const metalRows = rows.filter((r) => r.materialType === "Metal");
   const diamondRows = rows.filter((r) => r.materialType === "Diamond");
-  if (!metalRows.length && !diamondRows.length) return { hasWeightData: false };
+  const centerStoneRow = diamondRows.find((r) => r.centerStone) || null;
+  const hasCenterStone = !!centerStoneRow;
 
-  const netWeightG = metalRows.reduce((sum, r) => sum + (Number(r.wt) || 0), 0);
+  const metalSumG = metalRows.reduce((sum, r) => sum + (Number(r.wt) || 0), 0);
+  const centerCt = hasCenterStone ? Number(centerStoneRow.wt) || 0 : 0;
+  const matrixWeight = hasCenterStone ? resolveMatrixWeight(weightMatrix, centerCt) : null;
+  const netWeightG = matrixWeight != null ? matrixWeight : metalSumG;
+
   const diamondWeightCt = diamondRows.reduce((sum, r) => sum + (Number(r.wt) || 0), 0);
   const diamondPcs = diamondRows.reduce((sum, r) => sum + (Number(r.pcs) || 0), 0);
   const grossWeightG = netWeightG + diamondWeightCt * 0.2; // 1 ct = 0.2 g
-  const centerStone = diamondRows.find((r) => r.centerStone) || diamondRows[0];
+
   return {
-    hasWeightData: true,
     netWeightG,
     grossWeightG,
     diamondWeightCt,
     diamondPcs,
-    shape: centerStone?.shape || "",
-    quality: centerStone?.quality || "",
+    hasCenterStone,
+    centerStoneWeightCt: centerCt,
+    shape: hasCenterStone ? centerStoneRow.shape || "" : "",
+    quality: hasCenterStone ? centerStoneRow.quality || "" : "",
   };
 }
 
@@ -201,15 +238,14 @@ export default function ProductForm({ id }) {
     }, 350);
     return () => clearTimeout(t);
   }, [pairSearch]);
-  const [shapeOptions, setShapeOptions] = useState(SHAPES);
   const [productTypeOptions, setProductTypeOptions] = useState([
     "Diamond Jewellery", "Gold Jewellery", "Silver Jewellery", "Platinum Jewellery",
   ]);
   useEffect(() => {
     (async () => {
       try {
-        const [types, purities, colors, shapes, ptypes] = await Promise.all(
-          ["metal_type", "metal_purity", "metal_color", "diamond_shape", "product_type"].map((k) =>
+        const [types, purities, colors, ptypes] = await Promise.all(
+          ["metal_type", "metal_purity", "metal_color", "product_type"].map((k) =>
             fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
               r.ok ? r.json() : []
             )
@@ -244,9 +280,6 @@ export default function ProductForm({ id }) {
           };
         });
         if (Object.keys(cat).length) setMetalCatalog(cat);
-        if (Array.isArray(shapes) && shapes.length) {
-          setShapeOptions([...shapes].sort(bySort).map((s) => s.name));
-        }
         if (Array.isArray(ptypes) && ptypes.length) {
           setProductTypeOptions([...ptypes].sort(bySort).map((s) => s.name));
         }
@@ -398,22 +431,24 @@ export default function ProductForm({ id }) {
   const setMediaForColor = (color, items) =>
     setColorMedia((cm) => ({ ...cm, [color]: items }));
 
-  // Materials is the single source of truth for weight/diamond data once it
-  // has any Metal/Diamond rows — mirror the derived totals into the flat
-  // pricing fields (net/gross weight, diamond wt/pcs, shape/quality) so the
-  // Pricing Engine preview and the saved product stay correct without
-  // re-entering the same numbers in "Diamond, Weights & Live Price".
-  const derived = useMemo(() => deriveFromMaterials(materials), [materials]);
+  // Materials is the ONLY place weight/diamond/center-stone data is entered —
+  // always mirror the derived totals into the flat pricing fields (Materials
+  // empty → all zero/blank, which is correct: nothing to price yet).
+  const derived = useMemo(
+    () => deriveFromMaterials(materials, form.weight_matrix),
+    [materials, form.weight_matrix]
+  );
   useEffect(() => {
-    if (!derived.hasWeightData) return;
     setForm((f) => ({
       ...f,
       net_weight: String(derived.netWeightG),
       gross_weight: String(derived.grossWeightG),
       diamond_wt: String(derived.diamondWeightCt),
       diamond_pcs: String(derived.diamondPcs),
-      ...(derived.shape ? { shape: derived.shape } : {}),
-      ...(derived.quality ? { diamond_quality: derived.quality } : {}),
+      shape: derived.shape,
+      diamond_quality: derived.quality,
+      center_stone_shape: derived.shape,
+      center_stone_weight_ct: derived.hasCenterStone ? String(derived.centerStoneWeightCt) : "",
     }));
   }, [derived]);
 
@@ -844,68 +879,36 @@ export default function ProductForm({ id }) {
         </Button>
       </Section>
 
-      {/* Section: Diamond, Weights & live price. Labour is NOT here — it comes from
-          the Pricing Engine's Labour Rate master, so a product-level field would mislead. */}
+      {/* Section: Diamond, Weights & live price. Every figure here is computed
+          from Materials — this section is read-only + overrides + live price. */}
       <Section title="Diamond, Weights & Live Price">
         <p className="text-xs text-muted-foreground mb-3">
-          {derived.hasWeightData ? (
-            <>
-              Weight and diamond figures below are <b>computed automatically</b> from the
-              Materials table further down — edit them there, not here. <b>Net weight</b> sums
-              the Metal rows; <b>gross weight</b> adds diamond weight (1&nbsp;ct&nbsp;=&nbsp;0.2&nbsp;g).
-              Labour is added automatically from the Pricing&nbsp;Engine — you don&apos;t enter it here.
-            </>
-          ) : (
-            <>
-              <b>Net weight</b> (metal only) drives the metal cost; <b>gross weight</b> is metal + stones.
-              Leave net blank to fall back to the per-product Carat&nbsp;→&nbsp;Metal&nbsp;Weight table above.
-              Add rows to <b>Material Added In Design</b> below to fill these in automatically instead.
-              Labour is added automatically from the Pricing&nbsp;Engine — you don&apos;t enter it here.
-            </>
-          )}
+          Every field below is <b>computed automatically from Materials</b> — add rows there, not
+          here. <b>Net weight</b> sums the Metal rows, unless the center stone&apos;s carat matches a
+          row in <b>Diamond Carat&nbsp;→&nbsp;Metal&nbsp;Weight</b> above, which then overrides it.{" "}
+          <b>Gross weight</b> = net + diamond weight (1&nbsp;ct&nbsp;=&nbsp;0.2&nbsp;g). Shape/Quality
+          come only from the Materials row checked as the <b>center stone</b> — no center stone
+          checked means no center-stone customizer on the storefront. Labour is added automatically
+          from the Pricing&nbsp;Engine — you don&apos;t enter it here.
         </p>
         <Grid>
-          <Field label="Diamond Shape">
-            {derived.hasWeightData && derived.shape ? (
-              <ComputedField value={form.shape} />
-            ) : (
-              <Select value={form.shape} onChange={(e) => set("shape", e.target.value)} options={shapeOptions} />
-            )}
+          <Field label="Diamond Shape (center stone)">
+            <ComputedField value={derived.shape || "— no center stone —"} />
           </Field>
           <Field label="Diamond Quality · used for pricing">
-            {derived.hasWeightData && derived.quality ? (
-              <ComputedField value={form.diamond_quality} />
-            ) : (
-              <Input value={form.diamond_quality} onChange={(e) => set("diamond_quality", e.target.value)} placeholder="VVS-VS / EF" />
-            )}
+            <ComputedField value={derived.quality || "—"} />
           </Field>
           <Field label="Net Weight (g) · metal only">
-            {derived.hasWeightData ? (
-              <ComputedField value={Number(form.net_weight || 0).toFixed(2)} />
-            ) : (
-              <Input type="number" value={form.net_weight} onChange={(e) => set("net_weight", e.target.value)} placeholder="0.00" />
-            )}
+            <ComputedField value={Number(form.net_weight || 0).toFixed(2)} />
           </Field>
           <Field label="Gross Weight (g) · metal + stones">
-            {derived.hasWeightData ? (
-              <ComputedField value={Number(form.gross_weight || 0).toFixed(2)} />
-            ) : (
-              <Input type="number" value={form.gross_weight} onChange={(e) => set("gross_weight", e.target.value)} placeholder="0.00" />
-            )}
+            <ComputedField value={Number(form.gross_weight || 0).toFixed(2)} />
           </Field>
           <Field label="Diamond Weight (ct)">
-            {derived.hasWeightData ? (
-              <ComputedField value={Number(form.diamond_wt || 0).toFixed(2)} />
-            ) : (
-              <Input type="number" value={form.diamond_wt} onChange={(e) => set("diamond_wt", e.target.value)} placeholder="0.00" />
-            )}
+            <ComputedField value={Number(form.diamond_wt || 0).toFixed(2)} />
           </Field>
           <Field label="Diamond Pieces">
-            {derived.hasWeightData ? (
-              <ComputedField value={Number(form.diamond_pcs || 0)} />
-            ) : (
-              <Input type="number" value={form.diamond_pcs} onChange={(e) => set("diamond_pcs", e.target.value)} placeholder="0" />
-            )}
+            <ComputedField value={Number(form.diamond_pcs || 0)} />
           </Field>
           <Field label="Length (mm)"><Input type="number" value={form.length} onChange={(e) => set("length", e.target.value)} placeholder="0" /></Field>
           <Field label="Width (mm)"><Input type="number" value={form.width} onChange={(e) => set("width", e.target.value)} placeholder="0" /></Field>
