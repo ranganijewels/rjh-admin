@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/common/ui/input";
 import { Textarea } from "@/components/common/ui/textarea";
@@ -141,6 +141,33 @@ const materialSummary = (rows) => {
     sum[t] ? `${sum[t].pcs ? sum[t].pcs + " pcs / " : ""}${+sum[t].wt.toFixed(3)}` : "—";
   return `Metal: ${sum.Metal ? +sum.Metal.wt.toFixed(3) + " g" : "—"} || Dia: ${fmt("Diamond")}${sum.Diamond ? " ct" : ""} || Stone: ${fmt("Stone")} || Misc: ${fmt("Misc")} || Finding: ${fmt("Finding")}`;
 };
+
+// Derive the Pricing Engine's weight/diamond inputs from the Materials BOM so
+// admins enter them once. Metal rows sum to net (metal-only) weight; Diamond
+// rows sum to diamond weight/pieces; gross weight mirrors the engine's own
+// formula (net + diamond-ct-as-grams). Empty Materials → no derived data, so
+// the flat fields stay manually editable (simple products can skip the BOM).
+function deriveFromMaterials(materials) {
+  const rows = Array.isArray(materials) ? materials : [];
+  const metalRows = rows.filter((r) => r.materialType === "Metal");
+  const diamondRows = rows.filter((r) => r.materialType === "Diamond");
+  if (!metalRows.length && !diamondRows.length) return { hasWeightData: false };
+
+  const netWeightG = metalRows.reduce((sum, r) => sum + (Number(r.wt) || 0), 0);
+  const diamondWeightCt = diamondRows.reduce((sum, r) => sum + (Number(r.wt) || 0), 0);
+  const diamondPcs = diamondRows.reduce((sum, r) => sum + (Number(r.pcs) || 0), 0);
+  const grossWeightG = netWeightG + diamondWeightCt * 0.2; // 1 ct = 0.2 g
+  const centerStone = diamondRows.find((r) => r.centerStone) || diamondRows[0];
+  return {
+    hasWeightData: true,
+    netWeightG,
+    grossWeightG,
+    diamondWeightCt,
+    diamondPcs,
+    shape: centerStone?.shape || "",
+    quality: centerStone?.quality || "",
+  };
+}
 
 // Media buckets are keyed by color NAME and created lazily — colors are
 // admin-managed master data (incl. two-tone entries), so the set is dynamic.
@@ -370,6 +397,25 @@ export default function ProductForm({ id }) {
     setMaterials((m) => m.map((row, idx) => (idx === i ? { ...row, [k]: v } : row)));
   const setMediaForColor = (color, items) =>
     setColorMedia((cm) => ({ ...cm, [color]: items }));
+
+  // Materials is the single source of truth for weight/diamond data once it
+  // has any Metal/Diamond rows — mirror the derived totals into the flat
+  // pricing fields (net/gross weight, diamond wt/pcs, shape/quality) so the
+  // Pricing Engine preview and the saved product stay correct without
+  // re-entering the same numbers in "Diamond, Weights & Live Price".
+  const derived = useMemo(() => deriveFromMaterials(materials), [materials]);
+  useEffect(() => {
+    if (!derived.hasWeightData) return;
+    setForm((f) => ({
+      ...f,
+      net_weight: String(derived.netWeightG),
+      gross_weight: String(derived.grossWeightG),
+      diamond_wt: String(derived.diamondWeightCt),
+      diamond_pcs: String(derived.diamondPcs),
+      ...(derived.shape ? { shape: derived.shape } : {}),
+      ...(derived.quality ? { diamond_quality: derived.quality } : {}),
+    }));
+  }, [derived]);
 
   // ── Metal options (multi metal type + per-type purities + colors) ──────────
   const availableColors = colorsFromMetalOptions(form.metal_options);
@@ -802,17 +848,65 @@ export default function ProductForm({ id }) {
           the Pricing Engine's Labour Rate master, so a product-level field would mislead. */}
       <Section title="Diamond, Weights & Live Price">
         <p className="text-xs text-muted-foreground mb-3">
-          <b>Net weight</b> (metal only) drives the metal cost; <b>gross weight</b> is metal + stones.
-          Leave net blank to fall back to the per-product Carat&nbsp;→&nbsp;Metal&nbsp;Weight table above.
-          Labour is added automatically from the Pricing&nbsp;Engine — you don&apos;t enter it here.
+          {derived.hasWeightData ? (
+            <>
+              Weight and diamond figures below are <b>computed automatically</b> from the
+              Materials table further down — edit them there, not here. <b>Net weight</b> sums
+              the Metal rows; <b>gross weight</b> adds diamond weight (1&nbsp;ct&nbsp;=&nbsp;0.2&nbsp;g).
+              Labour is added automatically from the Pricing&nbsp;Engine — you don&apos;t enter it here.
+            </>
+          ) : (
+            <>
+              <b>Net weight</b> (metal only) drives the metal cost; <b>gross weight</b> is metal + stones.
+              Leave net blank to fall back to the per-product Carat&nbsp;→&nbsp;Metal&nbsp;Weight table above.
+              Add rows to <b>Material Added In Design</b> below to fill these in automatically instead.
+              Labour is added automatically from the Pricing&nbsp;Engine — you don&apos;t enter it here.
+            </>
+          )}
         </p>
         <Grid>
-          <Field label="Diamond Shape"><Select value={form.shape} onChange={(e) => set("shape", e.target.value)} options={shapeOptions} /></Field>
-          <Field label="Diamond Quality · used for pricing"><Input value={form.diamond_quality} onChange={(e) => set("diamond_quality", e.target.value)} placeholder="VVS-VS / EF" /></Field>
-          <Field label="Net Weight (g) · metal only"><Input type="number" value={form.net_weight} onChange={(e) => set("net_weight", e.target.value)} placeholder="0.00" /></Field>
-          <Field label="Gross Weight (g) · metal + stones"><Input type="number" value={form.gross_weight} onChange={(e) => set("gross_weight", e.target.value)} placeholder="0.00" /></Field>
-          <Field label="Diamond Weight (ct)"><Input type="number" value={form.diamond_wt} onChange={(e) => set("diamond_wt", e.target.value)} placeholder="0.00" /></Field>
-          <Field label="Diamond Pieces"><Input type="number" value={form.diamond_pcs} onChange={(e) => set("diamond_pcs", e.target.value)} placeholder="0" /></Field>
+          <Field label="Diamond Shape">
+            {derived.hasWeightData && derived.shape ? (
+              <ComputedField value={form.shape} />
+            ) : (
+              <Select value={form.shape} onChange={(e) => set("shape", e.target.value)} options={shapeOptions} />
+            )}
+          </Field>
+          <Field label="Diamond Quality · used for pricing">
+            {derived.hasWeightData && derived.quality ? (
+              <ComputedField value={form.diamond_quality} />
+            ) : (
+              <Input value={form.diamond_quality} onChange={(e) => set("diamond_quality", e.target.value)} placeholder="VVS-VS / EF" />
+            )}
+          </Field>
+          <Field label="Net Weight (g) · metal only">
+            {derived.hasWeightData ? (
+              <ComputedField value={Number(form.net_weight || 0).toFixed(2)} />
+            ) : (
+              <Input type="number" value={form.net_weight} onChange={(e) => set("net_weight", e.target.value)} placeholder="0.00" />
+            )}
+          </Field>
+          <Field label="Gross Weight (g) · metal + stones">
+            {derived.hasWeightData ? (
+              <ComputedField value={Number(form.gross_weight || 0).toFixed(2)} />
+            ) : (
+              <Input type="number" value={form.gross_weight} onChange={(e) => set("gross_weight", e.target.value)} placeholder="0.00" />
+            )}
+          </Field>
+          <Field label="Diamond Weight (ct)">
+            {derived.hasWeightData ? (
+              <ComputedField value={Number(form.diamond_wt || 0).toFixed(2)} />
+            ) : (
+              <Input type="number" value={form.diamond_wt} onChange={(e) => set("diamond_wt", e.target.value)} placeholder="0.00" />
+            )}
+          </Field>
+          <Field label="Diamond Pieces">
+            {derived.hasWeightData ? (
+              <ComputedField value={Number(form.diamond_pcs || 0)} />
+            ) : (
+              <Input type="number" value={form.diamond_pcs} onChange={(e) => set("diamond_pcs", e.target.value)} placeholder="0" />
+            )}
+          </Field>
           <Field label="Length (mm)"><Input type="number" value={form.length} onChange={(e) => set("length", e.target.value)} placeholder="0" /></Field>
           <Field label="Width (mm)"><Input type="number" value={form.width} onChange={(e) => set("width", e.target.value)} placeholder="0" /></Field>
         </Grid>
@@ -1193,6 +1287,14 @@ const Select = ({ value, onChange, options }) => (
   </select>
 );
 
+// Read-only mirror of a value derived from the Materials BOM table.
+const ComputedField = ({ value }) => (
+  <div className="flex h-9 w-full items-center justify-between rounded-md border border-dashed border-border bg-muted/40 px-3 text-sm text-secondary-foreground">
+    <span>{value}</span>
+    <span className="text-[10px] text-muted-foreground whitespace-nowrap ml-2">from Materials</span>
+  </div>
+);
+
 // Read-only live price computed by the Pricing Engine from the rate masters.
 // Products never store a price — this just previews what the engine will charge.
 function ComputedPrice({ form, materials }) {
@@ -1209,13 +1311,14 @@ function ComputedPrice({ form, materials }) {
       metalPurity: primaryOpt.purities?.[0] || form.metal_purity,
       metalColor: primaryOpt.colors?.[0] || form.metal_color,
       grossWeightG: Number(form.gross_weight) || 0,
+      netWeightG: Number(form.net_weight) || 0,
       diamondShape: form.shape,
       diamondWeightCt: Number(form.diamond_wt) || 0,
       diamondQuality: form.diamond_quality,
       category: form.category,
       productWeightMatrix: weightMatrix.length ? weightMatrix : undefined,
     };
-    if (!attrs.grossWeightG && !attrs.diamondWeightCt) {
+    if (!attrs.grossWeightG && !attrs.netWeightG && !attrs.diamondWeightCt) {
       setResult(null);
       return;
     }
@@ -1236,7 +1339,7 @@ function ComputedPrice({ form, materials }) {
     }, 500);
     return () => clearTimeout(t);
   }, [
-    form.metal, form.metal_purity, form.metal_color, form.gross_weight,
+    form.metal, form.metal_purity, form.metal_color, form.gross_weight, form.net_weight,
     form.shape, form.diamond_wt, form.diamond_quality, form.category,
     JSON.stringify(form.metal_options), JSON.stringify(form.weight_matrix),
   ]);
