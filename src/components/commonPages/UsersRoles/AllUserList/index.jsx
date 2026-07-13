@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import AddUserModal from "./AddUsersModel";
 import { useUsersList } from "./hooks/useUsersList";
 import { useCrudList } from "@/hooks/useCrudList";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import PermissionDialog from "./PermissionDialog";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { PERMISSION_MODULES } from "@/constants/permissions";
@@ -16,12 +17,16 @@ const AllUserList = () => {
     list,
     confirmOpen,
     setConfirmOpen,
-    handleDelete,
-    setDeleteId,
     setList,
     fetchById,
     fetchData,
   } = useCrudList("/api/user-management");
+  // "Delete" on a user is a soft-delete server-side (sets isActive:false,
+  // never removes the row) — modeled here as an explicit Activate/Deactivate
+  // toggle so it's never silently applied without the admin seeing the
+  // resulting status change.
+  const { update: updateUser } = useCrudApi("/api/user-management");
+  const [toggleTarget, setToggleTarget] = useState(null);
 
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
   const [viewingRoleId, setViewingRoleId] = useState(null);
@@ -69,8 +74,8 @@ const AllUserList = () => {
 
       setPermissionDialogOpen(true);
     },
-    onDelete: (id) => {
-      setDeleteId(id);
+    onToggleStatus: (user) => {
+      setToggleTarget(user);
       setConfirmOpen(true);
     },
   });
@@ -80,12 +85,22 @@ const AllUserList = () => {
     setEditData(null);
   };
 
-  const handleConfirmDelete = () => {
-    toast.promise(handleDelete(), {
-      loading: "Deleting user...",
-      success: "User deleted successfully",
-      error: "Failed to delete user",
-    });
+  const willActivate = toggleTarget?.isActive === false;
+  const handleConfirmToggle = () => {
+    if (!toggleTarget) return;
+    const nextActive = willActivate;
+    toast.promise(
+      updateUser(toggleTarget.id, { isActive: nextActive }).then(() => {
+        setConfirmOpen(false);
+        setToggleTarget(null);
+        fetchData();
+      }),
+      {
+        loading: nextActive ? "Activating user..." : "Deactivating user...",
+        success: nextActive ? "User activated" : "User deactivated",
+        error: nextActive ? "Failed to activate user" : "Failed to deactivate user",
+      }
+    );
   };
 
   return (
@@ -121,10 +136,19 @@ const AllUserList = () => {
 
       <ConfirmDialog
         open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={handleConfirmDelete}
-        title="Delete User"
-        message="Are you sure you want to delete this user? This action cannot be undone."
+        onClose={() => {
+          setConfirmOpen(false);
+          setToggleTarget(null);
+        }}
+        onConfirm={handleConfirmToggle}
+        title={willActivate ? "Activate User" : "Deactivate User"}
+        message={
+          willActivate
+            ? `Reactivate ${toggleTarget?.name || "this user"}? They will be able to log in again.`
+            : `Deactivate ${toggleTarget?.name || "this user"}? They won't be able to log in until reactivated — this can be undone any time from this list.`
+        }
+        confirmLabel={willActivate ? "Activate" : "Deactivate"}
+        confirmVariant={willActivate ? "default" : "destructive"}
       />
     </div>
   );

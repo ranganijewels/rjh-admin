@@ -3,10 +3,9 @@ import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-he
 
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
-import { Edit2Icon, Eye } from "lucide-react";
-import { RiDeleteBin5Line } from "@remixicon/react";
+import { Edit2Icon, Eye, Ban, CheckCircle2 } from "lucide-react";
 
-export const useUsersList = ({ onEdit, onDelete, onViewPermission } = {}) => {
+export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const columns = useMemo(
@@ -144,6 +143,35 @@ export const useUsersList = ({ onEdit, onDelete, onViewPermission } = {}) => {
         meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
       },
       {
+        // "Delete" on a user is actually a soft-delete (users.service.ts sets
+        // isActive:false, never removes the row) — surface it explicitly so
+        // a deactivated account isn't indistinguishable from an active one
+        // in this list (previously invisible, which is why a deactivated
+        // account looked "still there" while login silently rejected it).
+        id: "status",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
+        accessorFn: (row) => (row?.isActive === false ? "Inactive" : "Active"),
+        cell: ({ row }) => {
+          const active = row.original?.isActive !== false;
+          return (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                active
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-200 text-gray-600"
+              }`}
+            >
+              {active ? "Active" : "Inactive"}
+            </span>
+          );
+        },
+        size: 100,
+        enableSorting: false,
+        meta: { skeleton: <Skeleton className="h-4 w-[70px]" /> },
+      },
+      {
         id: "action",
         header: ({ column }) => (
           <DataGridColumnHeader title="Action" column={column} />
@@ -173,12 +201,14 @@ export const useUsersList = ({ onEdit, onDelete, onViewPermission } = {}) => {
               mode="icon"
               variant="outline"
               className="!cursor-pointer"
-              aria-label="Delete user"
-              onClick={() => {
-                onDelete(row.original.id);
-              }}
+              aria-label={row.original?.isActive === false ? "Activate user" : "Deactivate user"}
+              onClick={() => onToggleStatus && onToggleStatus(row.original)}
             >
-              <RiDeleteBin5Line size={16} />
+              {row.original?.isActive === false ? (
+                <CheckCircle2 size={16} />
+              ) : (
+                <Ban size={16} />
+              )}
             </Button>
           </div>
         ),
@@ -186,7 +216,7 @@ export const useUsersList = ({ onEdit, onDelete, onViewPermission } = {}) => {
         enableSorting: false,
       },
     ],
-    [onEdit, onDelete, onViewPermission]
+    [onEdit, onToggleStatus, onViewPermission]
   );
 
   return { columns, dialogOpen, setDialogOpen };
