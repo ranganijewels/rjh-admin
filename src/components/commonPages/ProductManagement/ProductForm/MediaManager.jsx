@@ -74,8 +74,15 @@ export default function MediaManager({ color, items, onChange }) {
           headers: authHeaders(),
           body: fd,
         });
-        const json = await res.json();
-        if (!res.ok || !json.url) throw new Error(json?.error || "Upload failed");
+        // A file over the server's size limit never reaches our JSON route —
+        // nginx returns its own HTML "413 Request Entity Too Large" page, and
+        // res.json() on that throws a confusing "Unexpected token '<'"
+        // instead of a real error. Detect that case explicitly.
+        if (res.status === 413) {
+          throw new Error(`${file.name} is too large for the server to accept. Try a smaller/compressed file.`);
+        }
+        const json = await res.json().catch(() => null);
+        if (!res.ok || !json?.url) throw new Error(json?.error || "Upload failed");
         added.push({ url: json.url, type: detectType(json.url), role: "gallery" });
       }
       onChange([...items, ...added]);

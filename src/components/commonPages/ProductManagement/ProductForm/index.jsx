@@ -1160,8 +1160,8 @@ export default function ProductForm({ id }) {
           </Field>
         </Grid>
         <Field label="Meta Description" full>
-          <Textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={2} maxLength={170} placeholder="155–160 characters shown in Google results" />
-          <p className="text-[11px] text-muted-foreground">{(form.seo_description || "").length}/160 recommended</p>
+          <Textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={3} maxLength={320} placeholder="155–160 characters shown in Google results" />
+          <p className="text-[11px] text-muted-foreground">{(form.seo_description || "").length}/320 · 155–160 recommended for Google</p>
         </Field>
         <div className="mb-3">
           <label className="text-xs font-medium text-muted-foreground">Pairs Well With (max 4) — shown under the FAQs on the product page</label>
