@@ -51,60 +51,6 @@ const colorsFromMetalOptions = (opts) => {
   return [...set];
 };
 
-// Design Group is AUTO-derived from the product name (no manual entry): the
-// leading design name before the carat weight. Every shape of the same design
-// shares that leading name, so they auto-link. e.g.
-//   "Nirvana 1 ctw Pear Lab Grown Diamond Solitaire Ring"  → "NIRVANA"
-//   "Audrey 1 ½ Ctw Round Half Bezel Two Tone Engagement Ring" → "AUDREY"
-const CARAT_CUE = "\\d|[¼½¾⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]"; // digit OR a unicode vulgar fraction
-// Safety-net shape codes matching the seeded Diamond Shape master — used only
-// until the live master list (fetched below) resolves, or if it's unreachable.
-const FALLBACK_SHAPE_CODES = ["RND", "OVL", "PRI", "EMR", "EME", "CUS", "ELC", "PEA", "MAR", "RAD", "ASC", "HRT"];
-const deriveDesignGroup = (designNo, title, shapeCodes) => {
-  const codes = shapeCodes?.length ? shapeCodes : FALLBACK_SHAPE_CODES;
-  const code = (designNo || "").trim();
-  if (code) {
-    // ENTERPRISE convention: trailing token is a diamond-shape master code,
-    // e.g. "LR-001-RND" → family "LR-001". Checked first (more specific)
-    // before the generic trailing-number rule below.
-    const shapeMatch = code.match(/^(.*?)[-_ ]+([A-Za-z]{2,4})$/);
-    if (shapeMatch && codes.includes(shapeMatch[2].toUpperCase())) {
-      const fam = shapeMatch[1]
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]+/g, "-")
-        .replace(/^-+|-+$/g, "")
-        .slice(0, 40);
-      if (fam) return fam;
-    }
-    // PRIMARY (legacy): the Design No minus its trailing numeric suffix, so
-    // "NIRVANA-003" / "NIRVANA-007" → "NIRVANA" and "RJ-RING-01" → "RJ-RING".
-    const base = code.replace(/[-_ ]*\d+$/g, "").trim() || code;
-    const fromCode = base
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .toUpperCase()
-      .replace(/[^A-Z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 40);
-    if (fromCode) return fromCode;
-  }
-  // FALLBACK (no design number): leading words of the product name.
-  if (!title || !title.trim()) return "";
-  // Strip accents first ("Étoile" → "Etoile") so the A–Z filter below can't
-  // corrupt the name (uppercase "É" is not in A–Z and would be dropped).
-  const t = title.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  // Design name = the leading words before the first carat token (a number or a
-  // fraction like "1 ½"). If the title has no such token, use the first 2 words.
-  const m = t.match(new RegExp(`^(.*?)(?=\\s+(?:${CARAT_CUE}))`, "u"));
-  const name = m ? m[1] : t.split(/\s+/).slice(0, 2).join(" ");
-  return name
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40);
-};
 const GENDERS = ["Women", "Men", "Unisex"];
 const CERT_LABS = ["", "GIA", "IGI", "IGL", "HRD", "GCAL", "SGL"];
 const DIAMOND_CUTS = ["", "Ideal", "Excellent", "Very Good", "Good", "Fair"];
@@ -263,23 +209,16 @@ export default function ProductForm({ id }) {
   const [productTypeOptions, setProductTypeOptions] = useState([
     "Diamond Jewellery", "Gold Jewellery", "Silver Jewellery", "Platinum Jewellery",
   ]);
-  // Diamond Shape master codes — used by deriveDesignGroup to recognize a
-  // trailing shape token (e.g. "LR-001-RND") and correctly resolve the
-  // family code ("LR-001") for the enterprise naming convention.
-  const [shapeCodes, setShapeCodes] = useState([]);
   useEffect(() => {
     (async () => {
       try {
-        const [types, purities, colors, ptypes, shapes] = await Promise.all(
-          ["metal_type", "metal_purity", "metal_color", "product_type", "diamond_shape"].map((k) =>
+        const [types, purities, colors, ptypes] = await Promise.all(
+          ["metal_type", "metal_purity", "metal_color", "product_type"].map((k) =>
             fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
               r.ok ? r.json() : []
             )
           )
         );
-        if (Array.isArray(shapes) && shapes.length) {
-          setShapeCodes(shapes.map((s) => String(s.code || "").toUpperCase()).filter(Boolean));
-        }
         if (!Array.isArray(types) || !types.length) return;
         const bySort = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
         const cat = {};
@@ -569,8 +508,11 @@ export default function ProductForm({ id }) {
         metal_color: primary.colors?.[0] || form.metal_color,
         product_image: cover,
         metadata: {
-          // Auto-derived from the DESIGN NO (name as fallback) — no manual field.
-          designGroup: deriveDesignGroup(form.design_no, form.title, shapeCodes) || undefined,
+          // Manual only — never auto-derived from Design No/Name. Type the
+          // SAME group code (e.g. "LR-001") on every product that's a
+          // diamond-shape variant of one another; leave blank for a
+          // standalone product with no shape variants.
+          designGroup: (form.design_group || "").trim() || undefined,
           metalOptions: cleanMetalOptions,
           weightMatrix: cleanWeightMatrix,
         },
@@ -679,13 +621,10 @@ export default function ProductForm({ id }) {
             <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Round Solitaire Ring" />
           </Field>
           <Field label="Design No">
-            <Input value={form.design_no} onChange={(e) => set("design_no", e.target.value)} placeholder="RJ-RING-01" />
-            {(form.design_no || form.title) && (
-              <p className="text-[11px] text-muted-foreground">
-                Group (auto): <b>{deriveDesignGroup(form.design_no, form.title, shapeCodes) || "—"}</b>
-                {" "}· same prefix = same design group
-              </p>
-            )}
+            <Input value={form.design_no} onChange={(e) => set("design_no", e.target.value)} placeholder="LR-001-RND" />
+          </Field>
+          <Field label="Group (diamond shape variants)" hint="Type the SAME code on every product that's a shape variant of one another, e.g. LR-001-RND / LR-001-OVL / LR-001-PRI all get 'LR-001' — they'll link and show a shape switcher on the storefront. Leave blank for a standalone product with no shape variant.">
+            <Input value={form.design_group} onChange={(e) => set("design_group", e.target.value)} placeholder="e.g. LR-001 — blank = no group" />
           </Field>
           <Field label="Product Type">
             <Select value={form.product_type} onChange={(e) => set("product_type", e.target.value)} options={productTypeOptions} />
@@ -1200,7 +1139,7 @@ export default function ProductForm({ id }) {
           <div className="rounded-md border border-dashed border-border bg-muted/30 p-3 text-[11px] text-muted-foreground space-y-1">
             <div><b>Sent automatically to Google/AI:</b></div>
             <div>Brand: {form.brand || "Rangani Jewelry House"} · MPN: {form.design_no || "—"} · Condition: New</div>
-            <div>Item group (shape variants): {deriveDesignGroup(form.design_no, form.title, shapeCodes) || "—"}</div>
+            <div>Item group (shape variants): {form.design_group || "—"}</div>
             <div>No barcode (identifier_exists = no) · Feed: /api/v1/feeds/google.xml</div>
           </div>
         </div>
