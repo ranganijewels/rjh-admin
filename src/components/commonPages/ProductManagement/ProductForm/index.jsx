@@ -131,6 +131,21 @@ function resolveMatrixWeight(matrix, carat) {
   return best ? best.weightG : null;
 }
 
+// Casting weight differs by purity (alloy density) — mirrors
+// PricingEngineService.purityWeightFactor exactly, anchored at 14K = 1.0:
+// 10K = −15%, 18K = +15%, Silver = 10K − 15% (≈ −27.75% off 14K). Purities
+// outside this set (22K, Platinum, …) are left unscaled.
+function purityWeightFactor(purity) {
+  if (!purity) return null;
+  const p = String(purity).trim().toUpperCase();
+  if (p.includes("10K")) return 0.85;
+  if (p.includes("14K")) return 1;
+  if (p.includes("18K")) return 1.15;
+  if (p.includes("SILVER") || p.includes("925") || p.includes("999") || p.includes("800"))
+    return 0.85 * 0.85;
+  return null;
+}
+
 // Materials is the ONLY place weight/diamond data is entered — the flat
 // "Diamond, Weights & Live Price" fields are always a read-only mirror of it:
 //   - Net weight = sum of Metal rows, UNLESS a Diamond row is flagged as the
@@ -425,6 +440,17 @@ export default function ProductForm({ id }) {
       center_stone_weight_ct: derived.hasCenterStone ? String(derived.centerStoneWeightCt) : "",
     }));
   }, [derived]);
+
+  // Preview only — the Pricing Engine applies this same ±15% rule live when a
+  // customer switches purity on the storefront; net_weight/metal_purity here
+  // are what it uses as the base/anchor.
+  const weightByPurity = useMemo(() => {
+    const baseFactor = purityWeightFactor(form.metal_purity);
+    const netG = Number(form.net_weight) || 0;
+    if (!baseFactor || netG <= 0) return null;
+    const at = (label, factor) => ({ label, g: (netG * factor) / baseFactor });
+    return [at("10K", 0.85), at("14K", 1), at("18K", 1.15), at("Silver", 0.85 * 0.85)];
+  }, [form.metal_purity, form.net_weight]);
 
   // ── Metal options (multi metal type + per-type purities + colors) ──────────
   const availableColors = colorsFromMetalOptions(form.metal_options);
@@ -891,6 +917,13 @@ export default function ProductForm({ id }) {
           <Field label="Length (mm)"><Input type="number" value={form.length} onChange={(e) => set("length", e.target.value)} placeholder="0" /></Field>
           <Field label="Width (mm)"><Input type="number" value={form.width} onChange={(e) => set("width", e.target.value)} placeholder="0" /></Field>
         </Grid>
+        {weightByPurity && (
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Weight by purity (auto, ±15% off 14K — base is {form.metal_purity || "—"} at{" "}
+            {Number(form.net_weight).toFixed(2)}g):{" "}
+            {weightByPurity.map((w) => `${w.label} ${w.g.toFixed(2)}g`).join(" · ")}
+          </p>
+        )}
         <Grid>
           <Field label="Design MRP Override ($)">
             <Input type="number" value={form.mrp_override} onChange={(e) => set("mrp_override", e.target.value)} placeholder="blank = engine price" />
