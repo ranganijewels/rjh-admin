@@ -106,9 +106,12 @@ function toProductBody(body = {}) {
   out.centerStoneShape = body.center_stone_shape || body.centerStoneShape || null;
   out.centerStoneWeightCt =
     Number(body.center_stone_weight_ct ?? body.centerStoneWeightCt) || 0;
+  // Also mirror the Materials center-stone row now (Color/Clarity are what
+  // the Pricing Engine's Diamond Rate matching actually reads) — same
+  // unconditional-write reasoning as centerStoneShape above.
+  out.diamondColor = body.diamond_color || body.diamondColor || null;
+  out.diamondClarity = body.diamond_clarity || body.diamondClarity || null;
   set("diamondCut", body.diamond_cut ?? body.diamondCut);
-  set("diamondColor", body.diamond_color ?? body.diamondColor);
-  set("diamondClarity", body.diamond_clarity ?? body.diamondClarity);
   set("diamondCertLab", body.cert_lab ?? body.diamondCertLab);
   set("diamondCertNumber", body.cert_number ?? body.diamondCertNumber);
   set("diamondCertUrl", body.cert_url ?? body.diamondCertUrl);

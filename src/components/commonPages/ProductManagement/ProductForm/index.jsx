@@ -54,8 +54,6 @@ const colorsFromMetalOptions = (opts) => {
 const GENDERS = ["Women", "Men", "Unisex"];
 const CERT_LABS = ["", "GIA", "IGI", "IGL", "HRD", "GCAL", "SGL"];
 const DIAMOND_CUTS = ["", "Ideal", "Excellent", "Very Good", "Good", "Fair"];
-const DIAMOND_COLORS = ["", "D", "E", "F", "G", "H", "I", "J", "K"];
-const DIAMOND_CLARITIES = ["", "FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1", "SI2"];
 
 const EMPTY = {
   title: "", design_no: "", category: "", subcategory: "", collection: "",
@@ -142,10 +140,13 @@ function resolveMatrixWeight(matrix, carat) {
 //     (same priority the Pricing Engine itself applies at checkout).
 //   - Gross weight = net + total diamond weight in grams (1 ct = 0.2 g).
 //   - Diamond weight/pieces = sum across ALL Diamond rows (center + accents).
-//   - Shape/Quality/centerStoneWeightCt come ONLY from the row explicitly
-//     flagged as the center stone — never guessed from the first Diamond row.
-//     No flagged row → no center stone → these stay blank (storefront hides
-//     the center-stone customizer entirely when this is blank).
+//   - Shape/Quality/Color/centerStoneWeightCt come ONLY from the row
+//     explicitly flagged as the center stone — never guessed from the first
+//     Diamond row. No flagged row → no center stone → these stay blank
+//     (storefront hides the center-stone customizer entirely when blank).
+//   - Clarity mirrors Quality: this schema's Materials "Quality" column IS
+//     the clarity grade (e.g. "VVS-VS"), matching the Diamond Rate master's
+//     separate clarity column so rate matching actually works.
 function deriveFromMaterials(materials, weightMatrix) {
   const rows = Array.isArray(materials) ? materials : [];
   const metalRows = rows.filter((r) => r.materialType === "Metal");
@@ -171,6 +172,8 @@ function deriveFromMaterials(materials, weightMatrix) {
     centerStoneWeightCt: centerCt,
     shape: hasCenterStone ? centerStoneRow.shape || "" : "",
     quality: hasCenterStone ? centerStoneRow.quality || "" : "",
+    color: hasCenterStone ? centerStoneRow.color || "" : "",
+    clarity: hasCenterStone ? centerStoneRow.quality || "" : "",
   };
 }
 
@@ -416,6 +419,8 @@ export default function ProductForm({ id }) {
       diamond_pcs: String(derived.diamondPcs),
       shape: derived.shape,
       diamond_quality: derived.quality,
+      diamond_color: derived.color,
+      diamond_clarity: derived.clarity,
       center_stone_shape: derived.shape,
       center_stone_weight_ct: derived.hasCenterStone ? String(derived.centerStoneWeightCt) : "",
     }));
@@ -989,12 +994,12 @@ export default function ProductForm({ id }) {
       <Section
         title="Diamond Certification & 4Cs"
         advanced
-        hint="Exact grades from the diamond certificate. Optional — the coarse 'Diamond Quality' above is what pricing uses; add these to show cert details on the product page."
+        hint="Color/Clarity are computed from the Materials center-stone row (used by both the Pricing Engine's Diamond Rate matching and the product page) — enter them there, not here. Cut and the certificate fields below are separate, cert-specific details."
       >
         <Grid>
           <Field label="Cut"><Select value={form.diamond_cut} onChange={(e) => set("diamond_cut", e.target.value)} options={DIAMOND_CUTS} /></Field>
-          <Field label="Color"><Select value={form.diamond_color} onChange={(e) => set("diamond_color", e.target.value)} options={DIAMOND_COLORS} /></Field>
-          <Field label="Clarity"><Select value={form.diamond_clarity} onChange={(e) => set("diamond_clarity", e.target.value)} options={DIAMOND_CLARITIES} /></Field>
+          <Field label="Color (center stone)"><ComputedField value={derived.color || "— no center stone —"} /></Field>
+          <Field label="Clarity (center stone)"><ComputedField value={derived.clarity || "—"} /></Field>
           <Field label="Certifying Lab"><Select value={form.cert_lab} onChange={(e) => set("cert_lab", e.target.value)} options={CERT_LABS} /></Field>
           <Field label="Certificate Number"><Input value={form.cert_number} onChange={(e) => set("cert_number", e.target.value)} placeholder="e.g. 2447851036" /></Field>
           <Field label="Certificate URL (optional)"><Input value={form.cert_url} onChange={(e) => set("cert_url", e.target.value)} placeholder="https://… verify link" /></Field>
