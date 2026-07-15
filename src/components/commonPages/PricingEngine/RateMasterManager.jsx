@@ -24,7 +24,44 @@ const fmt = (v, type) => {
   if (v === null || v === undefined || v === "") return "—";
   if (type === "date") return new Date(v).toLocaleDateString();
   if (type === "money") return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
+  if (type === "csv-list") return String(v).split(",").map((s) => s.trim()).filter(Boolean).join(", ");
   return String(v);
+};
+
+// Toggle-chip multi-select, backed by a comma-separated string in form state
+// (the DB column is a single string; the pricing engine matches "any of").
+const MultiSelectChips = ({ options, loading, value, onChange }) => {
+  const selected = (value || "").split(",").map((s) => s.trim()).filter(Boolean);
+  // Union with the fetched catalog options so a legacy/custom value already
+  // on the row (not in the current catalog list) still shows up, checked.
+  const allOptions = [...new Set([...options, ...selected])];
+  const toggle = (opt) => {
+    const next = selected.includes(opt) ? selected.filter((s) => s !== opt) : [...selected, opt];
+    onChange(next.join(","));
+  };
+  if (loading) return <p className="text-xs text-muted-foreground">Loading…</p>;
+  if (!allOptions.length) return <p className="text-xs text-muted-foreground">No qualities in Catalog Masters yet.</p>;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {allOptions.map((opt) => {
+        const isSel = selected.includes(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => toggle(opt)}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              isSel
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+            }`}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
 };
 
 // Config-driven CRUD for any effective-dated pricing master.
@@ -38,6 +75,28 @@ export default function RateMasterManager({ title, description, resource, column
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [touched, setTouched] = useState({});
+  const [catalogOptions, setCatalogOptions] = useState({}); // { [kind]: string[] }
+  const [catalogLoading, setCatalogLoading] = useState({}); // { [kind]: boolean }
+
+  // Fetch Catalog Master values for any field sourced from a kind (e.g.
+  // "diamond_quality"), once per kind used by this master's fields.
+  useEffect(() => {
+    const kinds = [...new Set(fields.filter((f) => f.optionsKind).map((f) => f.optionsKind))];
+    kinds.forEach(async (kind) => {
+      setCatalogLoading((s) => ({ ...s, [kind]: true }));
+      try {
+        const res = await fetch(`/api/catalog/masters?kind=${encodeURIComponent(kind)}`, { headers: authHeaders() });
+        const json = await res.json();
+        const rows = Array.isArray(json) ? json : json?.data || [];
+        setCatalogOptions((s) => ({ ...s, [kind]: rows.map((r) => r.code || r.name).filter(Boolean) }));
+      } catch {
+        setCatalogOptions((s) => ({ ...s, [kind]: [] }));
+      } finally {
+        setCatalogLoading((s) => ({ ...s, [kind]: false }));
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -201,6 +260,18 @@ export default function RateMasterManager({ title, description, resource, column
                       {invalid && (
                         <p className="text-xs text-destructive">{f.label} is required</p>
                       )}
+                    </>
+                  ) : f.type === "multiselect" ? (
+                    <>
+                      <MultiSelectChips
+                        options={catalogOptions[f.optionsKind] || []}
+                        loading={!!catalogLoading[f.optionsKind]}
+                        value={form[f.key]}
+                        onChange={(v) => setForm((s) => ({ ...s, [f.key]: v }))}
+                      />
+                      <p className="text-[11px] text-muted-foreground">
+                        Select one or more — matches if the product has ANY of these. Leave empty to match any quality.
+                      </p>
                     </>
                   ) : (
                     <Input

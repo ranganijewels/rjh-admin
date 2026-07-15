@@ -32,7 +32,11 @@ export const PRICING_MASTERS = {
       { key: "shape", label: "Shape" },
       { key: "minCarat", label: "Min Ct" },
       { key: "maxCarat", label: "Max Ct" },
-      { key: "qualityGrade", label: "Quality" },
+      { key: "color", label: "Color" },
+      // Was "qualityGrade" — a separate field that's basically never filled
+      // in; the values admins actually enter (VVS1, VS1, …) live in
+      // "clarity", so the list showed "—" for every row. See fields below.
+      { key: "clarity", label: "Quality (Clarity)", type: "csv-list" },
       { key: "rateValue", label: "Rate/Ct", type: "money" },
       { key: "effectiveDate", label: "Effective", type: "date" },
     ],
@@ -41,8 +45,11 @@ export const PRICING_MASTERS = {
       { key: "minCarat", label: "Min Carat", type: "number", default: 0 },
       { key: "maxCarat", label: "Max Carat", type: "number", default: 99 },
       { key: "color", label: "Color", type: "text", placeholder: "e.g. EF (optional)" },
-      { key: "clarity", label: "Clarity", type: "text", placeholder: "e.g. VVS (optional)" },
-      { key: "qualityGrade", label: "Quality Grade", type: "text", placeholder: "optional" },
+      // Sourced from Catalog Master → Diamond Qualities (VVS1/VVS2/VS1/VS2…).
+      // Select one or several — a rate matches if the product's quality is
+      // ANY of the selected values. Leave empty to match any quality.
+      { key: "clarity", label: "Quality (Clarity)", type: "multiselect", optionsKind: "diamond_quality" },
+      { key: "qualityGrade", label: "Quality Grade (advanced, rarely needed)", type: "text", placeholder: "optional", optional: true },
       { key: "cutGrade", label: "Cut Grade", type: "text", placeholder: "optional" },
       { key: "rateValue", label: "Rate per Carat (USD)", type: "number" },
       { key: "effectiveDate", label: "Effective Date", type: "date" },
