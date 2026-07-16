@@ -15,10 +15,38 @@ const authHeaders = () => {
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 
+const money = (v) => `$${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+
 const Row = ({ label, value, strong }) => (
   <div className={`flex justify-between py-2 border-b border-border/60 ${strong ? "font-semibold text-base" : "text-sm"}`}>
     <span className={strong ? "" : "text-muted-foreground"}>{label}</span>
-    <span className="tabular-nums">${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+    <span className="tabular-nums">{money(value)}</span>
+  </div>
+);
+
+const MatchBadge = ({ matched }) =>
+  matched ? (
+    <span className="text-[11px] text-success">✓ matched</span>
+  ) : (
+    <span className="text-[11px] text-destructive">✗ no rate matched</span>
+  );
+
+// One numbered step in the calculation ledger — shows what went IN, the
+// formula the engine applied, whether a master rate matched, and the $ OUT.
+const Step = ({ n, title, children, amount, warn }) => (
+  <div className="flex gap-3 py-3 border-b border-border/60 last:border-0">
+    <div className="shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
+      {n}
+    </div>
+    <div className="flex-1 min-w-0">
+      <div className="flex justify-between items-baseline gap-2">
+        <span className="text-sm font-medium">{title}</span>
+        {amount !== undefined && (
+          <span className={`tabular-nums text-sm font-semibold ${warn ? "text-destructive" : ""}`}>{money(amount)}</span>
+        )}
+      </div>
+      <div className="text-xs text-muted-foreground mt-1 space-y-1">{children}</div>
+    </div>
   </div>
 );
 
@@ -315,87 +343,176 @@ export default function PricePreview() {
         </Button>
       </div>
 
-      {result && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
-          <div className="border border-border rounded-lg p-5">
-            <h3 className="font-semibold mb-2">Price Breakdown</h3>
+      {result && (() => {
+        const bd = result.priceBreakdown || {};
+        const w = bd.weights || {};
+        const m = bd.metal || {};
+        const lines = bd.diamonds?.length ? bd.diamonds : (bd.diamond ? [{ ...bd.diamond, isCenter: true }] : []);
+        const l = bd.labor || {};
+        const addLines = bd.additionalCharges || [];
+        const pb = bd.priceBook;
+        const taxLines = bd.taxes || [];
+        let step = 0;
+        return (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+          {/* Quick-glance summary */}
+          <div className="border border-border rounded-lg p-5 h-fit">
+            <h3 className="font-semibold mb-2">Summary</h3>
             <Row label="Metal Value" value={result.metalValue} />
             <Row label="Diamond Value" value={result.diamondValue} />
             {result.gemstoneValue > 0 && <Row label="Gemstone Value" value={result.gemstoneValue} />}
             <Row label="Labor / Making" value={result.laborCharge} />
             <Row label="Additional Charges" value={result.additionalCharges} />
             {result.marginAmount > 0 && <Row label="Margin" value={result.marginAmount} />}
+            {result.markupAmount > 0 && <Row label="Markup" value={result.markupAmount} />}
+            {result.bookDiscount > 0 && <Row label="Price Book Discount" value={-result.bookDiscount} />}
             <Row label="Tax" value={result.taxAmount} />
             <Row label="Shipping" value={result.shippingAmount} />
             {result.discount > 0 && <Row label="Discount" value={-result.discount} />}
+            {result.mrpApplied && (
+              <Row label="Computed price (pre-MRP)" value={result.computedPrice} />
+            )}
             <div className="mt-2">
               <Row label="Final Price" value={result.finalPrice} strong />
             </div>
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {result.mrpApplied && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                  MRP override applied
+                </span>
+              )}
+              {result.labourOverridden && (
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                  Labour rate overridden
+                </span>
+              )}
+            </div>
+            {result.warnings?.length > 0 && (
+              <div className="text-destructive text-xs mt-3 space-y-0.5">
+                {result.warnings.map((wn, i) => <div key={i}>⚠ {wn}</div>)}
+              </div>
+            )}
           </div>
 
-          <div className="border border-border rounded-lg p-5 text-sm space-y-3">
-            <h3 className="font-semibold">Rate Resolution</h3>
-            {result.priceBreakdown?.weights && (
+          {/* Full step-by-step ledger — every input + formula the engine used */}
+          <div className="border border-border rounded-lg p-5 lg:col-span-2">
+            <h3 className="font-semibold mb-1">Full Breakdown</h3>
+            <p className="text-xs text-muted-foreground mb-2">Computed in this order, exactly as the pricing engine applies it.</p>
+
+            <Step n={++step} title="Metal weight" amount={undefined}>
               <div>
-                <div className="font-medium">Weight</div>
-                <div className="text-muted-foreground">
-                  {result.priceBreakdown.weights.netWeightG} g net
-                  {result.priceBreakdown.weights.baseMetalPurity && (
-                    <> (base {result.priceBreakdown.weights.baseMetalPurity} × {result.priceBreakdown.weights.purityWeightMultiplier})</>
-                  )}
-                </div>
+                Source: <span className="font-medium">{w.metalWeightSource || "—"}</span>
+                {w.metalWeightLookup !== undefined && (
+                  <> · global master lookup: {w.metalWeightLookup ? "used" : "not used"}</>
+                )}
               </div>
-            )}
-            {result.priceBreakdown?.metal && (
-              <div>
-                <div className="font-medium">Metal</div>
-                <div className="text-muted-foreground">
-                  {result.priceBreakdown.metal.netWeightG} g × ${result.priceBreakdown.metal.ratePerGram}/g
-                  {!result.priceBreakdown.metal.matched && <span className="text-destructive"> — no rate matched</span>}
+              {w.baseMetalPurity && (
+                <div>
+                  Base weight at <span className="font-medium">{w.baseMetalPurity}</span>: {w.baseWeightG} g
+                  {" "}× purity multiplier {w.purityWeightMultiplier} = <span className="font-medium">{w.netWeightG} g net</span>
                 </div>
+              )}
+              {!w.baseMetalPurity && <div>Net weight: <span className="font-medium">{w.netWeightG} g</span></div>}
+              <div>Gross weight (net + diamond grams): {w.grossWeightG} g ({w.diamondWeightInGrams} g from diamonds)</div>
+            </Step>
+
+            <Step n={++step} title="Metal value" amount={result.metalValue}>
+              <div className="flex items-center gap-2">
+                <span>{m.netWeightG} g × {money(m.ratePerGram)}/g</span>
+                <MatchBadge matched={m.matched} />
               </div>
+              {m.rateId && <div className="text-[11px]">rate id: {m.rateId}</div>}
+            </Step>
+
+            <Step n={++step} title="Diamond value" amount={result.diamondValue} warn={lines.some((x) => !x.matched) && lines.length > 0}>
+              {lines.length ? lines.map((x, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span>
+                    {x.shape?.trim() || "—"} {x.isCenter ? "(center)" : "(side)"} · {x.caratWeight} ct × {money(x.ratePerCarat)}/ct = {money(x.value)}
+                  </span>
+                  <MatchBadge matched={x.matched} />
+                </div>
+              )) : <div>No diamonds on this product.</div>}
+            </Step>
+
+            {result.gemstoneValue > 0 && (
+              <Step n={++step} title="Gemstone value" amount={result.gemstoneValue}>
+                <div>Not yet supported by the engine — always $0.</div>
+              </Step>
             )}
-            {result.priceBreakdown?.diamonds?.length > 0 ? (
-              <div>
-                <div className="font-medium">Diamonds (per line)</div>
-                {result.priceBreakdown.diamonds.map((x, i) => (
-                  <div key={i} className="text-muted-foreground">
-                    {x.shape || "—"} {x.isCenter ? "(center)" : "(side)"} {x.caratWeight} ct × ${x.ratePerCarat}/ct = ${x.value}
-                    {!x.matched && <span className="text-destructive"> — no rate matched</span>}
+
+            <Step n={++step} title="Labor / making charge" amount={result.laborCharge} warn={!l.matched && !result.labourOverridden}>
+              {result.labourOverridden ? (
+                <div>Product-level Labour Rate override applied (flat amount) — master rate ignored.</div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span>
+                      Type: <span className="font-medium">{l.type || "—"}</span> · rate {l.rate}
+                      {l.type === "percentage" ? "%" : l.type === "per_gram" ? "/g" : ""}
+                    </span>
+                    <MatchBadge matched={l.matched} />
                   </div>
-                ))}
-              </div>
-            ) : result.priceBreakdown?.diamond ? (
-              <div>
-                <div className="font-medium">Diamond</div>
-                <div className="text-muted-foreground">
-                  {result.priceBreakdown.diamond.caratWeight} ct × ${result.priceBreakdown.diamond.ratePerCarat}/ct
-                  {!result.priceBreakdown.diamond.matched && result.priceBreakdown.diamond.caratWeight > 0 && <span className="text-destructive"> — no rate matched</span>}
+                  {l.type === "per_gram" && <div>Applied on net weight: {l.appliedOnNetWeightG} g × {l.rate} = {money(l.value)}</div>}
+                  {l.type === "percentage" && <div>Applied on metal + diamond value = {money(l.value)}</div>}
+                  {l.type === "fixed" && <div>Flat amount = {money(l.value)}</div>}
+                  {l.rateId && <div className="text-[11px]">rate id: {l.rateId}</div>}
+                </>
+              )}
+            </Step>
+
+            <Step n={++step} title="Additional charges" amount={result.additionalCharges}>
+              {addLines.length ? addLines.map((c, i) => (
+                <div key={i}>
+                  {c.name} ({c.type}, {c.method}): {c.method === "percentage" ? `${c.value}%` : money(c.value)} → {money(c.amount)}
                 </div>
-              </div>
-            ) : null}
-            {result.priceBreakdown?.labor && (
-              <div>
-                <div className="font-medium">Labor</div>
-                <div className="text-muted-foreground">
-                  {result.priceBreakdown.labor.type || "—"} @ {result.priceBreakdown.labor.rate}
-                </div>
-              </div>
+              )) : <div>None configured.</div>}
+            </Step>
+
+            <Step
+              n={++step}
+              title="Margin / Markup / Price Book"
+              amount={(result.marginAmount || 0) + (result.markupAmount || 0) - (result.bookDiscount || 0)}
+            >
+              {pb ? (
+                <>
+                  <div>Price book: <span className="font-medium">{pb.code}</span> ({pb.channel})</div>
+                  <div>Margin: {result.marginAmount > 0 ? money(result.marginAmount) : "$0"} · Markup: {pb.markupPercent}% = {money(pb.markupValue)} · Discount: {pb.discountPercent}% = −{money(pb.discountValue)}</div>
+                </>
+              ) : (
+                <div>No price book applied — standard retail pricing{result.marginAmount > 0 ? ` · Margin: ${money(result.marginAmount)}` : ""}.</div>
+              )}
+            </Step>
+
+            <Step n={++step} title="Tax" amount={result.taxAmount}>
+              {taxLines.length ? taxLines.map((t, i) => (
+                <div key={i}>{t.name}: {t.value}{t.method === "percentage" ? "%" : ""} → {money(t.amount)}</div>
+              )) : <div>No tax rate matched for this country/state — $0.</div>}
+            </Step>
+
+            {includeShipping && (
+              <Step n={++step} title="Shipping" amount={result.shippingAmount}>
+                <div>{bd.shipping?.rateId ? `Rate id: ${bd.shipping.rateId}` : "No shipping rate matched for this destination."}</div>
+              </Step>
             )}
-            {result.priceBreakdown?.taxes?.length > 0 && (
-              <div>
-                <div className="font-medium">Taxes</div>
-                {result.priceBreakdown.taxes.map((t, i) => (
-                  <div key={i} className="text-muted-foreground">{t.name}: {t.value}{t.method === "percentage" ? "%" : ""} → ${t.amount}</div>
-                ))}
-              </div>
+
+            {result.discount > 0 && (
+              <Step n={++step} title="Discount" amount={-result.discount}>
+                <div>Coupon / manual discount applied at checkout.</div>
+              </Step>
             )}
-            {result.warnings?.length > 0 && (
-              <div className="text-destructive text-xs">⚠ {result.warnings.join(", ")}</div>
-            )}
+
+            <Step n={++step} title="Final price" amount={result.finalPrice}>
+              {result.mrpApplied ? (
+                <div>Design MRP override (<span className="font-medium">{money(result.finalPrice)}</span>) wins over the computed price ({money(result.computedPrice)}).</div>
+              ) : (
+                <div>Sum of every step above.</div>
+              )}
+            </Step>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {matrix && (
         <div className="border border-border rounded-lg p-4 overflow-x-auto">
