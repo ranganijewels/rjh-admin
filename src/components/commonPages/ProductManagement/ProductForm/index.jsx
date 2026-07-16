@@ -138,11 +138,16 @@ function resolveMatrixWeight(matrix, carat) {
 function purityWeightFactor(purity) {
   if (!purity) return null;
   const p = String(purity).trim().toUpperCase();
-  if (p.includes("10K")) return 0.85;
-  if (p.includes("14K")) return 1;
-  if (p.includes("18K")) return 1.15;
-  if (p.includes("SILVER") || p.includes("925") || p.includes("999") || p.includes("800"))
-    return 0.85 * 0.85;
+  // Silver/Platinum FIRST — their numeric codes (925/950/…) must not be
+  // mistaken for a karat value by the numeric parse below.
+  if (p.includes("SILVER") || /(^|\D)(925|999|800)(\D|$)/.test(p)) return 0.85 * 0.85;
+  if (p.includes("PLATINUM") || /(^|\D)(950|900)(\D|$)/.test(p)) return null;
+  // Karat may be written "14", "14K", "14KT", "14 KT" — the Materials BOM
+  // stores a bare "14", so matching only on "14K" silently failed here.
+  const kt = Number(p.replace(/KT|K/g, "").replace(/[^0-9.]/g, ""));
+  if (kt === 10) return 0.85;
+  if (kt === 14) return 1;
+  if (kt === 18) return 1.15;
   return null;
 }
 
@@ -442,15 +447,22 @@ export default function ProductForm({ id }) {
   }, [derived]);
 
   // Preview only — the Pricing Engine applies this same ±15% rule live when a
-  // customer switches purity on the storefront; net_weight/metal_purity here
-  // are what it uses as the base/anchor.
+  // customer switches purity on the storefront. The anchor is the purity on the
+  // Materials METAL row (the purity the gram weight was actually entered at) —
+  // NOT the product's Metal Purity field, which is only the default display
+  // purity and is often different.
+  const baseMetalPurity = useMemo(() => {
+    const metalRow = (materials || []).find((m) => m?.materialType === "Metal");
+    return metalRow?.quality || form.metal_purity;
+  }, [materials, form.metal_purity]);
+
   const weightByPurity = useMemo(() => {
-    const baseFactor = purityWeightFactor(form.metal_purity);
+    const baseFactor = purityWeightFactor(baseMetalPurity);
     const netG = Number(form.net_weight) || 0;
     if (!baseFactor || netG <= 0) return null;
     const at = (label, factor) => ({ label, g: (netG * factor) / baseFactor });
     return [at("10K", 0.85), at("14K", 1), at("18K", 1.15), at("Silver", 0.85 * 0.85)];
-  }, [form.metal_purity, form.net_weight]);
+  }, [baseMetalPurity, form.net_weight]);
 
   // ── Metal options (multi metal type + per-type purities + colors) ──────────
   const availableColors = colorsFromMetalOptions(form.metal_options);
@@ -919,7 +931,7 @@ export default function ProductForm({ id }) {
         </Grid>
         {weightByPurity && (
           <p className="text-[11px] text-muted-foreground mt-1">
-            Weight by purity (auto, ±15% off 14K — base is {form.metal_purity || "—"} at{" "}
+            Weight by purity (auto, ±15% off 14K — base is {baseMetalPurity || "—"} at{" "}
             {Number(form.net_weight).toFixed(2)}g):{" "}
             {weightByPurity.map((w) => `${w.label} ${w.g.toFixed(2)}g`).join(" · ")}
           </p>
