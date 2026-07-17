@@ -47,9 +47,13 @@ function DataGridTableBase({ children }) {
   const { props } = useDataGrid();
 
   return (
-    // Wrapped in overflow-x-auto so narrow/dense (desktop-only) table-fixed
-    // layouts always get horizontal scroll instead of clipping content.
-    <div className="w-full overflow-x-auto">
+    // No overflow-x here: both current callers already wrap this in Radix's
+    // ScrollArea, which is the real scrolling ancestor. A second nearer
+    // "overflow: auto" div — even though nothing ever overflows within it,
+    // since it just grows to fit the table — still counts as a CSS scroll
+    // container, so `position: sticky` on pinned columns bound to it
+    // instead of the actual scrollport, silently breaking column pinning.
+    <div className="w-full">
       <table
         data-slot="data-grid-table"
         aria-label={props.tableLayout?.ariaLabel || 'Data table'}

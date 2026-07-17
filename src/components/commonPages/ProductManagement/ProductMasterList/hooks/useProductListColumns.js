@@ -173,7 +173,7 @@ export const useProductListColumns = ({
       },
       {
         id: "actions",
-        header: "Actions",
+        header: "",
         pinning: "right",
         cell: ({ row }) => (
           <div className="flex items-center justify-center gap-[10px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
