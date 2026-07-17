@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Container } from "@/components/common/ui/container";
 import {
   Card,
@@ -68,6 +68,13 @@ export const ListWithCardToggle = ({
   // Opt-in: drag-to-resize column borders + single-line truncation of long cells
   // (uses each column's `size` as the starting width; table becomes fixed-layout).
   resizableColumns = false,
+  // Opt-in: replace the pagination footer (both views) with a scroll sentinel
+  // that calls onLoadMore as it comes into view. `data` must already be the
+  // full accumulated list (the caller appends pages, not this component).
+  infiniteScroll = false,
+  onLoadMore,
+  hasMore = false,
+  loadingMore = false,
 }) => {
   const [currentMode, setCurrentMode] = useState(
     renderCardView ? "cards" : "list"
@@ -251,6 +258,23 @@ export const ListWithCardToggle = ({
     ? externalSearchQuery ?? ""
     : searchQuery;
 
+  // Infinite scroll: one sentinel shared by both views (only one is mounted
+  // at a time), observed for the lifetime of the component.
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    if (!infiniteScroll) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasMore && !loadingMore) onLoadMore?.();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [infiniteScroll, onLoadMore, hasMore, loadingMore, currentMode]);
+
   return (
     <Container>
       <div className="flex flex-col items-stretch gap-5 lg:gap-7.5">
@@ -364,10 +388,12 @@ export const ListWithCardToggle = ({
             </div>
 
             {/* Card-view pagination (the table-view pagination lives in DataGrid) */}
-            <CardPagination
-              table={table}
-              recordCount={serverSidePagination ? totalCount || 0 : filteredData.length || 0}
-            />
+            {!infiniteScroll && (
+              <CardPagination
+                table={table}
+                recordCount={serverSidePagination ? totalCount || 0 : filteredData.length || 0}
+              />
+            )}
           </>
         )}
 
@@ -550,7 +576,7 @@ export const ListWithCardToggle = ({
                   </ScrollArea>
                 </CardTable>
 
-                {!disableFooter && (
+                {!disableFooter && !infiniteScroll && (
                   <CardFooter>
                     <DataGridPagination
                       paginationLinks={paginationLinks}
@@ -562,6 +588,14 @@ export const ListWithCardToggle = ({
                 )}
               </Card>
             </DataGrid>
+          </div>
+        )}
+
+        {infiniteScroll && (
+          <div ref={sentinelRef} className="flex items-center justify-center py-6">
+            {loadingMore && (
+              <span className="text-sm text-muted-foreground">Loading more…</span>
+            )}
           </div>
         )}
       </div>

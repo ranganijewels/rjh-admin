@@ -193,30 +193,36 @@ const ProductMasterList = () => {
 
   const {
     list,
+    setList,
     loading,
     error,
+    deleteId,
     setDeleteId,
     confirmOpen,
     setConfirmOpen,
-    handleDelete,
+    remove,
     fetchData,
     pagination,
   } = useCrudListWithPagination("/api/product-management");
 
   // Products store no price — fetch the live engine price for the visible page.
+  // Infinite scroll keeps appending to `list`, so only request prices for ids
+  // we haven't already priced — otherwise every scroll-triggered page would
+  // re-fetch pricing for the entire accumulated list.
   useEffect(() => {
     const ids = (list || []).map((i) => i.id).filter(Boolean);
-    if (!ids.length) return;
+    const missingIds = ids.filter((id) => !(id in priceMap));
+    if (!missingIds.length) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch("/api/pricing-engine/batch", {
           method: "POST",
           headers: authHeaders(),
-          body: JSON.stringify({ productIds: ids }),
+          body: JSON.stringify({ productIds: missingIds }),
         });
         const json = await res.json();
-        if (!cancelled) setPriceMap(json?.map || {});
+        if (!cancelled) setPriceMap((prev) => ({ ...prev, ...(json?.map || {}) }));
       } catch {
         /* leave prices blank if the engine is unreachable */
       }
@@ -316,6 +322,16 @@ const ProductMasterList = () => {
     [setDeleteId, setConfirmOpen]
   );
 
+  // Removes locally instead of the hook's default re-fetch-current-page
+  // behaviour, which would collapse the accumulated infinite-scroll list
+  // back down to a single page.
+  const handleConfirmDelete = async () => {
+    await remove(deleteId);
+    setList((prev) => prev.filter((item) => item.id !== deleteId));
+    setConfirmOpen(false);
+    setDeleteId(null);
+  };
+
   const { columns } = useProductListColumns({
     onView: handleView,
     onEdit: handleEdit,
@@ -323,8 +339,26 @@ const ProductMasterList = () => {
   });
 
   const renderStoreCardsView = (item) => (
-    <ProductCard key={item.id} {...item} onClick={() => handleView(item)} />
+    <ProductCard
+      key={item.id}
+      {...item}
+      onClick={() => handleView(item)}
+      onEdit={() => handleEdit(item)}
+      onDelete={() => handleAskDelete(item.id)}
+    />
   );
+
+  const hasMore = (pagination?.currentPage || 1) < (pagination?.totalPages || 1);
+  const handleLoadMore = () => {
+    if (loading || !hasMore) return;
+    fetchData({
+      page: (pagination?.currentPage || 1) + 1,
+      pageSize: pageInfo.pageSize,
+      search: searchQuery,
+      append: true,
+      ...activeFilters(),
+    });
+  };
 
   // Only show the full-page loader on the FIRST load. On pagination/filter
   // fetches keep the list mounted so the view toggle (grid/table) persists.
@@ -386,6 +420,10 @@ const ProductMasterList = () => {
         totalCount={pagination?.total || 0}
         paginationLinks={pagination?.links}
         serverSidePagination
+        infiniteScroll
+        onLoadMore={handleLoadMore}
+        hasMore={hasMore}
+        loadingMore={loading && list.length > 0}
         searchQuery={searchQuery}
         onSearchChange={(query) => {
           setSearchQuery(query);
@@ -396,7 +434,7 @@ const ProductMasterList = () => {
       <ConfirmDialog
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        onConfirm={async () => { await handleDelete(); }}
+        onConfirm={handleConfirmDelete}
         title="Delete Product"
         message="Are you sure you want to delete this product? This action cannot be undone."
       />

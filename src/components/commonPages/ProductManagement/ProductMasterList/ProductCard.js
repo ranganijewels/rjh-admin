@@ -25,6 +25,8 @@ const ProductCard = ({
   gender,
   active,
   onClick,
+  onEdit,
+  onDelete,
   hideActiveCell,
   isSelected,
   onToggleSelect,
@@ -157,17 +159,9 @@ const ProductCard = ({
           )} */}
         </div>
 
-        <div className="flex justify-between pt-[20px]">
-          {/* {!hideEdit && (
-            <div className="flex items-center gap-2">
-              <Edit2 width={16} />
-              <span className="text-xs text-secondary-foreground font-normal">
-                Edit
-              </span>
-            </div>
-          )} */}
+        <div className="flex gap-2 pt-[20px]">
           <Button
-            className="w-full flex justify-center items-center gap-2 cursor-pointer"
+            className="flex-1 flex justify-center items-center gap-2 cursor-pointer"
             onClick={onClick}
             variant="outline"
           >
@@ -176,14 +170,32 @@ const ProductCard = ({
               View
             </span>
           </Button>
-          {/* {!hideRemove && (
-            <div className="flex items-center gap-2 ">
-              <RiDeleteBinFill width={16} />
-              <span className="text-xs text-secondary-foreground font-normal">
-                Remove
-              </span>
-            </div>
-          )} */}
+          {onEdit && (
+            <Button
+              variant="outline"
+              mode="icon"
+              title="Edit"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="outline"
+              mode="icon"
+              title="Delete"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+            >
+              <RiDeleteBinFill className="h-4 w-4 text-red-500" />
+            </Button>
+          )}
         </div>
       </div>
     </Card>

@@ -176,7 +176,7 @@ export const useProductListColumns = ({
         header: "Actions",
         pinning: "right",
         cell: ({ row }) => (
-          <div className="flex items-center justify-center gap-[10px] bg-white">
+          <div className="flex items-center justify-center gap-[10px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="outline"
               mode="icon"

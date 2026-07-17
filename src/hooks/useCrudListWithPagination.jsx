@@ -22,7 +22,7 @@ export function useCrudListWithPagination(path, extraParams = {}) {
 
   const fetchData = useCallback(
     async (params = {}) => {
-      const { page = 1, pageSize = 10, ...rest } = params;
+      const { page = 1, pageSize = 10, append = false, ...rest } = params;
       setLoading(true);
       try {
         const body = {
@@ -33,7 +33,7 @@ export function useCrudListWithPagination(path, extraParams = {}) {
         };
 
         const res = await fetchByPages(body);
-        setList(res.data || []);
+        setList((prev) => (append ? [...prev, ...(res.data || [])] : res.data || []));
         setPagination({
           currentPage: res?.meta?.current_page || page,
           totalPages: res?.meta?.last_page || 1,
@@ -71,6 +71,7 @@ export function useCrudListWithPagination(path, extraParams = {}) {
 
   return {
     list,
+    setList,
     loading,
     error,
     editData,
@@ -83,6 +84,7 @@ export function useCrudListWithPagination(path, extraParams = {}) {
     setDeleteId,
     fetchData,
     handleDelete,
+    remove,
     fetchById,
     pagination,
   };
