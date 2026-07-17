@@ -109,7 +109,7 @@ const FAQs = () => {
                   </div>
                 </AccordionTrigger>
 
-                {items.faqs.map((faq, index) => {
+                {(items.faqs || []).map((faq, index) => {
                   return (
                     <AccordionContent key={index}>
                       <Card>

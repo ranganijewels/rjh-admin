@@ -7,6 +7,7 @@ import {
 import StaticPageManager from "./StaticPages/StaticPageManager";
 import BlogManager from "./BlogManager/BlogManager";
 import FaqManager from "./FAQManager/FaqManager";
+import NavigationManager from "./NavigationManager/NavigationManager";
 
 export default function CMS() {
   return (
@@ -22,10 +23,11 @@ export default function CMS() {
         </div>
 
         <Tabs defaultValue="static-pages" className="w-full mt-5">
-          <TabsList className="grid w-[50%] grid-cols-3">
+          <TabsList className="grid w-[66%] grid-cols-4">
             <TabsTrigger value="static-pages">Static Pages</TabsTrigger>
             <TabsTrigger value="blog">Blog Manager</TabsTrigger>
             <TabsTrigger value="faq">FAQ Manager</TabsTrigger>
+            <TabsTrigger value="navigation">Navigation</TabsTrigger>
           </TabsList>
 
           <TabsContent value="static-pages" className="mt-6">
@@ -38,6 +40,10 @@ export default function CMS() {
 
           <TabsContent value="faq" className="mt-6">
             <FaqManager />
+          </TabsContent>
+
+          <TabsContent value="navigation" className="mt-6">
+            <NavigationManager />
           </TabsContent>
         </Tabs>
       </div>
