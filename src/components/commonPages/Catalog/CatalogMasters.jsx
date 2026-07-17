@@ -21,6 +21,12 @@ const KINDS = [
   { value: "metal_color", label: "Metal Colors" },
   { value: "diamond_quality", label: "Diamond Qualities" },
   { value: "setting_type", label: "Setting Types" },
+  { value: "category", label: "Categories" },
+  { value: "style", label: "Styles" },
+  { value: "collection", label: "Collections (tag)" },
+  { value: "component_type", label: "BOM Components" },
+  { value: "stone_type", label: "Stone Types" },
+  { value: "diamond_color", label: "Diamond Colors" },
 ];
 
 const METALS = ["GOLD", "SILVER", "PLATINUM"];

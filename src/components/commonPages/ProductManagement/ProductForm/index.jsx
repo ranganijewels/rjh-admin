@@ -232,54 +232,100 @@ export default function ProductForm({ id }) {
   const [productTypeOptions, setProductTypeOptions] = useState([
     "Diamond Jewellery", "Gold Jewellery", "Silver Jewellery", "Platinum Jewellery",
   ]);
+  // Category/Style/Collection (product-level) + Component/Stone-type/Diamond-color
+  // (Materials BOM row-level) — all admin-managed Catalog Master kinds, same
+  // fetch-once-fallback-if-unreachable pattern as productTypeOptions above.
+  const [categoryOptions, setCategoryOptions] = useState(CATEGORIES);
+  const [styleOptions, setStyleOptions] = useState([]);
+  const [collectionOptions, setCollectionOptions] = useState([]);
+  const [componentTypeOptions, setComponentTypeOptions] = useState([]);
+  const [stoneTypeOptions, setStoneTypeOptions] = useState([]);
+  const [diamondColorOptions, setDiamondColorOptions] = useState([]);
+  // Existing masters, just not previously loaded into this form — needed for
+  // the Materials table's Shape/Quality/Setting columns.
+  const [diamondShapeOptions, setDiamondShapeOptions] = useState([]);
+  const [diamondQualityOptions, setDiamondQualityOptions] = useState([]);
+  const [settingTypeOptions, setSettingTypeOptions] = useState([]);
   useEffect(() => {
     (async () => {
       try {
-        const [types, purities, colors, ptypes] = await Promise.all(
-          ["metal_type", "metal_purity", "metal_color", "product_type"].map((k) =>
+        const [types, purities, colors, ptypes, cats, styles, cols, components, stones, diaColors, shapes, qualities, settings] = await Promise.all(
+          [
+            "metal_type", "metal_purity", "metal_color", "product_type",
+            "category", "style", "collection", "component_type", "stone_type", "diamond_color",
+            "diamond_shape", "diamond_quality", "setting_type",
+          ].map((k) =>
             fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
               r.ok ? r.json() : []
             )
           )
         );
-        if (!Array.isArray(types) || !types.length) return;
         const bySort = (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-        const cat = {};
-        [...types].sort(bySort).forEach((t) => {
-          const KEY = (t.code || t.name || "").toUpperCase();
-          const label = t.name || t.code;
-          const p = (Array.isArray(purities) ? purities : [])
-            .filter((x) => (x.metadata?.applicableMetals || []).includes(KEY))
-            .sort(bySort)
-            .map((x) => x.code);
-          const c = (Array.isArray(colors) ? colors : [])
-            .filter((x) => (x.metadata?.applicableMetals || []).includes(KEY))
-            .sort(bySort);
-          cat[label] = {
-            purities: p.length ? p : METAL_CATALOG[label]?.purities || [],
-            colors: c.length ? c.map((x) => x.name) : METAL_CATALOG[label]?.colors || [],
-            colorHex: c.length
-              ? Object.fromEntries(
-                  c.map((x) => [x.name, { hex: x.metadata?.hex, hex2: x.metadata?.hex2 }])
-                )
-              : Object.fromEntries(
-                  Object.entries(METAL_CATALOG[label]?.colorHex || {}).map(([k, v]) => [
-                    k,
-                    { hex: v },
-                  ])
-                ),
-          };
-        });
-        if (Object.keys(cat).length) setMetalCatalog(cat);
+        if (Array.isArray(types) && types.length) {
+          const cat = {};
+          [...types].sort(bySort).forEach((t) => {
+            const KEY = (t.code || t.name || "").toUpperCase();
+            const label = t.name || t.code;
+            const p = (Array.isArray(purities) ? purities : [])
+              .filter((x) => (x.metadata?.applicableMetals || []).includes(KEY))
+              .sort(bySort)
+              .map((x) => x.code);
+            const c = (Array.isArray(colors) ? colors : [])
+              .filter((x) => (x.metadata?.applicableMetals || []).includes(KEY))
+              .sort(bySort);
+            cat[label] = {
+              purities: p.length ? p : METAL_CATALOG[label]?.purities || [],
+              colors: c.length ? c.map((x) => x.name) : METAL_CATALOG[label]?.colors || [],
+              colorHex: c.length
+                ? Object.fromEntries(
+                    c.map((x) => [x.name, { hex: x.metadata?.hex, hex2: x.metadata?.hex2 }])
+                  )
+                : Object.fromEntries(
+                    Object.entries(METAL_CATALOG[label]?.colorHex || {}).map(([k, v]) => [
+                      k,
+                      { hex: v },
+                    ])
+                  ),
+            };
+          });
+          if (Object.keys(cat).length) setMetalCatalog(cat);
+        }
         if (Array.isArray(ptypes) && ptypes.length) {
           setProductTypeOptions([...ptypes].sort(bySort).map((s) => s.name));
         }
+        if (Array.isArray(cats) && cats.length) setCategoryOptions([...cats].sort(bySort).map((c) => c.name));
+        if (Array.isArray(styles) && styles.length) setStyleOptions([...styles].sort(bySort).map((s) => s.name));
+        if (Array.isArray(cols) && cols.length) setCollectionOptions([...cols].sort(bySort).map((c) => c.name));
+        if (Array.isArray(components) && components.length) setComponentTypeOptions([...components].sort(bySort).map((c) => c.name));
+        if (Array.isArray(stones) && stones.length) setStoneTypeOptions([...stones].sort(bySort).map((s) => s.name));
+        if (Array.isArray(diaColors) && diaColors.length) setDiamondColorOptions([...diaColors].sort(bySort).map((c) => c.name));
+        if (Array.isArray(shapes) && shapes.length) setDiamondShapeOptions([...shapes].sort(bySort).map((s) => s.name));
+        if (Array.isArray(qualities) && qualities.length) setDiamondQualityOptions([...qualities].sort(bySort).map((q) => q.name));
+        if (Array.isArray(settings) && settings.length) setSettingTypeOptions([...settings].sort(bySort).map((s) => s.name));
       } catch {
-        /* keep the static fallback */
+        /* keep the static fallbacks */
       }
     })();
   }, []);
+  // Never drop a legacy free-text value that predates a master's seed list —
+  // category/collectionName/subCategory/materials are plain columns with no
+  // FK, so an older/uncommon value must still show up correctly selected.
+  const withCurrent = (opts, current) =>
+    current && !opts.includes(current) ? [current, ...opts] : opts;
   const metalTypeOptions = Object.keys(metalCatalog);
+  // Flattened/deduped across every metal type — the Materials table's per-row
+  // Metal/Stone + Color selects aren't tied to one specific metal type, so
+  // they just offer every purity/color any metal type in this catalog uses.
+  const allMetalPurities = useMemo(() => {
+    const set = new Set();
+    Object.values(metalCatalog).forEach((m) => (m.purities || []).forEach((p) => set.add(p)));
+    return [...set];
+  }, [metalCatalog]);
+  const allMetalColors = useMemo(() => {
+    const set = new Set();
+    Object.values(metalCatalog).forEach((m) => (m.colors || []).forEach((c) => set.add(c)));
+    return [...set];
+  }, [metalCatalog]);
   // Swatch lookup across all metals (color pills + media column headers).
   const colorHexFor = (name) => {
     for (const m of Object.values(metalCatalog)) {
@@ -673,16 +719,16 @@ export default function ProductForm({ id }) {
             <Select value={form.product_type} onChange={(e) => set("product_type", e.target.value)} options={productTypeOptions} />
           </Field>
           <Field label="Category">
-            <Select value={form.category} onChange={(e) => set("category", e.target.value)} options={CATEGORIES} />
+            <SelectWithAdd value={form.category} onValueChange={(v) => set("category", v)} options={withCurrent(categoryOptions, form.category)} kind="category" onOptionsChange={setCategoryOptions} />
           </Field>
           <Field label="Collection">
-            <Input value={form.collection} onChange={(e) => set("collection", e.target.value)} placeholder="e.g. Bridal" />
+            <SelectWithAdd value={form.collection} onValueChange={(v) => set("collection", v)} options={withCurrent(collectionOptions, form.collection)} kind="collection" onOptionsChange={setCollectionOptions} />
           </Field>
           <Field label="Gender">
             <Select value={form.gender} onChange={(e) => set("gender", e.target.value)} options={GENDERS} />
           </Field>
           <Field label="Style">
-            <Input value={form.design_style} onChange={(e) => set("design_style", e.target.value)} placeholder="e.g. Solitaire, Halo" />
+            <SelectWithAdd value={form.design_style} onValueChange={(v) => set("design_style", v)} options={withCurrent(styleOptions, form.design_style)} kind="style" onOptionsChange={setStyleOptions} />
           </Field>
           <Field label="Make Type">
             <Input value={form.make_type} onChange={(e) => set("make_type", e.target.value)} placeholder="e.g. Casting, Handmade" />
@@ -723,7 +769,7 @@ export default function ProductForm({ id }) {
       >
         <Grid>
           <Field label="Sub Category / Style">
-            <Input value={form.subcategory} onChange={(e) => set("subcategory", e.target.value)} placeholder="e.g. Solitaire" />
+            <SelectWithAdd value={form.subcategory} onValueChange={(v) => set("subcategory", v)} options={withCurrent(styleOptions, form.subcategory)} kind="style" onOptionsChange={setStyleOptions} />
           </Field>
           <Field label="Occasion">
             <Input value={form.occasion} onChange={(e) => set("occasion", e.target.value)} placeholder="e.g. Engagement" />
@@ -1069,10 +1115,20 @@ export default function ProductForm({ id }) {
               </tr>
             </thead>
             <tbody>
-              {materials.map((row, i) => (
+              {materials.map((row, i) => {
+                const isMetal = row.materialType === "Metal";
+                const typeChosen = !!row.materialType;
+                return (
                 <tr key={i} className="border-t border-border">
                   <td className="p-1">
-                    <Input className="h-8 text-xs min-w-[60px]" value={row.component ?? ""} onChange={(e) => setMaterial(i, "component", e.target.value)} />
+                    <SelectWithAdd
+                      compact
+                      value={row.component}
+                      onValueChange={(v) => setMaterial(i, "component", v)}
+                      options={withCurrent(componentTypeOptions, row.component)}
+                      kind="component_type"
+                      onOptionsChange={setComponentTypeOptions}
+                    />
                   </td>
                   <td className="p-1">
                     <select
@@ -1086,11 +1142,61 @@ export default function ProductForm({ id }) {
                       ))}
                     </select>
                   </td>
-                  {["metalStoneType", "shape", "quality", "color", "size", "setting", "pcs", "wt"].map((k) => (
-                    <td key={k} className="p-1">
-                      <Input className="h-8 text-xs min-w-[62px]" value={row[k] ?? ""} onChange={(e) => setMaterial(i, k, e.target.value)} />
-                    </td>
-                  ))}
+                  {/* Metal/Stone + Color read from different masters depending
+                      on this row's Type — Metal purity/color vs stone/diamond
+                      color. Before Type is chosen, fall back to a plain input. */}
+                  <td className="p-1">
+                    {typeChosen ? (
+                      <MatSelect
+                        value={row.metalStoneType}
+                        onChange={(e) => setMaterial(i, "metalStoneType", e.target.value)}
+                        options={withCurrent(isMetal ? allMetalPurities : stoneTypeOptions, row.metalStoneType)}
+                      />
+                    ) : (
+                      <Input className="h-8 text-xs min-w-[62px]" value={row.metalStoneType ?? ""} onChange={(e) => setMaterial(i, "metalStoneType", e.target.value)} />
+                    )}
+                  </td>
+                  <td className="p-1">
+                    <MatSelect
+                      value={row.shape}
+                      onChange={(e) => setMaterial(i, "shape", e.target.value)}
+                      options={withCurrent(diamondShapeOptions, row.shape)}
+                    />
+                  </td>
+                  <td className="p-1">
+                    <MatSelect
+                      value={row.quality}
+                      onChange={(e) => setMaterial(i, "quality", e.target.value)}
+                      options={withCurrent(diamondQualityOptions, row.quality)}
+                    />
+                  </td>
+                  <td className="p-1">
+                    {typeChosen ? (
+                      <MatSelect
+                        value={row.color}
+                        onChange={(e) => setMaterial(i, "color", e.target.value)}
+                        options={withCurrent(isMetal ? allMetalColors : diamondColorOptions, row.color)}
+                      />
+                    ) : (
+                      <Input className="h-8 text-xs min-w-[62px]" value={row.color ?? ""} onChange={(e) => setMaterial(i, "color", e.target.value)} />
+                    )}
+                  </td>
+                  <td className="p-1">
+                    <Input type="number" step="0.01" className="h-8 text-xs min-w-[62px]" value={row.size ?? ""} onChange={(e) => setMaterial(i, "size", e.target.value)} />
+                  </td>
+                  <td className="p-1">
+                    <MatSelect
+                      value={row.setting}
+                      onChange={(e) => setMaterial(i, "setting", e.target.value)}
+                      options={withCurrent(settingTypeOptions, row.setting)}
+                    />
+                  </td>
+                  <td className="p-1">
+                    <Input type="number" step="1" className="h-8 text-xs min-w-[62px]" value={row.pcs ?? ""} onChange={(e) => setMaterial(i, "pcs", e.target.value)} />
+                  </td>
+                  <td className="p-1">
+                    <Input type="number" step="0.001" className="h-8 text-xs min-w-[62px]" value={row.wt ?? ""} onChange={(e) => setMaterial(i, "wt", e.target.value)} />
+                  </td>
                   <td className="p-1 text-center">
                     {/* ERP's red/green dot — green marks the center stone */}
                     <input
@@ -1106,7 +1212,8 @@ export default function ProductForm({ id }) {
                     </Button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {materials.length === 0 && (
                 <tr><td colSpan={12} className="p-4 text-center text-muted-foreground">No materials added — e.g. Metal/GOLD/14KT 8.5g, Diamond/CVD/RND 1.40MM ×42.</td></tr>
               )}
@@ -1312,6 +1419,99 @@ const Select = ({ value, onChange, options }) => (
     ))}
   </select>
 );
+
+// Compact select for a Materials table cell — same role as Select above, just
+// sized to fit a table row instead of a full-width form field.
+const MatSelect = ({ value, onChange, options }) => (
+  <select
+    value={value || ""}
+    onChange={onChange}
+    className="h-8 w-full rounded-md border border-input bg-background px-1.5 text-xs min-w-[80px]"
+  >
+    <option value="">—</option>
+    {options.map((o) => (
+      <option key={o} value={o}>{o}</option>
+    ))}
+  </select>
+);
+
+// Select with an inline "+ Add new…" escape hatch that creates a Catalog
+// Master value on the fly (POST /api/catalog/masters) instead of forcing a
+// trip to the Catalog Masters screen. Reserved for open-ended merchandising
+// taxonomy (category/style/collection/component) — NOT for masters that feed
+// pricing/derivation logic or fixed grading scales, where a casually-added
+// row missing kind-specific metadata (or a typo standing in for a real grade)
+// would silently misbehave elsewhere.
+const SelectWithAdd = ({ value, onValueChange, options, kind, onOptionsChange, compact }) => {
+  const [adding, setAdding] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const submitNew = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setSaving(true);
+    try {
+      const code = name.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || `V${Date.now()}`;
+      const res = await fetch("/api/catalog/masters", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ kind, code, name, sortOrder: 999, status: "active" }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      onOptionsChange((prev) => (prev.includes(name) ? prev : [...prev, name]));
+      onValueChange(name);
+      setAdding(false);
+      setNewName("");
+    } catch {
+      toast.error(`Couldn't add "${name}" — try again`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (adding) {
+    return (
+      <div className="flex items-center gap-1">
+        <Input
+          autoFocus
+          className={compact ? "h-8 text-xs" : ""}
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); submitNew(); }
+            if (e.key === "Escape") { setAdding(false); setNewName(""); }
+          }}
+          placeholder="New value…"
+        />
+        <Button type="button" size="sm" variant="outline" className={compact ? "h-8 px-2 text-xs shrink-0" : "shrink-0"} disabled={saving || !newName.trim()} onClick={submitNew}>
+          {saving ? "…" : "Add"}
+        </Button>
+        <button type="button" className="text-muted-foreground hover:text-foreground text-xs px-1 shrink-0" onClick={() => { setAdding(false); setNewName(""); }}>
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <select
+      value={value || ""}
+      onChange={(e) => (e.target.value === "__add_new__" ? setAdding(true) : onValueChange(e.target.value))}
+      className={
+        compact
+          ? "h-8 w-full rounded-md border border-input bg-background px-1.5 text-xs min-w-[80px]"
+          : "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+      }
+    >
+      <option value="">{compact ? "—" : "Select"}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>{o}</option>
+      ))}
+      <option value="__add_new__">+ Add new…</option>
+    </select>
+  );
+};
 
 // Read-only mirror of a value derived from the Materials BOM table.
 const ComputedField = ({ value }) => (
