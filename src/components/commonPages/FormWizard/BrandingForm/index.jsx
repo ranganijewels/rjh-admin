@@ -2,19 +2,22 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { SquareMousePointer, Upload } from "lucide-react";
+import { toast } from "sonner";
+
 import { Button } from "@/components/common/ui/button";
-import { Card, CardContent } from "@/components/common/ui/cards/card";
-import { Input, InputWrapper } from "@/components/common/ui/input";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/common/ui/select";
-import { ImageIcon, SquareMousePointer } from "lucide-react";
-import { Spinner } from "@/components/common/ui/spinners";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
 import {
   Form,
   FormControl,
@@ -23,15 +26,21 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/common/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { Input, InputWrapper } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { Spinner } from "@/components/common/ui/spinners";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import { useWizardPaths } from "@/hooks/useWizardPaths";
-import { useRouter } from "next/navigation";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
-import { toast } from "sonner";
-import { useWizard } from "@/context/WizardContext";
 
 const BrandingForm = () => {
   const [stepData, setStepData] = useState(null);
@@ -44,7 +53,6 @@ const BrandingForm = () => {
   const { create } = useCrudApi("/api/store-branding");
   const router = useRouter();
   const { next, previous } = useWizardPaths();
-  const { wizardData } = useWizard();
 
   // Field mapping for API payload keys
   const FIELD_MAPPING = {
@@ -312,82 +320,131 @@ const BrandingForm = () => {
     return null;
   };
 
-  if (loading) return <ContentLoader />;
-  if (error) return <div>Error: {error}</div>;
+  const questions = stepData?.questions || [];
+  const assetQuestions = questions.filter((q) => q.answer_type === "file");
+  const colorQuestions = questions.filter(
+    (q) => q.answer_type === "color_picker"
+  );
+  const detailQuestions = questions.filter(
+    (q) => q.answer_type !== "file" && q.answer_type !== "color_picker"
+  );
+
+  const isReady = Boolean(stepData?.questions?.length) && !error;
 
   return (
-    <Card className="pb-2.5 w-full h-auto justify-center">
-      <Form {...form}>
-        <div className="text-center mt-[40px] text-xl font-medium leading-none">
-          {stepData?.name}
-        </div>
-        <div className="grid gap-5 lg:gap-7.5 xl:w-[38.75rem] w-full mx-auto">
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="grid gap-5">
-              {stepData?.questions?.map((q) => {
-                const fieldName = `question_${q.id}`;
-                return (
-                  <div
-                    key={q.id}
-                    className="flex flex-col items-baseline flex-wrap lg:flex-nowrap gap-2.5"
-                  >
-                    {q.answer_type === "file" && (
+    <Page>
+      <PageHeader
+        title={stepData?.name || "Branding"}
+        description="Set the logo, colours and voice that your customers will see."
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="md"
+              type="button"
+              onClick={() => {
+                setActionType("draft");
+                onSubmit(form.getValues());
+              }}
+            >
+              Save Draft
+            </Button>
+            <Button
+              size="md"
+              type="submit"
+              form="branding-form"
+              onClick={() => setActionType("next")}
+              disabled={!isReady || loading}
+            >
+              {loading ? "Submitting..." : "Next"}
+            </Button>
+          </>
+        }
+      />
+
+      {error ? (
+        <Card>
+          <CardContent className="p-5 text-sm text-destructive">{error}</CardContent>
+        </Card>
+      ) : !isReady ? (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-9 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : (
+        <Form {...form}>
+          <form
+            id="branding-form"
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="grid gap-5 lg:gap-6"
+          >
+            {assetQuestions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Brand assets
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Upload the artwork used across your storefront.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-5">
+                  {assetQuestions.map((q) => {
+                    const fieldName = `question_${q.id}`;
+                    return (
                       <FormField
+                        key={q.id}
                         control={form.control}
                         name={fieldName}
                         render={({ field }) => (
-                          <div className="flex flex-wrap justify-between gap-5">
-                            <div className="flex flex-col">
-                              <div className="text-mono text-sm font-medium">
-                                {q.question_text}
-                              </div>
-                              <span className="text-secondary-foreground text-sm">
-                                {q.question_label}
-                              </span>
-                            </div>
-                            <div className="flex flex-wrap sm:flex-nowrap gap-5 lg:gap-7.5 max-w-96 w-full">
+                          <div className="grid gap-2.5">
+                            <Label
+                              htmlFor={`branding-file-${q.id}`}
+                              className="text-sm font-medium text-foreground"
+                            >
+                              {q.question_text}
+                            </Label>
+                            <span className="text-xs text-muted-foreground">
+                              {q.question_label}
+                            </span>
+
+                            <div className="flex flex-wrap justify-between gap-5">
                               <div
-                                className="flex bg-center w-full p-5 lg:p-7 bg-no-repeat bg-[length:550px] border border-input rounded-xl border-dashed branding-bg cursor-pointer"
+                                role="button"
+                                tabIndex={0}
                                 onClick={handleFileClick}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    handleFileClick();
+                                  }
+                                }}
+                                className="flex w-full cursor-pointer place-items-center justify-center rounded-xl border border-dashed border-border bg-accent p-7 text-center transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               >
-                                <div className="flex flex-col place-items-center place-content-center text-center rounded-xl w-full">
-                                  <div className="flex items-center mb-2.5">
-                                    <div className="relative size-11 shrink-0">
-                                      <svg
-                                        className="w-full h-full stroke-orange-200 fill-white"
-                                        width="44"
-                                        height="48"
-                                        viewBox="0 0 44 48"
-                                        fill="none"
-                                        xmlns="http://www.w3.org/2000/svg"
-                                      >
-                                        <path d="M16 2.4641C19.7128 0.320509 24.2872 0.320508 28 2.4641L37.6506 8.0359C41.3634 10.1795 43.6506 14.141 43.6506 18.4282V29.5718C43.6506 33.859 41.3634 37.8205 37.6506 39.9641L28 45.5359C24.2872 47.6795 19.7128 47.6795 16 45.5359L6.34937 39.9641C2.63655 37.8205 0.349365 33.859 0.349365 29.5718V18.4282C0.349365 14.141 2.63655 10.1795 6.34937 8.0359L16 2.4641Z" />
-                                        <path
-                                          d="M16.25 2.89711C19.8081 0.842838 24.1919 0.842837 27.75 2.89711L37.4006 8.46891C40.9587 10.5232 43.1506 14.3196 43.1506 18.4282V29.5718C43.1506 33.6804 40.9587 37.4768 37.4006 39.5311L27.75 45.1029C24.1919 47.1572 19.8081 47.1572 16.25 45.1029L6.59937 39.5311C3.04125 37.4768 0.849365 33.6803 0.849365 29.5718V18.4282C0.849365 14.3196 3.04125 10.5232 6.59937 8.46891L16.25 2.89711Z"
-                                          stroke=""
-                                          strokeOpacity="0.2"
-                                        />
-                                      </svg>
-                                      <div className="absolute left-2/4 top-2/4 -translate-y-2/4 -translate-x-2/4">
-                                        <ImageIcon className="text-xl ps-px text-primary" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="text-mono text-xs font-medium hover:text-primary mb-px">
-                                    Click or Drag & Drop
-                                  </div>
-                                  <span className="text-xs text-secondary-foreground text-nowrap">
+                                <div className="flex flex-col items-center gap-2">
+                                  <span className="flex size-11 items-center justify-center rounded-full bg-card text-primary shadow-xs">
+                                    <Upload className="size-5" />
+                                  </span>
+                                  <span className="text-sm font-medium text-foreground">
+                                    Click or Drag &amp; Drop
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
                                     SVG, PNG, JPG (max. 800x400)
                                   </span>
-                                  <input
+                                  <Input
                                     type="file"
                                     accept="image/*"
+                                    id={`branding-file-${q.id}`}
                                     ref={fileInputRef}
                                     onChange={(e) => handleFileChange(e, field)}
                                     className="hidden"
                                   />
                                 </div>
                               </div>
+
                               {previewUrl && (
                                 <Image
                                   src={previewUrl}
@@ -395,7 +452,7 @@ const BrandingForm = () => {
                                   width={130}
                                   height={130}
                                   unoptimized
-                                  className="h-[130px] w-[130px] mt-2 rounded object-contain"
+                                  className="mt-2 h-[130px] w-[130px] rounded object-contain"
                                 />
                               )}
                             </div>
@@ -403,128 +460,180 @@ const BrandingForm = () => {
                           </div>
                         )}
                       />
-                    )}
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
-                    {q.answer_type === "color_picker" && (
+            {colorQuestions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Brand colours
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Pick the primary and secondary colours for your theme.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-5">
+                  {colorQuestions.map((q) => {
+                    const fieldName = `question_${q.id}`;
+                    return (
                       <FormField
+                        key={q.id}
                         control={form.control}
                         name={fieldName}
                         render={({ field }) => (
-                          <div className="flex w-full justify-between gap-5">
+                          <div className="flex w-full flex-wrap items-center justify-between gap-5">
                             <div className="flex flex-col">
-                              <div className="text-mono text-sm font-medium">
+                              <Label
+                                htmlFor={`color-input-${q.id}`}
+                                className="text-sm font-medium text-foreground"
+                              >
                                 {q.question_text}
-                              </div>
-                              <span className="text-secondary-foreground text-sm">
+                              </Label>
+                              <span className="text-xs text-muted-foreground">
                                 {q.question_label}
                               </span>
                             </div>
-                            <InputWrapper className="w-52 relative">
-                              <input
+                            <div className="flex items-center gap-2">
+                              <Input
                                 type="color"
                                 id={`color-input-${q.id}`}
-                                className="absolute w-0 h-0 opacity-0 pointer-events-none"
+                                className="pointer-events-none absolute h-0 w-0 opacity-0"
                                 value={field.value}
                                 onChange={(e) => field.onChange(e.target.value)}
                               />
-                              <Button
-                                variant="dim"
-                                mode="icon"
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  const colorInput = document.getElementById(
-                                    `color-input-${q.id}`
-                                  );
-                                  if (colorInput) {
-                                    colorInput.click();
-                                  }
-                                }}
-                              >
-                                <SquareMousePointer
-                                  size={16}
-                                  style={{ color: field.value }}
+                              <InputWrapper className="w-52">
+                                <Button
+                                  variant="outline"
+                                  mode="icon"
+                                  size="sm"
+                                  type="button"
+                                  aria-label="Pick a colour"
+                                  title="Pick a colour"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    const colorInput = document.getElementById(
+                                      `color-input-${q.id}`
+                                    );
+                                    if (colorInput) {
+                                      colorInput.click();
+                                    }
+                                  }}
+                                >
+                                  <SquareMousePointer
+                                    size={16}
+                                    style={{ color: field.value }}
+                                  />
+                                </Button>
+                                <Input
+                                  type="text"
+                                  {...field}
+                                  placeholder="Enter hex color or name (e.g., #FFFFFF or yellow)"
                                 />
-                              </Button>
-                              <Input
-                                type="text"
-                                {...field}
-                                placeholder="Enter hex color or name (e.g., #FFFFFF or yellow)"
-                              />
-                            </InputWrapper>
+                              </InputWrapper>
+                            </div>
                             <FormMessage />
                           </div>
                         )}
                       />
-                    )}
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
-                    {q.answer_type === "text" && (
-                      <FormField
-                        control={form.control}
-                        name={fieldName}
-                        render={({ field }) => (
-                          <FormItem className="w-full">
-                            <FormLabel>{q.question_text}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={q.question_label}
-                                {...field}
-                                value={field.value || ""}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+            {detailQuestions.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm font-semibold text-foreground">
+                    Brand details
+                  </CardTitle>
+                  <CardDescription className="text-xs text-muted-foreground">
+                    Tell us how your brand sounds and how we can reach you.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-5">
+                  {detailQuestions.map((q) => {
+                    const fieldName = `question_${q.id}`;
+                    return (
+                      <div key={q.id} className="grid gap-2.5">
+                        {q.answer_type === "text" && (
+                          <FormField
+                            control={form.control}
+                            name={fieldName}
+                            render={({ field }) => (
+                              <FormItem className="w-full">
+                                <FormLabel>{q.question_text}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={q.question_label}
+                                    {...field}
+                                    value={field.value || ""}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
-                      />
-                    )}
 
-                    {q.answer_type === "dropdown" && (
-                      <FormField
-                        control={form.control}
-                        name={fieldName}
-                        render={({ field }) => (
-                          <FormItem className="w-full">
-                            <FormLabel>{q.question_text}</FormLabel>
-                            <FormControl>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={q.question_label} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectGroup>
-                                    {q.options.length === 0 ? (
-                                      <div className="text-center text-gray-500 dark:text-muted-foreground">
-                                        No options available
-                                      </div>
-                                    ) : (
-                                      q.options?.map((que) => (
-                                        <SelectItem
-                                          key={que.id}
-                                          value={String(que.value)}
-                                        >
-                                          {que.value}
-                                        </SelectItem>
-                                      ))
-                                    )}
-                                  </SelectGroup>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
+                        {q.answer_type === "dropdown" && (
+                          <FormField
+                            control={form.control}
+                            name={fieldName}
+                            render={({ field }) => (
+                              <FormItem className="w-full">
+                                <FormLabel>{q.question_text}</FormLabel>
+                                <FormControl>
+                                  <Select
+                                    onValueChange={field.onChange}
+                                    value={field.value}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue
+                                        placeholder={q.question_label}
+                                      />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectGroup>
+                                        {q.options.length === 0 ? (
+                                          <div className="p-2 text-center text-xs text-muted-foreground">
+                                            No options available
+                                          </div>
+                                        ) : (
+                                          q.options?.map((que) => (
+                                            <SelectItem
+                                              key={que.id}
+                                              value={String(que.value)}
+                                            >
+                                              {que.value}
+                                            </SelectItem>
+                                          ))
+                                        )}
+                                      </SelectGroup>
+                                    </SelectContent>
+                                  </Select>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
                         )}
-                      />
-                    )}
-                  </div>
-                );
-              })}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            )}
 
-              <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 mt-10">
+            <Card>
+              <CardFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
                 <Button
                   variant="ghost"
+                  size="md"
                   type="button"
                   onClick={() => {
                     setActionType("draft");
@@ -533,33 +642,37 @@ const BrandingForm = () => {
                 >
                   Save Draft
                 </Button>
+                {previous?.path && (
+                  <Button
+                    variant="outline"
+                    size="md"
+                    type="button"
+                    onClick={() => router.push(previous.path)}
+                  >
+                    Previous
+                  </Button>
+                )}
                 <Button
-                  variant="outline"
-                  onClick={() => router.push(previous.path)}
-                >
-                  Previous
-                </Button>
-
-                <Button
+                  size="md"
                   type="submit"
                   onClick={() => setActionType("next")}
-                  disabled={loading}
+                  disabled={!isReady || loading}
                 >
                   {loading ? (
                     <>
-                      <Spinner className="animate-spin size-4" />
+                      <Spinner className="size-4 animate-spin" />
                       Submitting...
                     </>
                   ) : (
                     "Next"
                   )}
                 </Button>
-              </div>
-            </CardContent>
+              </CardFooter>
+            </Card>
           </form>
-        </div>
-      </Form>
-    </Card>
+        </Form>
+      )}
+    </Page>
   );
 };
 

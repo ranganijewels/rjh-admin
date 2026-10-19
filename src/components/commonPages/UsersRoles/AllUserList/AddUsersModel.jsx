@@ -31,7 +31,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
 import { Label } from "@/components/common/ui/label";
 
 const AddUserModal = ({ open, onClose, onSuccess, editData }) => {
-  console.log("editData", editData);
   const { create, update } = useCrudApi("/api/user-management");
 
   const { fetchAll: fetchRolesAPI } = useCrudApi("/api/roles");

@@ -1,29 +1,70 @@
 "use client";
 
-import { Badge } from "@/components/common/ui/badge";
-import { Input } from "@/components/common/ui/input";
+import { useEffect, useRef, useState } from "react";
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/common/ui/select";
-import {
-  Mail,
-  Clock,
-  Paperclip,
-  Search,
-  Filter,
-  RefreshCw,
   AlertCircle,
+  Clock,
+  Filter,
+  Paperclip,
+  RefreshCw,
+  Search,
   User,
 } from "lucide-react";
+import { toast } from "sonner";
+
+import { Badge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
-import { Card } from "@/components/common/ui/cards/card";
-import { useState, useMemo, useEffect, useRef } from "react";
-import { useCrudApi } from "@/hooks/useCrudApi";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/common/ui/cards/card";
+import { Input } from "@/components/common/ui/input";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useCrudListWithPagination } from "@/hooks/useCrudListWithPagination";
+
+const DEPARTMENTS = [
+  { value: "web-tech-support", label: "Web Tech Support" },
+  { value: "graphics-design-support", label: "Graphics Design Support" },
+  { value: "social-media-marketing-support", label: "Social Media & Marketing" },
+  { value: "order-related-support", label: "Order Related" },
+  { value: "account-support", label: "Account Support" },
+];
+
+const STATUSES = [
+  { value: "open", label: "Open" },
+  { value: "in-progress", label: "In Progress" },
+  { value: "resolved", label: "Resolved" },
+  { value: "closed", label: "Closed" },
+];
+
+// Ticket status pills use the shared pastel badge treatments.
+const STATUS_BADGE = {
+  open: { variant: "primary", appearance: "light" },
+  "in-progress": { variant: "info", appearance: "light" },
+  resolved: { variant: "success", appearance: "light" },
+  closed: { variant: "secondary", appearance: "outline" },
+};
+
+const getStatusBadge = (status) =>
+  STATUS_BADGE[status] || { variant: "secondary", appearance: "light" };
+
+// Activates a badge that behaves like a button (Enter / Space).
+const activateOnKey = (handler) => (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    handler();
+  }
+};
 
 export default function TicketList({
   tickets,
@@ -34,7 +75,7 @@ export default function TicketList({
 
   currentUserId,
 }) {
-  const { list, loading, error, fetchData, pagination, fetchById } =
+  const { list, loading, error, pagination, fetchById } =
     useCrudListWithPagination("/api/internal-tickets");
 
   const [allTicketsData, setAllTicketsData] = useState([]);
@@ -59,10 +100,12 @@ export default function TicketList({
       const newTickets = data.data || [];
       setAllTicketsData((prev) => [...prev, ...newTickets]);
 
-      // optional: you can update pagination locally too
+      // The pagination object comes from the list hook as plain state, so the
+      // current page is advanced in place to stop the sentinel from asking
+      // for the same page again.
       pagination.currentPage = data.current_page;
     } catch (err) {
-      console.error("Load more failed:", err);
+      toast.error(err?.message || "Failed to load more tickets");
     }
   };
   const allTickets = [...(tickets || [])];
@@ -113,21 +156,6 @@ export default function TicketList({
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "open":
-        return "primary";
-      case "in-progress":
-        return "default";
-      case "resolved":
-        return "secondary";
-      case "closed":
-        return "outline";
-      default:
-        return "default";
-    }
-  };
-
   const handleSelectTicket = async (ticket) => {
     try {
       // Optional: show loading state or placeholder
@@ -140,349 +168,229 @@ export default function TicketList({
       // ✅ Set selected ticket with full detail
       setSelectedTicket(ticketData);
     } catch (err) {
-      console.error("Failed to fetch ticket details:", err);
+      toast.error(err?.message || "Failed to fetch ticket details");
     }
   };
 
   return (
-    <div className="w-full md:w-1/2 border-r border-border flex flex-col">
-      {/* Header Section */}
-      <div className="p-4 border-b border-border space-y-3 bg-card/50 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <h2 className="text-primary font-mono">Support Tickets</h2>
+    <Page className="w-full min-w-0 border-r border-border md:w-1/2">
+      <PageHeader
+        title="Support Tickets"
+        description="Internal tickets raised across the storefront."
+        actions={
           <Button
-            size="sm"
-            onClick={loadTickets}
+            variant="outline"
+            size="md"
+            onClick={() => loadTickets?.()}
             disabled={isLoading}
-            className="bg-primary"
+            aria-label="Refresh tickets"
+            title="Refresh tickets"
           >
-            <RefreshCw />
+            <RefreshCw className="size-4" />
           </Button>
-        </div>
+        }
+      />
 
-        {error && (
-          <div className="text-destructive flex items-center gap-2 text-sm">
-            <AlertCircle className="h-4 w-4" />
-            {error}
-          </div>
-        )}
-
-        {/* Filter badges */}
-        <div className="flex gap-2">
-          <Badge
-            variant={unassignedCount > 0 ? "destructive" : "outline"}
-            className="cursor-pointer"
-            onClick={() => setDepartmentFilter("unassigned")}
-          >
-            {unassignedCount} Unassigned
-          </Badge>
-          <Badge
-            variant={myTicketsCount > 0 ? "default" : "outline"}
-            className="cursor-pointer bg-primary text-white hover:bg-primary/90"
-            onClick={() => setDepartmentFilter("mine")}
-          >
-            {myTicketsCount} My Tickets
-          </Badge>
-          <Badge variant="outline">{allTickets.length} Total</Badge>
-        </div>
-
-        {/* Search + Filters */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search tickets..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
-          <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="All Departments" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Departments</SelectItem>
-              <SelectItem value="web-tech-support">Web Tech Support</SelectItem>
-              <SelectItem value="graphics-design-support">
-                Graphics Design Support
-              </SelectItem>
-              <SelectItem value="social-media-marketing-support">
-                Social Media & Marketing
-              </SelectItem>
-              <SelectItem value="order-related-support">
-                Order Related
-              </SelectItem>
-              <SelectItem value="account-support">Account Support</SelectItem>
-              {/* {(departments || []).map((dept) => (
-                <SelectItem key={dept} value={dept}>
-                  {dept}
-                </SelectItem>
-              ))} */}
-            </SelectContent>
-          </Select>
-
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-32">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="All Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="open">Open</SelectItem>
-              <SelectItem value="in-progress">In Progress</SelectItem>
-              <SelectItem value="resolved">Resolved</SelectItem>
-              <SelectItem value="closed">Closed</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Ticket List */}
-      <Card className="flex-1 overflow-y-auto m-2">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-32 text-muted-foreground">
-            Loading...
-          </div>
-        ) : allTicketsData?.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-muted-foreground">
-            <div className="text-center">
-              <AlertCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>No tickets found</p>
-              <p className="text-sm">Try adjusting filters</p>
+      <Card className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <CardHeader className="flex-col items-stretch gap-3 py-4">
+          {error && (
+            <div className="flex items-center gap-2 text-sm text-destructive">
+              <AlertCircle className="size-4" aria-hidden="true" />
+              {error}
             </div>
+          )}
+
+          {/* Filter badges */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant={unassignedCount > 0 ? "destructive" : "secondary"}
+              appearance={unassignedCount > 0 ? "light" : "outline"}
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => setDepartmentFilter("unassigned")}
+              onKeyDown={activateOnKey(() => setDepartmentFilter("unassigned"))}
+            >
+              {unassignedCount} Unassigned
+            </Badge>
+            <Badge
+              variant={myTicketsCount > 0 ? "primary" : "secondary"}
+              appearance={myTicketsCount > 0 ? "light" : "outline"}
+              className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => setDepartmentFilter("mine")}
+              onKeyDown={activateOnKey(() => setDepartmentFilter("mine"))}
+            >
+              {myTicketsCount} My Tickets
+            </Badge>
+            <Badge variant="secondary" appearance="outline">
+              {allTickets.length} Total
+            </Badge>
           </div>
-        ) : (
-          allTicketsData?.map((ticket) => {
-            return (
-              <div
-                key={`${ticket.id}-${ticket.createdAt}`}
-                onClick={() => handleSelectTicket(ticket)}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleSelectTicket(ticket);
-                  }
-                }}
-                className={`p-4 border-b border-border cursor-pointer hover:bg-accent/50 transition-colors ${
-                  selectedTicket?.id === ticket.id
-                    ? "bg-accent border-l-4 border-l-primary"
-                    : ""
-                }`}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2 flex-wrap text-xs">
-                    <div
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: getPriorityColor(ticket.priority) }}
-                      aria-label={`Priority: ${ticket.priority || "none"}`}
-                      title={`Priority: ${ticket.priority || "none"}`}
-                    />
-                    <span className="font-medium">{ticket?.ticket_number}</span>
-                    <Badge variant={getStatusColor(ticket.status)}>
-                      {ticket.status}
-                    </Badge>
-                    {!ticket.assignedUser?.name && (
-                      <Badge variant="outline" className="text-xs">
-                        <User className="h-3 w-3 mr-1" />
-                        ticket.assignedUser?.name
+
+          {/* Search + Filters */}
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="relative flex-1">
+              <Search
+                className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+              <Input
+                placeholder="Search tickets..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="ps-9"
+                aria-label="Search tickets"
+              />
+            </div>
+
+            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+              <SelectTrigger className="w-full sm:w-48" aria-label="Filter by department">
+                <SelectValue placeholder="All Departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Departments</SelectItem>
+                <SelectItem value="unassigned">Unassigned</SelectItem>
+                <SelectItem value="mine">My Tickets</SelectItem>
+                {DEPARTMENTS.map((dept) => (
+                  <SelectItem key={dept.value} value={dept.value}>
+                    {dept.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-36" aria-label="Filter by status">
+                <Filter className="mr-2 size-4" aria-hidden="true" />
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                {STATUSES.map((status) => (
+                  <SelectItem key={status.value} value={status.value}>
+                    {status.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+
+        {/* Ticket List */}
+        <CardContent className="min-h-0 flex-1 overflow-y-auto p-0">
+          {isLoading ? (
+            <div className="space-y-3 p-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
+            </div>
+          ) : allTicketsData?.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+              <AlertCircle
+                className="size-8 text-muted-foreground opacity-50"
+                aria-hidden="true"
+              />
+              <p className="text-sm font-medium text-foreground">No tickets found</p>
+              <p className="text-sm text-muted-foreground">Try adjusting filters</p>
+            </div>
+          ) : (
+            allTicketsData?.map((ticket) => {
+              const ticketBadge = getStatusBadge(ticket.status);
+              return (
+                <div
+                  key={`${ticket.id}-${ticket.createdAt}`}
+                  onClick={() => handleSelectTicket(ticket)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleSelectTicket(ticket);
+                    }
+                  }}
+                  className={cn(
+                    "cursor-pointer border-b border-border px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    selectedTicket?.id === ticket.id &&
+                      "border-l-4 border-l-primary bg-muted"
+                  )}
+                >
+                  <div className="mb-2 flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <span
+                        className="size-2 rounded-full"
+                        style={{ backgroundColor: getPriorityColor(ticket.priority) }}
+                        aria-label={`Priority: ${ticket.priority || "none"}`}
+                        title={`Priority: ${ticket.priority || "none"}`}
+                        role="img"
+                      />
+                      <span className="font-medium text-foreground">
+                        {ticket?.ticket_number}
+                      </span>
+                      <Badge
+                        variant={ticketBadge.variant}
+                        appearance={ticketBadge.appearance}
+                      >
+                        {ticket.status}
                       </Badge>
-                    )}
-                    {ticket.status === "open" && (
-                      <Badge variant="secondary" className="text-xs">
-                        Auto-Assigned
-                      </Badge>
-                    )}
-                    {ticket.attachments?.length > 0 && (
-                      <Badge className="border border-primary">
-                        <Paperclip className="h-3 w-3 mr-1" />
-                        {ticket.attachments.length}
-                      </Badge>
+                      {!ticket.assignedUser?.name && (
+                        <Badge variant="secondary" appearance="outline" className="text-xs">
+                          <User className="mr-1 size-3" aria-hidden="true" />
+                          Unassigned
+                        </Badge>
+                      )}
+                      {ticket.status === "open" && (
+                        <Badge variant="secondary" className="text-xs">
+                          Auto-Assigned
+                        </Badge>
+                      )}
+                      {ticket.attachments?.length > 0 && (
+                        <Badge variant="secondary" appearance="outline" className="text-xs">
+                          <Paperclip className="mr-1 size-3" aria-hidden="true" />
+                          {ticket.attachments.length}
+                        </Badge>
+                      )}
+                    </div>
+                    {ticket.slaDeadline && (
+                      <div className="flex shrink-0 items-center text-xs text-muted-foreground">
+                        <Clock className="mr-1 size-3" aria-hidden="true" />
+                        SLA: {new Date(ticket.slaDeadline).toLocaleDateString()}
+                      </div>
                     )}
                   </div>
-                  {ticket.slaDeadline && (
-                    <div className="flex items-center text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3 mr-1" />
-                      SLA: {new Date(ticket.slaDeadline).toLocaleDateString()}
-                    </div>
-                  )}
-                </div>
 
-                <h3 className="font-medium mb-1">{ticket.subject}</h3>
-                <div className="text-sm text-muted-foreground mb-2">
-                  {ticket?.subject} • {ticket?.department?.name}
+                  <h2 className="mb-1 truncate text-sm font-medium text-foreground">
+                    {ticket.subject}
+                  </h2>
+                  <div className="mb-2 truncate text-sm text-muted-foreground">
+                    {ticket?.department?.name}
+                  </div>
+                  <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                    <span className="truncate">
+                      Created by {ticket?.creator?.name} •{" "}
+                      {new Date(ticket.created_at).toLocaleDateString()}
+                    </span>
+                    {ticket.cc && (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span>{ticket?.cc?.name}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>
-                    Created by {ticket?.creator?.name} •{" "}
-                    {new Date(ticket.created_at).toLocaleDateString()}
-                  </span>
-                  {ticket.cc && (
-                    <div className="flex items-center gap-1">
-                      <span>{ticket?.cc?.name}</span>
-                      {/* {ticket.ccUsers?.length > 0 && (
-                        <>
-                          <Mail className="h-3 w-3" />
-                          <span>CC: {ticket.ccUsers.length}</span>
-                        </>
-                      )} */}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
 
-        {hasMoreTickets && (
-          <div ref={sentinelRef} className="flex justify-center mt-4 py-6">
-            {loading && (
-              <span className="text-sm text-muted-foreground">Loading more…</span>
-            )}
-          </div>
-        )}
+          {hasMoreTickets && (
+            <div ref={sentinelRef} className="flex justify-center py-6">
+              {loading && (
+                <span className="text-sm text-muted-foreground">Loading more…</span>
+              )}
+            </div>
+          )}
+        </CardContent>
       </Card>
-    </div>
+    </Page>
   );
 }
-
-// "use client";
-
-// import { Badge } from "@/components/common/ui/badge";
-// import { Input } from "@/components/common/ui/input";
-// import {
-//   Select,
-//   SelectTrigger,
-//   SelectValue,
-//   SelectContent,
-//   SelectItem,
-// } from "@/components/common/ui/select";
-// import {
-//   Mail,
-//   Clock,
-//   Paperclip,
-//   Search,
-//   Filter,
-//   RefreshCw,
-//   AlertCircle,
-//   User,
-// } from "lucide-react";
-// import { Button } from "@/components/common/ui/button";
-// import { Card } from "@/components/common/ui/cards/card";
-// import { useState, useEffect } from "react";
-// import { useCrudListWithPagination } from "@/hooks/useCrudListWithPagination";
-
-// export default function TicketList({ selectedTicket, setSelectedTicket }) {
-//   const { list, loading, error, fetchData, pagination, fetchById } =
-//     useCrudListWithPagination("/api/internal-tickets");
-
-//   const [allTickets, setAllTickets] = useState([]);
-
-//   useEffect(() => {
-//     setAllTickets(list?.data || []);
-//   }, [list]);
-
-//   const handleSelectTicket = async (ticket) => {
-//     try {
-//       setSelectedTicket({ loading: true, id: ticket.id });
-//       const res = await fetchById(ticket.id);
-//       setSelectedTicket(res?.data || res);
-//     } catch (err) {
-//       console.error(err);
-//     }
-//   };
-
-//   const handleLoadMore = async () => {
-//     const nextPage = pagination.currentPage + 1;
-//     if (nextPage > pagination.totalPages) return;
-//     const res = await fetch(
-//       `/api/internal-tickets?page=${nextPage}&limit=${pagination.per_page}`
-//     );
-//     const data = await res.json();
-//     setAllTickets((prev) => [...prev, ...(data.data || [])]);
-//   };
-
-//   return (
-//     <div className="w-1/2 border-r border-border flex flex-col">
-//       {/* Header */}
-//       <div className="p-4 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between">
-//         <h2 className="text-primary font-semibold">Internal Support Tickets</h2>
-//         <Button
-//           size="sm"
-//           onClick={() => fetchData({ page: 1 })}
-//           disabled={loading}
-//         >
-//           <RefreshCw className="h-4 w-4" />
-//         </Button>
-//       </div>
-
-//       {/* Search */}
-//       <div className="p-3 border-b border-border flex gap-2">
-//         <div className="relative flex-1">
-//           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-//           <Input placeholder="Search tickets..." className="pl-9" />
-//         </div>
-//       </div>
-
-//       {/* Ticket List */}
-//       <Card className="flex-1 overflow-y-auto m-2">
-//         {loading ? (
-//           <div className="flex items-center justify-center h-32 text-muted-foreground">
-//             Loading...
-//           </div>
-//         ) : error ? (
-//           <div className="flex items-center justify-center h-32 text-destructive">
-//             {error}
-//           </div>
-//         ) : allTickets.length === 0 ? (
-//           <div className="flex items-center justify-center h-32 text-muted-foreground">
-//             No tickets found
-//           </div>
-//         ) : (
-//           allTickets.map((ticket) => (
-//             <div
-//               key={ticket.id}
-//               onClick={() => handleSelectTicket(ticket)}
-//               className={`p-4 border-b border-border cursor-pointer hover:bg-accent/50 transition-colors ${
-//                 selectedTicket?.id === ticket.id
-//                   ? "bg-accent border-l-4 border-l-primary"
-//                   : ""
-//               }`}
-//             >
-//               <div className="flex items-start justify-between mb-2">
-//                 <div className="flex items-center gap-2 text-xs">
-//                   <span className="font-medium">{ticket.ticket_number}</span>
-//                   <Badge variant="outline">{ticket.status}</Badge>
-//                   {ticket.attachments?.length > 0 && (
-//                     <Badge className="border border-primary">
-//                       <Paperclip className="h-3 w-3 mr-1" />{" "}
-//                       {ticket.attachments.length}
-//                     </Badge>
-//                   )}
-//                 </div>
-//                 <span className="text-xs text-muted-foreground">
-//                   {new Date(ticket.created_at).toLocaleDateString()}
-//                 </span>
-//               </div>
-//               <h3 className="font-medium">{ticket.subject}</h3>
-//               <p className="text-sm text-muted-foreground">
-//                 {ticket.department?.name}
-//               </p>
-//             </div>
-//           ))
-//         )}
-
-//         {pagination.currentPage < pagination.totalPages && (
-//           <div className="flex justify-center mt-4">
-//             <Button onClick={handleLoadMore} disabled={loading}>
-//               {loading ? "Loading..." : "Load More"}
-//             </Button>
-//           </div>
-//         )}
-//       </Card>
-//     </div>
-//   );
-// }

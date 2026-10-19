@@ -2,11 +2,18 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, Layers, Pencil, Plus } from "lucide-react";
+
+import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/common/ui/cards/card";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
-import { Plus, Eye, Pencil, Layers } from "lucide-react";
 import { Page, PageHeader } from "@/components/common/ui/page";
-import { toTitleCase } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
 
 const authHeaders = () => {
   const token =
@@ -14,8 +21,16 @@ const authHeaders = () => {
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 
+// Metal colour swatches show the literal product colour, so they use the
+// colour palette rather than the interface tokens.
 const swatch = (c) =>
-  c === "White" ? "bg-gray-200 dark:bg-secondary" : c === "Yellow" ? "bg-yellow-300" : c === "Rose" ? "bg-[#e6b8a2]" : "bg-muted";
+  c === "White"
+    ? "bg-gray-200 dark:bg-secondary"
+    : c === "Yellow"
+      ? "bg-yellow-300"
+      : c === "Rose"
+        ? "bg-rose-200"
+        : "bg-muted";
 
 // Manage product "design groups" — one design sold in multiple diamond shapes,
 // each shape being its own product, linked by a shared group code.
@@ -44,81 +59,119 @@ export default function ProductGroups() {
   if (loading) return <ContentLoader />;
 
   return (
-    <div className="space-y-5">
+    <Page>
       <PageHeader
         title="Product Groups"
         description="A group is one design sold in several diamond shapes. Each shape is its own product; products with the same Design Group code are linked on the storefront shape selector."
         actions={
-          <Button onClick={() => router.push("/dashboard/product-management/add")}>
-            <Plus className="h-4 w-4" /> Add Product
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => router.push("/dashboard/product-management/add")}
+          >
+            <Plus className="size-4" aria-hidden="true" /> Add Product
           </Button>
         }
       />
 
       {groups.length === 0 ? (
-        <div className="border border-dashed border-border rounded-lg p-10 text-center text-muted-foreground">
-          <Layers className="h-8 w-8 mx-auto mb-3 opacity-40" />
-          No design groups yet. To create one, add two or more products (one per
-          diamond shape) and give them the <b>same Design Group code</b> in the
-          product form.
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
+          <Layers className="size-10 text-muted-foreground" aria-hidden="true" />
+          <p className="text-sm font-medium text-foreground">No design groups yet</p>
+          <p className="max-w-md text-sm text-muted-foreground">
+            To create one, add two or more products (one per diamond shape) and
+            give them the <b>same Design Group code</b> in the product form.
+          </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           {groups.map((g) => (
-            <div key={g.group} className="border border-border rounded-lg overflow-hidden">
-              <div className="flex items-center justify-between bg-muted/40 px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{g.group}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {g.count} product{g.count !== 1 ? "s" : ""} · {g.shapes.length} shape
-                    {g.shapes.length !== 1 ? "s" : ""}
-                  </span>
+            <Card key={g.group}>
+              <CardHeader className="py-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-foreground">
+                    {g.group}
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {g.count} product{g.count !== 1 ? "s" : ""} · {g.shapes.length}{" "}
+                    shape{g.shapes.length !== 1 ? "s" : ""}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {g.shapes.map((s) => (
-                    <span key={s} className="text-[11px] px-2 py-0.5 rounded-full bg-background border border-border">
+                    <span
+                      key={s}
+                      className="rounded-full border border-border bg-card px-2 py-0.5 text-[11px] text-muted-foreground"
+                    >
                       {toTitleCase(s)}
                     </span>
                   ))}
                 </div>
-              </div>
-              <div className="divide-y divide-border">
+              </CardHeader>
+              <CardContent className="p-0">
                 {g.products.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
                     <img
                       src={p.mainImageUrl}
                       alt=""
-                      className="w-10 h-10 rounded object-cover bg-muted shrink-0"
+                      className="size-10 shrink-0 rounded object-cover bg-muted"
                     />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">{toTitleCase(p.productName)}</div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-medium text-foreground">
+                        {toTitleCase(p.productName)}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{p.productCode}</span>
                         {p.diamondShape && <span>· {toTitleCase(p.diamondShape)}</span>}
                         {p.metalColor && (
                           <span className="inline-flex items-center gap-1">
-                            · <span className={`inline-block w-2.5 h-2.5 rounded-full border ${swatch(p.metalColor)}`} />
+                            ·{" "}
+                            <span
+                              className={cn(
+                                "inline-block size-2.5 rounded-full border border-border",
+                                swatch(p.metalColor)
+                              )}
+                            />
                             {p.metalColor}
                           </span>
                         )}
-                        <span className={`px-1.5 rounded-full text-[10px] ${p.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground"}`}>
-                          {p.status}
-                        </span>
                       </div>
                     </div>
-                    <Button variant="outline" mode="icon" size="sm" onClick={() => router.push(`/dashboard/product-management/view/${p.id}`)}>
-                      <Eye className="h-4 w-4" />
+                    {p.status ? (
+                      <StatusBadge status={p.status} />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                    <Button
+                      variant="outline"
+                      mode="icon"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/product-management/view/${p.id}`)}
+                      aria-label={`View ${p.productName}`}
+                      title="View product"
+                    >
+                      <Eye className="size-4" />
                     </Button>
-                    <Button variant="outline" mode="icon" size="sm" onClick={() => router.push(`/dashboard/product-management/edit/${p.id}`)}>
-                      <Pencil className="h-4 w-4" />
+                    <Button
+                      variant="outline"
+                      mode="icon"
+                      size="sm"
+                      onClick={() => router.push(`/dashboard/product-management/edit/${p.id}`)}
+                      aria-label={`Edit ${p.productName}`}
+                      title="Edit product"
+                    >
+                      <Pencil className="size-4" />
                     </Button>
                   </div>
                 ))}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
-    </div>
+    </Page>
   );
 }

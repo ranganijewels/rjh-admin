@@ -113,25 +113,6 @@ const CategoryProductsPage = ({ category }) => {
     );
   };
 
-  // Manual order form state
-  const [orderData, setOrderData] = useState({
-    metalColor: "",
-    diamondType: "",
-    carat: "",
-    metalPurity: "",
-    size: "",
-    quantity: "1",
-    customerName: "",
-    phone: "",
-    email: "",
-    notes: "",
-  });
-
-  const handleCreateOrder = () => {
-    console.log("Order Created:", orderData);
-    setShowOrderModal(false);
-  };
-
   const [shareOptions, setShareOptions] = useState({
     imagesOnly: false,
     imagesWithTitle: true,
@@ -240,7 +221,6 @@ const CategoryProductsPage = ({ category }) => {
       <ManualOrderModel
         showOrderModal={showOrderModal}
         setShowOrderModal={setShowOrderModal}
-        handleCreateOrder={handleCreateOrder}
         product={PRODUCTS_DATA[0]}
       />
       {/* 🔹 Share Modal */}

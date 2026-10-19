@@ -2,20 +2,129 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Card } from "@/components/common/ui/cards/card";
+import { X } from "lucide-react";
+
+import { Button } from "@/components/common/ui/button";
 import {
-  ToolbarDescription,
-  ToolbarHeading,
-} from "@/components/common/ui/toolbar";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
+import { Checkbox } from "@/components/common/ui/checkbox";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import {
-  FEATURED_COLLECTIONS,
-  NAVIGATION_MENU_STRUCTURE,
-  FOOTER_CONTENT,
   BANNER_PREFERENCE,
+  FEATURED_COLLECTIONS,
+  FOOTER_CONTENT,
+  NAVIGATION_MENU_STRUCTURE,
   PRODUCT_DISPLAY,
 } from "./constant";
-import { Button } from "@/components/common/ui/button";
-import { Checkbox } from "@/components/common/ui/checkbox";
+import { cn } from "@/lib/utils";
+
+/**
+ * A selectable theme option (homepage banner / product display style).
+ * The tile is a button-like card: click, Enter or Space all select it.
+ */
+const ThemeOptionTile = ({ work, isSelected, onSelect }) => (
+  <div
+    role="button"
+    tabIndex={0}
+    aria-pressed={isSelected}
+    onClick={onSelect}
+    onKeyDown={(e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onSelect();
+      }
+    }}
+    className={cn(
+      "relative cursor-pointer overflow-hidden rounded-xl border transition-colors",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+      isSelected
+        ? "border-primary ring-1 ring-primary/20"
+        : "border-border hover:border-primary/40"
+    )}
+  >
+    {isSelected && (
+      <div className="absolute right-2 top-2 z-10 rounded-full">
+        <img
+          src="/images/customization/right symbol.svg"
+          alt="Selected"
+          className="size-8"
+          width={32}
+          height={32}
+        />
+      </div>
+    )}
+
+    <div className="relative aspect-[16/9] overflow-hidden bg-muted/40">
+      <img
+        src={work.image}
+        alt={work.title}
+        width={768}
+        height={432}
+        className="absolute inset-0 size-full object-cover"
+      />
+    </div>
+
+    <div className="flex items-center justify-center gap-2 border-t border-border bg-card px-4 py-3">
+      {work.logo && (
+        <img
+          src={work.logo}
+          alt=""
+          width={24}
+          height={24}
+          className="inline-block size-6 shrink-0"
+        />
+      )}
+      <span className="text-sm font-medium text-foreground">{work.title}</span>
+    </div>
+  </div>
+);
+
+/**
+ * Lightweight preview overlay for a chosen option.
+ */
+const PreviewOverlay = ({ open, image, title, alt, onClose, closeLabel }) => {
+  if (!open || !image) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="relative w-full max-w-2xl rounded-xl border border-border bg-card p-5 shadow-lg">
+        <Button
+          variant="ghost"
+          mode="icon"
+          size="sm"
+          onClick={onClose}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onClose();
+          }}
+          aria-label={closeLabel}
+          title="Close (Esc)"
+          className="absolute end-3 top-3"
+        >
+          <X className="size-4" aria-hidden="true" />
+        </Button>
+
+        <h3 className="mb-4 text-sm font-semibold text-foreground">{title}</h3>
+
+        <div className="overflow-hidden rounded-xl border border-border bg-muted/40">
+          <img
+            src={image}
+            alt={alt}
+            width={768}
+            height={432}
+            className="h-auto w-full object-contain"
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const ThemeCustomization = () => {
   const [selectedId, setSelectedId] = useState(null);
@@ -25,298 +134,223 @@ export const ThemeCustomization = () => {
   const [showProductModal, setShowProductModal] = useState(false);
 
   return (
-    <Card>
-      <h2 className="text-center text-2xl font-semibold mb-6 mt-5">
-        Website Theme & Layout Customization
-      </h2>
-      <div className="flex flex-col space-y-4 ps-7">
-        <div className="space-y-2">
-          <ToolbarHeading className="font-semibold text-lg">
-            <h3 className="font-semibold text-lg">
+    <Page>
+      <PageHeader
+        title="Website Theme & Layout Customization"
+        description="Choose the homepage banner, product display, navigation menu and footer content for your storefront."
+        actions={
+          <Button asChild>
+            <Link href="/content-branding">Next</Link>
+          </Button>
+        }
+      />
+
+      {/* Homepage banner preference */}
+      <Card>
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-semibold text-foreground">
               Homepage Banner Preference
-            </h3>
-          </ToolbarHeading>
-          <ToolbarDescription>
-            What type of banner would you like on your homepage?
-          </ToolbarDescription>
-        </div>
-      </div>
-      {BANNER_PREFERENCE?.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 p-6">
-          {BANNER_PREFERENCE?.map((work) => {
-            const isSelected = selectedId === work.id;
-            const handleSelect = () => {
-              setSelectedId(work.id);
-              setBannerPreviewImage(work.image);
-              setShowBannerModal(true);
-            };
-            return (
-              <Card
-                key={work.id}
-                onClick={handleSelect}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleSelect();
-                  }
-                }}
-                className={`relative rounded-lg group cursor-pointer overflow-hidden border-2 ${
-                  isSelected ? "border-primary" : "border-transparent"
-                }`}
-              >
-                {isSelected && (
-                  <div className="absolute top-2 right-2 z-10 rounded-full">
-                    <img
-                      src="/images/customization/right symbol.svg"
-                      alt="Selected"
-                      className="w-8 h-8"
-                      width={32}
-                      height={32}
-                    />
-                  </div>
-                )}
-                <div className="aspect-[16/9] relative">
-                  <img
-                    src={work.image}
-                    alt={work.title}
-                    width={768}
-                    height={432}
-                    className="w-full h-full object-cover absolute inset-0"
-                  />
-                </div>
-                <div className="p-4 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-b-lg">
-                  <Button mode="link" className="w-full justify-center">
-                    <span className="text-sm font-medium text-foreground flex items-center flex-col">
-                      {work.logo && (
-                        <img
-                          src={work.logo}
-                          alt={work.title}
-                          width={24}
-                          height={24}
-                          className="w-6 h-6 inline-block mr-2"
-                        />
-                      )}
-                      {work.title}
-                    </span>
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-      {showBannerModal && bannerPreviewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-card p-4 rounded-lg max-w-2xl w-full relative">
-            <button
-              onClick={() => setShowBannerModal(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setShowBannerModal(false);
-              }}
-              aria-label="Close banner preview"
-              title="Close (Esc)"
-              className="absolute top-2 right-2 text-gray-600 dark:text-muted-foreground hover:text-black text-2xl font-bold"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-semibold mb-4">Preview Banner</h3>
-            <img
-              src={bannerPreviewImage}
-              alt="Banner Preview"
-              width={768}
-              height={432}
-              className="w-full h-auto rounded border"
-            />
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              What type of banner would you like on your homepage?
+            </CardDescription>
           </div>
-        </div>
-      )}
-      <div className="flex flex-col space-y-2 ps-7">
-        <ToolbarHeading className="font-semibold text-lg">
-          <h3 className="font-semibold text-lg">Featured Collections Display</h3>
-        </ToolbarHeading>
-        <ToolbarDescription>
-          Which collections should be highlighted on the homepage?
-        </ToolbarDescription>
-      </div>
-      <div className="ps-5 mt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2">
-          {FEATURED_COLLECTIONS.map((item) => (
-            <div key={item.id} className="p-2">
-              <span className="text-sm font-medium text-foreground flex gap-3">
-                <Checkbox />
-                {item.title}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col space-y-2 ps-7 mt-3.5">
-        <ToolbarHeading className="font-semibold text-lg">
-          <h3 className="font-semibold text-lg">Product Display Style</h3>
-        </ToolbarHeading>
-        <ToolbarDescription>
-          How should your products be displayed?
-        </ToolbarDescription>
-      </div>
-      {PRODUCT_DISPLAY?.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 p-6">
-          {PRODUCT_DISPLAY?.map((work) => {
-            const isSelected = selectedId === work.id;
-            const handleSelect = () => {
-              setSelectedId(work.id);
-              setProductPreviewImage(work.image);
-              setShowProductModal(true);
-            };
-            return (
-              <div
-                key={work.id}
-                onClick={handleSelect}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    handleSelect();
-                  }
-                }}
-                className={`relative rounded-lg group cursor-pointer overflow-hidden border-2  ${
-                  isSelected ? "border-primary" : "border-transparent"
-                }`}
-              >
-                {isSelected && (
-                  <div className="absolute top-2 right-2 z-10 rounded-full">
-                    <img
-                      src="/images/customization/right symbol.svg"
-                      alt="Selected"
-                      className="w-8 h-8"
-                      width={32}
-                      height={32}
-                    />
-                  </div>
-                )}
-                <div className="aspect-[16/9] relative">
-                  <img
-                    src={work.image}
-                    alt={work.title}
-                    width={768}
-                    height={432}
-                    className="w-full h-full object-fill absolute"
+        </CardHeader>
+        <CardContent>
+          {BANNER_PREFERENCE?.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {BANNER_PREFERENCE.map((work) => {
+                const isSelected = selectedId === work.id;
+
+                return (
+                  <ThemeOptionTile
+                    key={work.id}
+                    work={work}
+                    isSelected={isSelected}
+                    onSelect={() => {
+                      setSelectedId(work.id);
+                      setBannerPreviewImage(work.image);
+                      setShowBannerModal(true);
+                    }}
                   />
-                </div>
-                <div className="p-4 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-b-lg">
-                  <Button mode="link" className="w-full justify-center">
-                    <span className="text-sm font-medium text-foreground flex items-center flex-col">
-                      {work.logo && (
-                        <img
-                          src={work.logo}
-                          alt={work.title}
-                          width={24}
-                          height={24}
-                          className="w-6 h-6 inline-block mr-2"
-                        />
-                      )}
-                      {work.title}
-                    </span>
-                  </Button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {showProductModal && productPreviewImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white dark:bg-card p-4 rounded-lg max-w-2xl w-full relative">
-            <button
-              onClick={() => setShowProductModal(false)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") setShowProductModal(false);
-              }}
-              aria-label="Close product display preview"
-              title="Close (Esc)"
-              className="absolute top-2 right-2 text-gray-600 dark:text-muted-foreground hover:text-black text-2xl font-bold"
-            >
-              &times;
-            </button>
-            <h3 className="text-lg font-semibold mb-4">
-              Preview Product Display
-            </h3>
-            <img
-              src={productPreviewImage}
-              alt="Product Preview"
-              width={768}
-              height={432}
-              className="w-full h-auto rounded border"
-            />
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No banner options available yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <PreviewOverlay
+        open={showBannerModal}
+        image={bannerPreviewImage}
+        title="Preview Banner"
+        alt="Banner Preview"
+        closeLabel="Close banner preview"
+        onClose={() => setShowBannerModal(false)}
+      />
+
+      {/* Featured collections */}
+      <Card>
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Featured Collections Display
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Which collections should be highlighted on the homepage?
+            </CardDescription>
           </div>
-        </div>
-      )}
-      <div className="flex flex-col space-y-2 ps-7">
-        <ToolbarHeading className="font-semibold text-lg">
-          <h3 className="font-semibold text-lg">Navigation Menu Structure</h3>
-        </ToolbarHeading>
-        <ToolbarDescription>
-          Which categories should appear in your main navigation?
-        </ToolbarDescription>
-      </div>
-      <div className="ps-5 mt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
-          {NAVIGATION_MENU_STRUCTURE.map((item, index) => (
-            <div key={item.id || index} className="p-2">
-              <span className="text-sm font-medium text-foreground flex justify-space-between gap-3">
-                <Checkbox />
-                {item.title}
-              </span>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {FEATURED_COLLECTIONS.map((item) => {
+              const id = `featured-${item.id}`;
+
+              return (
+                <div key={item.id} className="flex items-center gap-2.5">
+                  <Checkbox id={id} />
+                  <Label htmlFor={id} className="text-sm text-foreground">
+                    {item.title}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Product display style */}
+      <Card>
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Product Display Style
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              How should your products be displayed?
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {PRODUCT_DISPLAY?.length > 0 ? (
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {PRODUCT_DISPLAY.map((work) => {
+                const isSelected = selectedId === work.id;
+
+                return (
+                  <ThemeOptionTile
+                    key={work.id}
+                    work={work}
+                    isSelected={isSelected}
+                    onSelect={() => {
+                      setSelectedId(work.id);
+                      setProductPreviewImage(work.image);
+                      setShowProductModal(true);
+                    }}
+                  />
+                );
+              })}
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col space-y-2 ps-7 mt-3.5">
-        <ToolbarHeading className="font-semibold text-lg">
-          <h3 className="font-semibold text-lg">Footer Content</h3>
-        </ToolbarHeading>
-        <ToolbarDescription>
-          What would you like to include in your website footer?
-        </ToolbarDescription>
-      </div>
-      <div className="ps-5 mt-2">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-          {FOOTER_CONTENT.map((item, index) => (
-            <div key={item.id || index} className="p-2">
-              <span className="text-sm font-medium text-foreground flex justify-space-between gap-3">
-                <Checkbox />
-                {item.title}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 mb-5 mr-3 mt-5">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full sm:w-auto"
-          disabled
-          title="Save Draft is not available yet"
-        >
-          Save Draft
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full sm:w-auto bg-[#F1F1F2]"
-          disabled
-          title="Previous is not available yet"
-        >
-          Previous
-        </Button>
-        <Link href="/content-branding" className="w-full sm:w-auto">
-          <Button>Next</Button>
-        </Link>
-      </div>
-    </Card>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No product display options available yet.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      <PreviewOverlay
+        open={showProductModal}
+        image={productPreviewImage}
+        title="Preview Product Display"
+        alt="Product Preview"
+        closeLabel="Close product display preview"
+        onClose={() => setShowProductModal(false)}
+      />
+
+      {/* Navigation menu structure */}
+      <Card>
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Navigation Menu Structure
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Which categories should appear in your main navigation?
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {NAVIGATION_MENU_STRUCTURE.map((item) => {
+              const id = `navigation-${item.id}`;
+
+              return (
+                <div key={item.id} className="flex items-center gap-2.5">
+                  <Checkbox id={id} />
+                  <Label htmlFor={id} className="text-sm text-foreground">
+                    {item.title}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Footer content */}
+      <Card>
+        <CardHeader>
+          <div className="space-y-1">
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Footer Content
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              What would you like to include in your website footer?
+            </CardDescription>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {FOOTER_CONTENT.map((item) => {
+              const id = `footer-${item.id}`;
+
+              return (
+                <div key={item.id} className="flex items-center gap-2.5">
+                  <Checkbox id={id} />
+                  <Label htmlFor={id} className="text-sm text-foreground">
+                    {item.title}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+        <CardFooter className="flex flex-wrap items-center justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            title="Save Draft is not available yet"
+          >
+            Save Draft
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            title="Previous is not available yet"
+          >
+            Previous
+          </Button>
+        </CardFooter>
+      </Card>
+    </Page>
   );
 };
 

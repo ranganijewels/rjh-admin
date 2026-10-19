@@ -1,8 +1,27 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import { Checkbox } from "@/components/common/ui/checkbox";
+import { Badge } from "@/components/common/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/common/ui/table";
 import { toast } from "sonner";
 import { Calculator, Grid3x3 } from "lucide-react";
 import {
@@ -15,10 +34,15 @@ const authHeaders = () => {
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 
+// Sentinel value for "nothing selected" — a Select item always needs a real,
+// non-empty value.
+const NONE = "__none__";
+const ANY = "__any__";
+
 const money = (v) => `$${Number(v || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
 const Row = ({ label, value, strong }) => (
-  <div className={`flex justify-between py-2 border-b border-border/60 ${strong ? "font-semibold text-base" : "text-sm"}`}>
+  <div className={`flex justify-between border-b border-border/60 py-2 ${strong ? "text-base font-semibold" : "text-sm"}`}>
     <span className={strong ? "" : "text-muted-foreground"}>{label}</span>
     <span className="tabular-nums">{money(value)}</span>
   </div>
@@ -26,41 +50,45 @@ const Row = ({ label, value, strong }) => (
 
 const MatchBadge = ({ matched }) =>
   matched ? (
-    <span className="text-[11px] text-success">✓ matched</span>
+    <Badge variant="success" appearance="light" size="sm">
+      ✓ matched
+    </Badge>
   ) : (
-    <span className="text-[11px] text-destructive">✗ no rate matched</span>
+    <Badge variant="destructive" appearance="light" size="sm">
+      ✗ no rate matched
+    </Badge>
   );
 
 // One numbered step in the calculation ledger — shows what went IN, the
 // formula the engine applied, whether a master rate matched, and the $ OUT.
 const Step = ({ n, title, children, amount, warn }) => (
-  <div className="flex gap-3 py-3 border-b border-border/60 last:border-0">
-    <div className="shrink-0 w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs font-semibold">
+  <div className="flex gap-3 border-b border-border/60 py-3 last:border-0">
+    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
       {n}
     </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex justify-between items-baseline gap-2">
+    <div className="min-w-0 flex-1">
+      <div className="flex items-baseline justify-between gap-2">
         <span className="text-sm font-medium">{title}</span>
         {amount !== undefined && (
           <span className={`tabular-nums text-sm font-semibold ${warn ? "text-destructive" : ""}`}>{money(amount)}</span>
         )}
       </div>
-      <div className="text-xs text-muted-foreground mt-1 space-y-1">{children}</div>
+      <div className="mt-1 space-y-1 text-xs text-muted-foreground">{children}</div>
     </div>
   </div>
 );
 
 // Small labeled dropdown — "Any" is always available for optional fields.
-const Field = ({ label, value, onChange, options, optional, placeholder }) => (
+const Field = ({ label, value, onChange, options, optional, placeholder, id }) => (
   <div className="space-y-1.5">
-    <label className="text-xs font-medium text-muted-foreground">{label}</label>
-    <Select value={value || "__any__"} onValueChange={(v) => onChange(v === "__any__" ? "" : v)}>
-      <SelectTrigger className="h-9">
+    <Label htmlFor={id} className="text-xs text-muted-foreground">{label}</Label>
+    <Select value={value || ANY} onValueChange={(v) => onChange(v === ANY ? "" : v)}>
+      <SelectTrigger id={id} size="sm" className="h-9">
         <SelectValue placeholder={placeholder || `Select${optional ? " (any)" : ""}`} />
       </SelectTrigger>
       <SelectContent>
-        {optional && <SelectItem value="__any__">Any</SelectItem>}
-        {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+        {optional && <SelectItem value={ANY}>Any</SelectItem>}
+        {options.map((o) => <SelectItem key={o} value={String(o)}>{o}</SelectItem>)}
       </SelectContent>
     </Select>
   </div>
@@ -238,110 +266,180 @@ export default function PricePreview() {
     matrix?.cells.find((c) => c.type === type && c.purity === purity && c.carat === carat)?.data;
 
   return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="text-xl font-semibold">Price Preview</h1>
-        <p className="text-sm text-muted-foreground">
-          Live price computed from master data — no values are stored on the product.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Price Preview"
+        description="Live price computed from master data — no values are stored on the product."
+        actions={
+          <>
+            <Button variant="outline" size="md" onClick={runAllVariants} disabled={matrixLoading || !productDetail}>
+              <Grid3x3 className="size-4" /> {matrixLoading ? "Computing…" : "Compute All Variants"}
+            </Button>
+            <Button variant="primary" size="md" onClick={run} disabled={loading}>
+              <Calculator className="size-4" /> {loading ? "Calculating…" : "Calculate Price"}
+            </Button>
+          </>
+        }
+      />
 
-      <div className="space-y-1.5">
-        <label htmlFor="price-preview-product" className="text-xs font-medium text-muted-foreground">Product</label>
-        <select
-          id="price-preview-product"
-          value={productId}
-          onChange={(e) => setProductId(e.target.value)}
-          className="flex h-9 w-full max-w-xl rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">Select a product…</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title} {p.design_no ? `(${p.design_no})` : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {loadingProduct && <p className="text-sm text-muted-foreground">Loading product options…</p>}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-foreground">Product</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Pick the product whose price you want to preview.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          <Label htmlFor="price-preview-product" className="text-xs text-muted-foreground">Product</Label>
+          <Select
+            value={productId || NONE}
+            onValueChange={(v) => setProductId(v === NONE ? "" : v)}
+          >
+            <SelectTrigger id="price-preview-product" className="w-full max-w-xl">
+              <SelectValue placeholder="Select a product…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE}>Select a product…</SelectItem>
+              {products.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.title} {p.design_no ? `(${p.design_no})` : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {loadingProduct && (
+            <p className="text-xs text-muted-foreground">Loading product options…</p>
+          )}
+        </CardContent>
+      </Card>
 
       {productDetail && !loadingProduct && (
-        <div className="border border-border rounded-lg p-4 space-y-4">
-          <p className="text-xs font-medium text-muted-foreground">
-            Variant — every combination this product actually offers
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            <Field
-              label="Metal Type"
-              value={metalType}
-              onChange={setMetalType}
-              options={metalOptions.map((m) => m.type)}
-            />
-            <Field label="Metal Purity" value={metalPurity} onChange={setMetalPurity} options={purityOptions} />
-            <Field label="Metal Color" value={metalColor} onChange={setMetalColor} options={colorOptions} />
-            {hasCenterStone ? (
-              weightMatrix.length ? (
-                <Field
-                  label="Center Diamond (ct)"
-                  value={centerCaratCt}
-                  onChange={setCenterCaratCt}
-                  options={weightMatrix.map(String)}
-                />
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-foreground">Variant</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Every combination this product actually offers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3 lg:grid-cols-5">
+              <Field
+                id="preview-metal-type"
+                label="Metal Type"
+                value={metalType}
+                onChange={setMetalType}
+                options={metalOptions.map((m) => m.type)}
+              />
+              <Field
+                id="preview-metal-purity"
+                label="Metal Purity"
+                value={metalPurity}
+                onChange={setMetalPurity}
+                options={purityOptions}
+              />
+              <Field
+                id="preview-metal-color"
+                label="Metal Color"
+                value={metalColor}
+                onChange={setMetalColor}
+                options={colorOptions}
+              />
+              {hasCenterStone ? (
+                weightMatrix.length ? (
+                  <Field
+                    id="preview-center-carat"
+                    label="Center Diamond (ct)"
+                    value={centerCaratCt}
+                    onChange={setCenterCaratCt}
+                    options={weightMatrix.map(String)}
+                  />
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="preview-center-carat" className="text-xs text-muted-foreground">Center Diamond (ct)</Label>
+                    <Input
+                      id="preview-center-carat"
+                      type="number"
+                      step="any"
+                      value={centerCaratCt}
+                      onChange={(e) => setCenterCaratCt(e.target.value)}
+                    />
+                  </div>
+                )
               ) : (
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Center Diamond (ct)</label>
-                  <Input type="number" step="any" value={centerCaratCt} onChange={(e) => setCenterCaratCt(e.target.value)} />
+                  <Label className="text-xs text-muted-foreground">Center Diamond</Label>
+                  <p className="pt-2 text-sm text-muted-foreground">— no center stone —</p>
                 </div>
-              )
-            ) : (
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Center Diamond</label>
-                <p className="text-sm text-muted-foreground pt-2">— no center stone —</p>
-              </div>
+              )}
+              <Field
+                id="preview-diamond-quality"
+                label="Diamond Clarity/Quality"
+                value={diamondQuality}
+                onChange={setDiamondQuality}
+                options={catalogQualities}
+                optional
+              />
+            </div>
+            {productDetail.shape && (
+              <p className="text-xs text-muted-foreground">
+                Diamond shape is fixed for this product: <span className="font-medium text-foreground">{productDetail.shape.trim()}</span>
+                {" "}— shape variants are separate sibling products (Design Group), not selectable here.
+              </p>
             )}
-            <Field
-              label="Diamond Clarity/Quality"
-              value={diamondQuality}
-              onChange={setDiamondQuality}
-              options={catalogQualities}
-              optional
-            />
-          </div>
-          {productDetail.shape && (
-            <p className="text-xs text-muted-foreground">
-              Diamond shape is fixed for this product: <span className="font-medium">{productDetail.shape.trim()}</span>
-              {" "}— shape variants are separate sibling products (Design Group), not selectable here.
-            </p>
-          )}
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Diamond Color (optional)</label>
-          <Input value={diamondColor} onChange={(e) => setDiamondColor(e.target.value)} placeholder="e.g. EF" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Country (tax)</label>
-          <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g., US" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Margin %</label>
-          <Input type="number" value={marginPercent} onChange={(e) => setMargin(e.target.value)} placeholder="0" />
-        </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-4">
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={includeShipping} onChange={(e) => setIncludeShipping(e.target.checked)} />
-          Include shipping
-        </label>
-        <Button onClick={run} disabled={loading}>
-          <Calculator className="h-4 w-4 mr-1" /> {loading ? "Calculating…" : "Calculate Price"}
-        </Button>
-        <Button variant="outline" onClick={runAllVariants} disabled={matrixLoading || !productDetail}>
-          <Grid3x3 className="h-4 w-4 mr-1" /> {matrixLoading ? "Computing…" : "Compute All Variants"}
-        </Button>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-sm font-semibold text-foreground">Overrides</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Optional adjustments applied on top of the master rates.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 items-end gap-3 md:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="preview-diamond-color" className="text-xs text-muted-foreground">Diamond Color (optional)</Label>
+              <Input
+                id="preview-diamond-color"
+                value={diamondColor}
+                onChange={(e) => setDiamondColor(e.target.value)}
+                placeholder="e.g. EF"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="preview-country" className="text-xs text-muted-foreground">Country (tax)</Label>
+              <Input
+                id="preview-country"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                placeholder="e.g., US"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="preview-margin" className="text-xs text-muted-foreground">Margin %</Label>
+              <Input
+                id="preview-margin"
+                type="number"
+                value={marginPercent}
+                onChange={(e) => setMargin(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+            <div className="flex items-center gap-2 pb-2">
+              <Checkbox
+                id="preview-include-shipping"
+                checked={includeShipping}
+                onCheckedChange={(checked) => setIncludeShipping(!!checked)}
+              />
+              <Label htmlFor="preview-include-shipping" className="text-sm font-normal">
+                Include shipping
+              </Label>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {result && (() => {
         const bd = result.priceBreakdown || {};
@@ -354,198 +452,224 @@ export default function PricePreview() {
         const taxLines = bd.taxes || [];
         let step = 0;
         return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
-          {/* Quick-glance summary */}
-          <div className="border border-border rounded-lg p-5 h-fit">
-            <h3 className="font-semibold mb-2">Summary</h3>
-            <Row label="Metal Value" value={result.metalValue} />
-            <Row label="Diamond Value" value={result.diamondValue} />
-            {result.gemstoneValue > 0 && <Row label="Gemstone Value" value={result.gemstoneValue} />}
-            <Row label="Labor / Making" value={result.laborCharge} />
-            <Row label="Additional Charges" value={result.additionalCharges} />
-            {result.marginAmount > 0 && <Row label="Margin" value={result.marginAmount} />}
-            {result.markupAmount > 0 && <Row label="Markup" value={result.markupAmount} />}
-            {result.bookDiscount > 0 && <Row label="Price Book Discount" value={-result.bookDiscount} />}
-            <Row label="Tax" value={result.taxAmount} />
-            <Row label="Shipping" value={result.shippingAmount} />
-            {result.discount > 0 && <Row label="Discount" value={-result.discount} />}
-            {result.mrpApplied && (
-              <Row label="Computed price (pre-MRP)" value={result.computedPrice} />
-            )}
-            <div className="mt-2">
-              <Row label="Final Price" value={result.finalPrice} strong />
-            </div>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {result.mrpApplied && (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
-                  MRP override applied
-                </span>
-              )}
-              {result.labourOverridden && (
-                <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400">
-                  Labour rate overridden
-                </span>
-              )}
-            </div>
-            {result.warnings?.length > 0 && (
-              <div className="text-destructive text-xs mt-3 space-y-0.5">
-                {result.warnings.map((wn, i) => <div key={i}>⚠ {wn}</div>)}
-              </div>
-            )}
-          </div>
-
-          {/* Full step-by-step ledger — every input + formula the engine used */}
-          <div className="border border-border rounded-lg p-5 lg:col-span-2">
-            <h3 className="font-semibold mb-1">Full Breakdown</h3>
-            <p className="text-xs text-muted-foreground mb-2">Computed in this order, exactly as the pricing engine applies it.</p>
-
-            <Step n={++step} title="Metal weight" amount={undefined}>
-              <div>
-                Source: <span className="font-medium">{w.metalWeightSource || "—"}</span>
-                {w.metalWeightLookup !== undefined && (
-                  <> · global master lookup: {w.metalWeightLookup ? "used" : "not used"}</>
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+            {/* Quick-glance summary */}
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold text-foreground">Summary</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  What the customer would pay.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Row label="Metal Value" value={result.metalValue} />
+                <Row label="Diamond Value" value={result.diamondValue} />
+                {result.gemstoneValue > 0 && <Row label="Gemstone Value" value={result.gemstoneValue} />}
+                <Row label="Labor / Making" value={result.laborCharge} />
+                <Row label="Additional Charges" value={result.additionalCharges} />
+                {result.marginAmount > 0 && <Row label="Margin" value={result.marginAmount} />}
+                {result.markupAmount > 0 && <Row label="Markup" value={result.markupAmount} />}
+                {result.bookDiscount > 0 && <Row label="Price Book Discount" value={-result.bookDiscount} />}
+                <Row label="Tax" value={result.taxAmount} />
+                <Row label="Shipping" value={result.shippingAmount} />
+                {result.discount > 0 && <Row label="Discount" value={-result.discount} />}
+                {result.mrpApplied && (
+                  <Row label="Computed price (pre-MRP)" value={result.computedPrice} />
                 )}
-              </div>
-              {w.baseMetalPurity && (
-                <div>
-                  Base weight at <span className="font-medium">{w.baseMetalPurity}</span>: {w.baseWeightG} g
-                  {" "}× purity multiplier {w.purityWeightMultiplier} = <span className="font-medium">{w.netWeightG} g net</span>
+                <div className="mt-2">
+                  <Row label="Final Price" value={result.finalPrice} strong />
                 </div>
-              )}
-              {!w.baseMetalPurity && <div>Net weight: <span className="font-medium">{w.netWeightG} g</span></div>}
-              <div>Gross weight (net + diamond grams): {w.grossWeightG} g ({w.diamondWeightInGrams} g from diamonds)</div>
-            </Step>
-
-            <Step n={++step} title="Metal value" amount={result.metalValue}>
-              <div className="flex items-center gap-2">
-                <span>{m.netWeightG} g × {money(m.ratePerGram)}/g</span>
-                <MatchBadge matched={m.matched} />
-              </div>
-              {m.rateId && <div className="text-[11px]">rate id: {m.rateId}</div>}
-            </Step>
-
-            <Step n={++step} title="Diamond value" amount={result.diamondValue} warn={lines.some((x) => !x.matched) && lines.length > 0}>
-              {lines.length ? lines.map((x, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span>
-                    {x.shape?.trim() || "—"} {x.isCenter ? "(center)" : "(side)"} · {x.caratWeight} ct × {money(x.ratePerCarat)}/ct = {money(x.value)}
-                  </span>
-                  <MatchBadge matched={x.matched} />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {result.mrpApplied && (
+                    <Badge variant="warning" appearance="light" size="sm">
+                      MRP override applied
+                    </Badge>
+                  )}
+                  {result.labourOverridden && (
+                    <Badge variant="warning" appearance="light" size="sm">
+                      Labour rate overridden
+                    </Badge>
+                  )}
                 </div>
-              )) : <div>No diamonds on this product.</div>}
-            </Step>
-
-            {result.gemstoneValue > 0 && (
-              <Step n={++step} title="Gemstone value" amount={result.gemstoneValue}>
-                <div>Not yet supported by the engine — always $0.</div>
-              </Step>
-            )}
-
-            <Step n={++step} title="Labor / making charge" amount={result.laborCharge} warn={!l.matched && !result.labourOverridden}>
-              {result.labourOverridden ? (
-                <div>Product-level Labour Rate override applied (flat amount) — master rate ignored.</div>
-              ) : (
-                <>
-                  <div className="flex items-center gap-2">
-                    <span>
-                      Type: <span className="font-medium">{l.type || "—"}</span> · rate {l.rate}
-                      {l.type === "percentage" ? "%" : l.type === "per_gram" ? "/g" : ""}
-                    </span>
-                    <MatchBadge matched={l.matched} />
+                {result.warnings?.length > 0 && (
+                  <div className="mt-3 space-y-0.5 text-xs text-destructive">
+                    {result.warnings.map((wn, i) => <div key={i}>⚠ {wn}</div>)}
                   </div>
-                  {l.type === "per_gram" && <div>Applied on net weight: {l.appliedOnNetWeightG} g × {l.rate} = {money(l.value)}</div>}
-                  {l.type === "percentage" && <div>Applied on metal + diamond value = {money(l.value)}</div>}
-                  {l.type === "fixed" && <div>Flat amount = {money(l.value)}</div>}
-                  {l.rateId && <div className="text-[11px]">rate id: {l.rateId}</div>}
-                </>
-              )}
-            </Step>
+                )}
+              </CardContent>
+            </Card>
 
-            <Step n={++step} title="Additional charges" amount={result.additionalCharges}>
-              {addLines.length ? addLines.map((c, i) => (
-                <div key={i}>
-                  {c.name} ({c.type}, {c.method}): {c.method === "percentage" ? `${c.value}%` : money(c.value)} → {money(c.amount)}
-                </div>
-              )) : <div>None configured.</div>}
-            </Step>
+            {/* Full step-by-step ledger — every input + formula the engine used */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold text-foreground">Full Breakdown</CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Computed in this order, exactly as the pricing engine applies it.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Step n={++step} title="Metal weight" amount={undefined}>
+                  <div>
+                    Source: <span className="font-medium">{w.metalWeightSource || "—"}</span>
+                    {w.metalWeightLookup !== undefined && (
+                      <> · global master lookup: {w.metalWeightLookup ? "used" : "not used"}</>
+                    )}
+                  </div>
+                  {w.baseMetalPurity && (
+                    <div>
+                      Base weight at <span className="font-medium">{w.baseMetalPurity}</span>: {w.baseWeightG} g
+                      {" "}× purity multiplier {w.purityWeightMultiplier} = <span className="font-medium">{w.netWeightG} g net</span>
+                    </div>
+                  )}
+                  {!w.baseMetalPurity && <div>Net weight: <span className="font-medium">{w.netWeightG} g</span></div>}
+                  <div>Gross weight (net + diamond grams): {w.grossWeightG} g ({w.diamondWeightInGrams} g from diamonds)</div>
+                </Step>
 
-            <Step
-              n={++step}
-              title="Margin / Markup / Price Book"
-              amount={(result.marginAmount || 0) + (result.markupAmount || 0) - (result.bookDiscount || 0)}
-            >
-              {pb ? (
-                <>
-                  <div>Price book: <span className="font-medium">{pb.code}</span> ({pb.channel})</div>
-                  <div>Margin: {result.marginAmount > 0 ? money(result.marginAmount) : "$0"} · Markup: {pb.markupPercent}% = {money(pb.markupValue)} · Discount: {pb.discountPercent}% = −{money(pb.discountValue)}</div>
-                </>
-              ) : (
-                <div>No price book applied — standard retail pricing{result.marginAmount > 0 ? ` · Margin: ${money(result.marginAmount)}` : ""}.</div>
-              )}
-            </Step>
+                <Step n={++step} title="Metal value" amount={result.metalValue}>
+                  <div className="flex items-center gap-2">
+                    <span>{m.netWeightG} g × {money(m.ratePerGram)}/g</span>
+                    <MatchBadge matched={m.matched} />
+                  </div>
+                  {m.rateId && <div className="text-[11px]">rate id: {m.rateId}</div>}
+                </Step>
 
-            <Step n={++step} title="Tax" amount={result.taxAmount}>
-              {taxLines.length ? taxLines.map((t, i) => (
-                <div key={i}>{t.name}: {t.value}{t.method === "percentage" ? "%" : ""} → {money(t.amount)}</div>
-              )) : <div>No tax rate matched for this country/state — $0.</div>}
-            </Step>
+                <Step n={++step} title="Diamond value" amount={result.diamondValue} warn={lines.some((x) => !x.matched) && lines.length > 0}>
+                  {lines.length ? lines.map((x, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span>
+                        {x.shape?.trim() || "—"} {x.isCenter ? "(center)" : "(side)"} · {x.caratWeight} ct × {money(x.ratePerCarat)}/ct = {money(x.value)}
+                      </span>
+                      <MatchBadge matched={x.matched} />
+                    </div>
+                  )) : <div>No diamonds on this product.</div>}
+                </Step>
 
-            {includeShipping && (
-              <Step n={++step} title="Shipping" amount={result.shippingAmount}>
-                <div>{bd.shipping?.rateId ? `Rate id: ${bd.shipping.rateId}` : "No shipping rate matched for this destination."}</div>
-              </Step>
-            )}
+                {result.gemstoneValue > 0 && (
+                  <Step n={++step} title="Gemstone value" amount={result.gemstoneValue}>
+                    <div>Not yet supported by the engine — always $0.</div>
+                  </Step>
+                )}
 
-            {result.discount > 0 && (
-              <Step n={++step} title="Discount" amount={-result.discount}>
-                <div>Coupon / manual discount applied at checkout.</div>
-              </Step>
-            )}
+                <Step n={++step} title="Labor / making charge" amount={result.laborCharge} warn={!l.matched && !result.labourOverridden}>
+                  {result.labourOverridden ? (
+                    <div>Product-level Labour Rate override applied (flat amount) — master rate ignored.</div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <span>
+                          Type: <span className="font-medium">{l.type || "—"}</span> · rate {l.rate}
+                          {l.type === "percentage" ? "%" : l.type === "per_gram" ? "/g" : ""}
+                        </span>
+                        <MatchBadge matched={l.matched} />
+                      </div>
+                      {l.type === "per_gram" && <div>Applied on net weight: {l.appliedOnNetWeightG} g × {l.rate} = {money(l.value)}</div>}
+                      {l.type === "percentage" && <div>Applied on metal + diamond value = {money(l.value)}</div>}
+                      {l.type === "fixed" && <div>Flat amount = {money(l.value)}</div>}
+                      {l.rateId && <div className="text-[11px]">rate id: {l.rateId}</div>}
+                    </>
+                  )}
+                </Step>
 
-            <Step n={++step} title="Final price" amount={result.finalPrice}>
-              {result.mrpApplied ? (
-                <div>Design MRP override (<span className="font-medium">{money(result.finalPrice)}</span>) wins over the computed price ({money(result.computedPrice)}).</div>
-              ) : (
-                <div>Sum of every step above.</div>
-              )}
-            </Step>
+                <Step n={++step} title="Additional charges" amount={result.additionalCharges}>
+                  {addLines.length ? addLines.map((c, i) => (
+                    <div key={i}>
+                      {c.name} ({c.type}, {c.method}): {c.method === "percentage" ? `${c.value}%` : money(c.value)} → {money(c.amount)}
+                    </div>
+                  )) : <div>None configured.</div>}
+                </Step>
+
+                <Step
+                  n={++step}
+                  title="Margin / Markup / Price Book"
+                  amount={(result.marginAmount || 0) + (result.markupAmount || 0) - (result.bookDiscount || 0)}
+                >
+                  {pb ? (
+                    <>
+                      <div>Price book: <span className="font-medium">{pb.code}</span> ({pb.channel})</div>
+                      <div>Margin: {result.marginAmount > 0 ? money(result.marginAmount) : "$0"} · Markup: {pb.markupPercent}% = {money(pb.markupValue)} · Discount: {pb.discountPercent}% = −{money(pb.discountValue)}</div>
+                    </>
+                  ) : (
+                    <div>No price book applied — standard retail pricing{result.marginAmount > 0 ? ` · Margin: ${money(result.marginAmount)}` : ""}.</div>
+                  )}
+                </Step>
+
+                <Step n={++step} title="Tax" amount={result.taxAmount}>
+                  {taxLines.length ? taxLines.map((t, i) => (
+                    <div key={i}>{t.name}: {t.value}{t.method === "percentage" ? "%" : ""} → {money(t.amount)}</div>
+                  )) : <div>No tax rate matched for this country/state — $0.</div>}
+                </Step>
+
+                {includeShipping && (
+                  <Step n={++step} title="Shipping" amount={result.shippingAmount}>
+                    <div>{bd.shipping?.rateId ? `Rate id: ${bd.shipping.rateId}` : "No shipping rate matched for this destination."}</div>
+                  </Step>
+                )}
+
+                {result.discount > 0 && (
+                  <Step n={++step} title="Discount" amount={-result.discount}>
+                    <div>Coupon / manual discount applied at checkout.</div>
+                  </Step>
+                )}
+
+                <Step n={++step} title="Final price" amount={result.finalPrice}>
+                  {result.mrpApplied ? (
+                    <div>Design MRP override (<span className="font-medium">{money(result.finalPrice)}</span>) wins over the computed price ({money(result.computedPrice)}).</div>
+                  ) : (
+                    <div>Sum of every step above.</div>
+                  )}
+                </Step>
+              </CardContent>
+            </Card>
           </div>
-        </div>
         );
       })()}
 
       {matrix && (
-        <div className="border border-border rounded-lg p-4 overflow-x-auto">
-          <h3 className="font-semibold mb-3">All Variants — {productDetail?.title}</h3>
-          <table className="text-sm w-full">
-            <thead>
-              <tr className="text-left border-b border-border">
-                <th className="p-2 font-medium">Metal / Purity</th>
-                {matrix.carats.map((ct) => (
-                  <th key={ct} className="p-2 font-medium text-right">{ct} ct</th>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold text-foreground">
+              All Variants — {productDetail?.title}
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Computed final price for every metal / purity / carat combination.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Metal / Purity</TableHead>
+                  {matrix.carats.map((ct) => (
+                    <TableHead key={ct} className="text-right">{ct} ct</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {matrix.purityRows.map((pr) => (
+                  <TableRow key={`${pr.type}-${pr.purity}`}>
+                    <TableCell className="whitespace-nowrap font-medium text-foreground">
+                      {pr.type} {pr.purity}
+                    </TableCell>
+                    {matrix.carats.map((ct) => {
+                      const d = cellFor(pr.type, pr.purity, ct);
+                      const hasWarn = d?.warnings?.length > 0;
+                      return (
+                        <TableCell
+                          key={ct}
+                          className={`text-right tabular-nums ${hasWarn ? "text-destructive" : "text-foreground"}`}
+                        >
+                          {d ? `$${Number(d.finalPrice).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
+                          {hasWarn && <span title={d.warnings.join(", ")}> ⚠</span>}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {matrix.purityRows.map((pr) => (
-                <tr key={`${pr.type}-${pr.purity}`} className="border-b border-border/60">
-                  <td className="p-2 font-medium whitespace-nowrap">{pr.type} {pr.purity}</td>
-                  {matrix.carats.map((ct) => {
-                    const d = cellFor(pr.type, pr.purity, ct);
-                    const hasWarn = d?.warnings?.length > 0;
-                    return (
-                      <td key={ct} className={`p-2 text-right tabular-nums ${hasWarn ? "text-destructive" : ""}`}>
-                        {d ? `$${Number(d.finalPrice).toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
-                        {hasWarn && <span title={d.warnings.join(", ")}> ⚠</span>}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
-    </div>
+    </Page>
   );
 }

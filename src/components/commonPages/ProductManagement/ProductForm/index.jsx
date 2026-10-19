@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/common/ui/input";
 import { Textarea } from "@/components/common/ui/textarea";
 import { Button } from "@/components/common/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/common/ui/cards/card";
+import { Checkbox } from "@/components/common/ui/checkbox";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Plus, Trash2, ArrowLeft, Save, ChevronDown, ExternalLink } from "lucide-react";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
@@ -789,30 +794,43 @@ export default function ProductForm({ id }) {
   if (loading) return <ContentLoader />;
 
   return (
-    <div className="pb-24">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" mode="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold">
-              {isEdit ? "Edit Design / Product" : "New Design / Product"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {form.design_no ? `Design No: ${form.design_no}` : "Create a new product"}
-            </p>
-          </div>
-        </div>
-        {isEdit && id && (
-          <Button variant="outline" size="sm" asChild>
-            <a href={`${STOREFRONT_URL}/product/${id}`} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4 mr-1.5" /> View on Storefront
-            </a>
-          </Button>
-        )}
-      </div>
+    <Page className="pb-24">
+      <PageHeader
+        title={isEdit ? "Edit Design / Product" : "New Design / Product"}
+        description={
+          form.design_no
+            ? `Design No: ${form.design_no}`
+            : "Create a new product in the catalogue."
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => router.back()}
+              aria-label="Go back"
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+            {isEdit && id && (
+              <Button variant="outline" size="md" asChild>
+                <a
+                  href={`${STOREFRONT_URL}/product/${id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="size-4" /> View on Storefront
+                </a>
+              </Button>
+            )}
+            <Button size="md" onClick={save} disabled={saving}>
+              <Save className="size-4" />
+              {saving ? "Saving…" : "Save Design"}
+            </Button>
+          </>
+        }
+      />
 
       {/* Section: Design Info */}
       <Section title="Design Info & Classification">
@@ -897,7 +915,7 @@ export default function ProductForm({ id }) {
                   className={`px-2.5 py-1 rounded-full text-xs border inline-flex items-center gap-1.5 ${
                     selected
                       ? "text-white border-transparent"
-                      : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-input"
+                      : "bg-card text-muted-foreground border-input"
                   }`}
                   style={selected ? { backgroundColor: b.hex || "#162640" } : undefined}
                 >
@@ -956,7 +974,7 @@ export default function ProductForm({ id }) {
                       onChange={(e) =>
                         setMetalOption(i, { type: e.target.value, purities: [], colors: [] })
                       }
-                      className="border border-input rounded-md px-2.5 py-1.5 text-sm bg-white dark:bg-card"
+                      className="h-9 rounded-lg border border-input bg-background px-2.5 py-1.5 text-sm"
                     >
                       {metalTypeOptions.map((t) => (
                         <option key={t} value={t}>{t}</option>
@@ -987,7 +1005,7 @@ export default function ProductForm({ id }) {
                           className={`px-2.5 py-1 rounded-full text-xs border ${
                             opt.purities.includes(p)
                               ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-input"
+                              : "bg-card text-muted-foreground border-input"
                           }`}
                         >
                           {p}
@@ -1008,7 +1026,7 @@ export default function ProductForm({ id }) {
                             className={`px-2.5 py-1 rounded-full text-xs border inline-flex items-center gap-1.5 ${
                               opt.colors.includes(c)
                                 ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-input"
+                                : "bg-card text-muted-foreground border-input"
                             }`}
                           >
                             {sw?.hex && (
@@ -1220,7 +1238,7 @@ export default function ProductForm({ id }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="w-20 h-20 object-cover rounded border border-border" />
                 <button type="button" onClick={() => set("production_images", form.production_images.filter((_, idx) => idx !== i))}
-                  className="absolute -top-2 -right-2 bg-white dark:bg-card border border-border rounded-full p-0.5 text-red-500">
+                  className="absolute -top-2 -right-2 bg-card border border-border rounded-full p-0.5 text-red-500">
                   <Trash2 className="size-3" />
                 </button>
               </div>
@@ -1256,12 +1274,12 @@ export default function ProductForm({ id }) {
         <p className="text-xs font-medium mb-2 text-secondary-foreground">
           {materialSummary(materials)}
         </p>
-        <div className="overflow-x-auto border border-border rounded-lg">
+        <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-xs">
-            <thead className="bg-muted/50">
+            <thead className="bg-muted/60">
               <tr className="text-left">
                 {["Component", "Type", "Metal/Stone", "Shape", "Quality", "Color", "Size (MM)", "Setting", "Pcs", "Wt", "Center", ""].map((h) => (
-                  <th key={h} className="p-2 font-medium whitespace-nowrap">{h}</th>
+                  <th key={h} className="whitespace-nowrap p-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1350,10 +1368,13 @@ export default function ProductForm({ id }) {
                   </td>
                   <td className="p-1 text-center">
                     {/* ERP's red/green dot — green marks the center stone */}
-                    <input
-                      type="checkbox"
+                    <Checkbox
+                      className="mx-auto"
                       checked={!!row.centerStone}
-                      onChange={(e) => setMaterial(i, "centerStone", e.target.checked)}
+                      onCheckedChange={(checked) =>
+                        setMaterial(i, "centerStone", checked === true)
+                      }
+                      aria-label="Center stone"
                       title="Center stone"
                     />
                   </td>
@@ -1409,10 +1430,24 @@ export default function ProductForm({ id }) {
             <Input type="date" value={form.display_discount_ends_at} onChange={(e) => set("display_discount_ends_at", e.target.value)} />
           </Field>
           <Field label="Engraving" hint="On by default for rings. When ticked, the product page shows a free engraving field (max 20 characters).">
-            <label className="flex items-center gap-2 text-sm h-9">
-              <input type="checkbox" checked={form.engraving_enabled ?? /^(ring|wedding|band)/i.test(form.category || "")} onChange={(e) => set("engraving_enabled", e.target.checked)} />
-              Offer engraving on this product
-            </label>
+            <div className="flex h-9 items-center gap-2 text-sm">
+              <Checkbox
+                id="engraving_enabled"
+                checked={
+                  form.engraving_enabled ??
+                  /^(ring|wedding|band)/i.test(form.category || "")
+                }
+                onCheckedChange={(checked) =>
+                  set("engraving_enabled", checked === true)
+                }
+              />
+              <Label
+                htmlFor="engraving_enabled"
+                className="text-sm font-normal text-foreground"
+              >
+                Offer engraving on this product
+              </Label>
+            </div>
           </Field>
           <Field label="Dispatch time (optional)" hint="Shown on the product page and order email. Blank = store default (5–6 business days).">
             <Input value={form.production_time} onChange={(e) => set("production_time", e.target.value)} placeholder="e.g. 2–3 business days (ready to ship)" />
@@ -1544,21 +1579,33 @@ export default function ProductForm({ id }) {
         </p>
       </Section>
 
-      <label className="flex items-center gap-2 text-sm mt-2">
-        <input type="checkbox" checked={!!form.is_active} onChange={(e) => set("is_active", e.target.checked)} />
-        Active (visible on storefront)
+      <label className="flex items-center gap-2 text-sm">
+        <Checkbox
+          id="is_active"
+          checked={!!form.is_active}
+          onCheckedChange={(checked) => set("is_active", checked === true)}
+        />
+        <Label
+          htmlFor="is_active"
+          className="text-sm font-normal text-foreground"
+        >
+          Active (visible on storefront)
+        </Label>
       </label>
 
       {/* Sticky action bar (stays inside the content column, respects sidebar) */}
-      <div className="sticky bottom-0 -mx-4 md:-mx-6 mt-6 bg-background/95 backdrop-blur border-t border-border px-4 md:px-6 py-3 flex justify-end gap-2 z-20">
-        <Button variant="outline" onClick={() => router.push("/dashboard/product-management/my-products")}>
+      <div className="sticky bottom-0 z-20 -mx-4 flex justify-end gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+        <Button
+          variant="outline"
+          onClick={() => router.push("/dashboard/product-management/my-products")}
+        >
           Cancel
         </Button>
         <Button onClick={save} disabled={saving}>
-          <Save className="w-4 h-4 mr-1" /> {saving ? "Saving…" : "Save Design"}
+          <Save className="size-4" /> {saving ? "Saving…" : "Save Design"}
         </Button>
       </div>
-    </div>
+    </Page>
   );
 }
 
@@ -1570,46 +1617,51 @@ const Section = ({ title, action, children, advanced = false, hint }) => {
 
   if (!advanced) {
     return (
-      <div className="mb-6">
-        <div className="flex items-center justify-between bg-muted/40 px-3 py-2 rounded-md mb-3">
-          <h3 className="text-sm font-semibold">{title}</h3>
+      <Card>
+        <CardHeader className="min-h-0 py-3.5">
+          <CardTitle className="text-sm font-semibold text-foreground">
+            {title}
+          </CardTitle>
           {action}
-        </div>
-        {children}
-      </div>
+        </CardHeader>
+        <CardContent className="space-y-3">{children}</CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between bg-muted/40 px-3 py-2 rounded-md mb-3">
+    <Card>
+      <CardHeader className="min-h-0 py-3.5">
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
           className="flex items-center gap-2 text-left"
+          aria-expanded={open}
         >
           <ChevronDown
             className={`size-4 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
           />
-          <h3 className="text-sm font-semibold">{title}</h3>
-          <span className="text-[11px] font-normal text-muted-foreground border border-border rounded px-1.5 py-0.5">
+          <CardTitle className="text-sm font-semibold text-foreground">
+            {title}
+          </CardTitle>
+          <span className="rounded border border-border px-1.5 py-0.5 text-[11px] font-normal text-muted-foreground">
             Optional
           </span>
         </button>
         {open && action}
-      </div>
+      </CardHeader>
       {open && (
-        <>
-          {hint && <p className="text-xs text-muted-foreground mb-3 -mt-1">{hint}</p>}
+        <CardContent className="space-y-3">
+          {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
           {children}
-        </>
+        </CardContent>
       )}
-    </div>
+    </Card>
   );
 };
 
 const Grid = ({ children }) => (
-  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
     {children}
   </div>
 );
@@ -1618,26 +1670,32 @@ const Grid = ({ children }) => (
 // Description / AEO Summary / FAQ answers — resolved live on the storefront
 // to whichever metal/diamond option the shopper has selected.
 const TokenHint = () => (
-  <p className="text-[11px] text-muted-foreground mb-2 -mt-1">
+  <p className="text-xs text-muted-foreground">
     Dynamic tokens (resolve live to the shopper's selection):{" "}
     {DYNAMIC_TOKENS.map((t) => (
-      <code key={t} className="mx-0.5 px-1 py-0.5 rounded bg-muted font-mono">{t}</code>
+      <code key={t} className="mx-0.5 rounded bg-muted px-1 py-0.5 font-mono">
+        {t}
+      </code>
     ))}
   </p>
 );
 
-const Field = ({ label, children, full }) => (
-  <div className={`space-y-1.5 ${full ? "col-span-full" : ""}`}>
-    <label className="text-xs font-medium text-muted-foreground">{label}</label>
+const Field = ({ label, children, full, hint }) => (
+  <div className={cn("space-y-1.5", full && "col-span-full")}>
+    <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
+    {hint && <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p>}
     {children}
   </div>
 );
 
+// Native select, styled to match the shared Input (height, radius, border and
+// type scale) so the form reads as one system. Kept native because several of
+// these carry an explicit empty option, which the Radix select cannot hold.
 const Select = ({ value, onChange, options }) => (
   <select
     value={value || ""}
     onChange={onChange}
-    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+    className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-[0.8125rem] shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
   >
     <option value="">Select</option>
     {options.map((o) => (
@@ -1652,7 +1710,7 @@ const MatSelect = ({ value, onChange, options }) => (
   <select
     value={value || ""}
     onChange={onChange}
-    className="h-8 w-full rounded-md border border-input bg-background px-1.5 text-xs min-w-[80px]"
+    className="h-8 w-full min-w-[80px] rounded-md border border-input bg-background px-1.5 text-xs"
   >
     <option value="">—</option>
     {options.map((o) => (

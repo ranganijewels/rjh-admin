@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
@@ -38,6 +39,9 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^15.5.20",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "tailwindcss": "^4"
   }
 }

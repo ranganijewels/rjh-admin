@@ -3,8 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/common/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/common/ui/cards/card";
+import { StatusBadge } from "@/components/common/ui/badge";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import { ArrowLeft, ImageOff, Pencil, Trash2 } from "lucide-react";
 import { toTitleCase, formatDateLong } from "@/lib/utils";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { MediaPreview, detectType } from "../ProductForm/MediaManager";
@@ -53,7 +56,28 @@ export default function ProductDetailView({ id }) {
   };
 
   if (loading) return <ContentLoader />;
-  if (!product) return <div className="p-6 text-red-500">Product not found.</div>;
+
+  if (!product) {
+    return (
+      <Page>
+        <PageHeader title="Product not found" description="This product may have been deleted." />
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+            <p className="text-sm text-muted-foreground">
+              We couldn&apos;t find a product with this id.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => router.push("/dashboard/product-management/my-products")}
+            >
+              <ArrowLeft className="size-4" />
+              Back to Product Master List
+            </Button>
+          </CardContent>
+        </Card>
+      </Page>
+    );
+  }
 
   const p = product;
   const media = Array.isArray(p.media) ? p.media : [];
@@ -83,121 +107,205 @@ export default function ProductDetailView({ id }) {
   ].filter(([, v]) => v !== null && v !== undefined && v !== "");
 
   const materials = Array.isArray(p.materials) ? p.materials : [];
+  const title = toTitleCase(p.title) || p.design_no || "Product";
 
   return (
-    <div className="pb-10">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-3">
-          <Button variant="outline" mode="icon" onClick={() => router.push("/dashboard/product-management/my-products")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-semibold">{toTitleCase(p.title)}</h1>
-            <p className="text-sm text-muted-foreground">{p.title_line || p.design_no}</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push(`/dashboard/product-management/edit/${id}`)}>
-            <Pencil className="h-4 w-4 mr-1" /> Edit
-          </Button>
-          <Button variant="outline" onClick={() => setConfirmOpen(true)}>
-            <Trash2 className="h-4 w-4 mr-1 text-red-500" /> Delete
-          </Button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title={title}
+        description={p.title_line || p.design_no || "Product details"}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => router.push("/dashboard/product-management/my-products")}
+              aria-label="Back to Product Master List"
+            >
+              <ArrowLeft className="size-4" />
+              Back
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => router.push(`/dashboard/product-management/edit/${id}`)}
+            >
+              <Pencil className="size-4" />
+              Edit
+            </Button>
+            <Button
+              variant="destructive"
+              size="md"
+              onClick={() => setConfirmOpen(true)}
+            >
+              <Trash2 className="size-4" />
+              Delete
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
         {/* Left: gallery */}
-        <div className="lg:col-span-1">
-          <div className="aspect-square rounded-lg border border-border overflow-hidden bg-muted/30 flex items-center justify-center">
-            <MediaPreview
-              url={p.product_image || media[0]?.url}
-              type={detectType(p.product_image || media[0]?.url)}
-              className="w-full h-full object-contain"
-            />
-          </div>
-          {media.length > 0 && (
-            <div className="grid grid-cols-4 gap-2 mt-3">
-              {media.map((m, i) => {
-                const t = m.mediaType && m.mediaType !== "image" ? m.mediaType : detectType(m.url);
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setPreview({ url: m.url, type: t })}
-                    className="aspect-square rounded border border-border overflow-hidden bg-muted/30 relative"
-                    title={m.metalColor ? `${m.metalColor} · ${m.altText || "gallery"}` : ""}
-                  >
-                    <MediaPreview url={m.url} type={t} className="w-full h-full object-cover" />
-                    {t !== "image" && (
-                      <span className="absolute bottom-0.5 left-0.5 text-[9px] px-1 rounded bg-black/60 text-white uppercase">
-                        {t}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+        <Card className="lg:col-span-1">
+          <CardHeader className="min-h-0 py-3.5">
+            <CardTitle className="text-sm font-semibold text-foreground">
+              Media
+            </CardTitle>
+            <StatusBadge status={p.is_active ? "Active" : "Inactive"} />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex aspect-square items-center justify-center overflow-hidden rounded-xl border border-border bg-muted/30">
+              {p.product_image || media[0]?.url ? (
+                <MediaPreview
+                  url={p.product_image || media[0]?.url}
+                  type={detectType(p.product_image || media[0]?.url)}
+                  className="h-full w-full object-contain"
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <ImageOff className="size-8" aria-hidden="true" />
+                  <span className="text-xs">No image uploaded</span>
+                </div>
+              )}
             </div>
-          )}
-          <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground"}`}>
-              {p.is_active ? "Active" : "Inactive"}
-            </span>
-          </div>
-        </div>
+            {media.length > 0 && (
+              <div className="grid grid-cols-4 gap-2">
+                {media.map((m, i) => {
+                  const t = m.mediaType && m.mediaType !== "image" ? m.mediaType : detectType(m.url);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPreview({ url: m.url, type: t })}
+                      className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted/30 transition-colors hover:border-primary/40"
+                      title={m.metalColor ? `${m.metalColor} · ${m.altText || "gallery"}` : "Open media"}
+                      aria-label={m.altText || `Media ${i + 1}`}
+                    >
+                      <MediaPreview url={m.url} type={t} className="h-full w-full object-cover" />
+                      {t !== "image" && (
+                        <span className="absolute bottom-0.5 left-0.5 rounded bg-black/60 px-1 text-[9px] uppercase text-white">
+                          {t}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Right: details */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-5 lg:col-span-2 lg:space-y-6">
           {p.description && (
-            <div>
-              <h3 className="text-sm font-semibold mb-1">Description</h3>
-              <p className="text-sm text-muted-foreground">{p.description}</p>
-            </div>
+            <Card>
+              <CardHeader className="min-h-0 py-3.5">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Description
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {p.description}
+                </p>
+              </CardContent>
+            </Card>
           )}
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Specifications</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2.5">
-              {details.map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-2 border-b border-border/60 pb-1.5">
-                  <span className="text-xs text-muted-foreground">{label}</span>
-                  <span className="text-sm font-medium text-right">{String(value)}</span>
+
+          <Card>
+            <CardHeader className="min-h-0 py-3.5">
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Specifications
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">
+                {details.length} field{details.length === 1 ? "" : "s"}
+              </span>
+            </CardHeader>
+            <CardContent>
+              {details.length ? (
+                <div className="grid grid-cols-1 gap-x-6 gap-y-2.5 sm:grid-cols-2 md:grid-cols-3">
+                  {details.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex justify-between gap-2 border-b border-border/60 pb-1.5"
+                    >
+                      <span className="text-xs text-muted-foreground">{label}</span>
+                      <span className="text-right text-sm font-medium text-foreground">
+                        {String(value)}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              ) : (
+                <p className="py-6 text-center text-sm text-muted-foreground">
+                  No specifications recorded for this product.
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
           {materials.length > 0 && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2">Material Details</h3>
-              <div className="overflow-x-auto border border-border rounded-lg">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/50">
-                    <tr className="text-left">
-                      {["Component", "Metal/Stone", "Shape", "Quality", "Color", "Size", "Setting", "Pcs", "Wt"].map((h) => (
-                        <th key={h} className="p-2 font-medium whitespace-nowrap">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materials.map((m, i) => (
-                      <tr key={i} className="border-t border-border">
-                        {["component", "metalStoneType", "shape", "quality", "color", "size", "setting", "pcs", "wt"].map((k) => (
-                          <td key={k} className="p-2 whitespace-nowrap">{m[k] || "-"}</td>
+            <Card>
+              <CardHeader className="min-h-0 py-3.5">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Material details
+                </CardTitle>
+                <span className="text-xs text-muted-foreground">
+                  {materials.length} row{materials.length === 1 ? "" : "s"}
+                </span>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto rounded-xl border border-border">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/60">
+                      <tr className="text-left">
+                        {["Component", "Metal/Stone", "Shape", "Quality", "Color", "Size", "Setting", "Pcs", "Wt"].map((h) => (
+                          <th
+                            key={h}
+                            className="whitespace-nowrap p-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+                          >
+                            {h}
+                          </th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    </thead>
+                    <tbody>
+                      {materials.map((m, i) => (
+                        <tr key={i} className="border-t border-border">
+                          {["component", "metalStoneType", "shape", "quality", "color", "size", "setting", "pcs", "wt"].map((k) => (
+                            <td key={k} className="whitespace-nowrap p-2 text-foreground">
+                              {m[k] || "-"}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
           )}
         </div>
       </div>
 
       {preview && (
-        <div onClick={() => setPreview(null)} className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center cursor-zoom-out p-8">
-          <div className="max-w-[90vw] max-h-[85vh] w-[80vw] h-[80vh]" onClick={(e) => e.stopPropagation()}>
-            <MediaPreview url={preview.url} type={preview.type} className="w-full h-full object-contain rounded-md" />
+        <div
+          onClick={() => setPreview(null)}
+          className="fixed inset-0 z-[9999] flex cursor-zoom-out items-center justify-center bg-black/80 p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Media preview"
+        >
+          <div
+            className="h-[80vh] w-[80vw] max-h-[85vh] max-w-[90vw]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MediaPreview
+              url={preview.url}
+              type={preview.type}
+              className="h-full w-full rounded-md object-contain"
+            />
           </div>
         </div>
       )}
@@ -209,6 +317,6 @@ export default function ProductDetailView({ id }) {
         title="Delete Product"
         message="Are you sure you want to delete this product? This cannot be undone."
       />
-    </div>
+    </Page>
   );
 }

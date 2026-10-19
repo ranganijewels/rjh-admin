@@ -4,16 +4,33 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
-import { Plus, Pencil, Trash2, Upload, Download, Loader2, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
+import { Label } from "@/components/common/ui/label";
+import {
+  Download,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
+import { TruncatedText } from "@/components/common/ui/short-id";
 import {
   Sheet, SheetBody, SheetContent, SheetFooter, SheetHeader, SheetTitle,
 } from "@/components/common/ui/sheet";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/common/ui/select";
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { usePermissions } from "@/provider/permission-provider";
 
 const authHeaders = () => {
@@ -28,6 +45,31 @@ const fmt = (v, type) => {
   if (type === "money") return `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 4 })}`;
   if (type === "csv-list") return String(v).split(",").map((s) => s.trim()).filter(Boolean).join(", ");
   return String(v);
+};
+
+// Sentinel used by the dropdown filters for "no filter applied" — a Select
+// item always needs a real, non-empty value.
+const ALL_FILTER = "__all__";
+
+// Starting width (px) for a generated column, based on what it holds.
+const columnSize = (c) => {
+  if (c.type === "money") return 120;
+  if (c.type === "date") return 130;
+  if (c.type === "csv-list") return 180;
+  return 150;
+};
+
+// Sort like the previous hand-rolled table did: numerically when both values
+// are numbers, otherwise as a natural-language string.
+const compareValues = (rowA, rowB, columnId) => {
+  const av = rowA.getValue(columnId);
+  const bv = rowB.getValue(columnId);
+  const an = Number(av);
+  const bn = Number(bv);
+  if (av !== "" && bv !== "" && av != null && bv != null && Number.isFinite(an) && Number.isFinite(bn)) {
+    return an - bn;
+  }
+  return String(av ?? "").localeCompare(String(bv ?? ""), undefined, { numeric: true });
 };
 
 // ── CSV export/import — generic across every pricing master, driven by the
@@ -122,18 +164,16 @@ const MultiSelectChips = ({ options, loading, value, onChange }) => {
       {allOptions.map((opt) => {
         const isSel = selected.includes(opt);
         return (
-          <button
+          <Button
             key={opt}
             type="button"
+            variant={isSel ? "primary" : "outline"}
+            size="sm"
+            aria-pressed={isSel}
             onClick={() => toggle(opt)}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-              isSel
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-background text-muted-foreground border-border hover:border-primary/50"
-            }`}
           >
             {opt}
-          </button>
+          </Button>
         );
       })}
     </div>
@@ -152,9 +192,6 @@ export default function RateMasterManager({ title, description, resource, column
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [touched, setTouched] = useState({});
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [catalogOptions, setCatalogOptions] = useState({}); // { [kind]: string[] }
   const [catalogLoading, setCatalogLoading] = useState({}); // { [kind]: boolean }
   const [importing, setImporting] = useState(false);
@@ -189,7 +226,6 @@ export default function RateMasterManager({ title, description, resource, column
       const res = await fetch(`/api/pricing-master/${resource}`, { headers: authHeaders() });
       const json = await res.json();
       setList(json?.data || []);
-      setSelectedIds(new Set());
     } catch {
       toast.error("Failed to load");
     } finally {
@@ -199,9 +235,8 @@ export default function RateMasterManager({ title, description, resource, column
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // ── Filters + sorting (client-side; masters are at most a few thousand rows)
-  const [filters, setFilters] = useState({ search: "", status: "", carat: "" });
-  const [sort, setSort] = useState({ key: null, dir: "asc" });
+  // ── Filters (client-side; masters are at most a few thousand rows)
+  const [filters, setFilters] = useState({ status: "", carat: "" });
   const hasCaratBand = columns.some((c) => c.key === "minCarat") && columns.some((c) => c.key === "maxCarat");
   const splitVals = (v) => String(v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
   // Dropdown filters for text-like columns, with the distinct values present.
@@ -217,11 +252,9 @@ export default function RateMasterManager({ title, description, resource, column
     [columns, list]
   );
   const visible = useMemo(() => {
-    const q = filters.search.trim().toLowerCase();
     const ct = Number(filters.carat);
-    let rows = list.filter((r) => {
+    return list.filter((r) => {
       if (filters.status && r.status !== filters.status) return false;
-      if (q && !columns.some((c) => String(r[c.key] ?? "").toLowerCase().includes(q))) return false;
       if (hasCaratBand && filters.carat !== "" && Number.isFinite(ct) && !(ct >= Number(r.minCarat) && ct <= Number(r.maxCarat))) return false;
       for (const c of filterCols) {
         const want = filters[c.key];
@@ -230,38 +263,78 @@ export default function RateMasterManager({ title, description, resource, column
       }
       return true;
     });
-    if (sort.key) {
-      const dir = sort.dir === "asc" ? 1 : -1;
-      rows = [...rows].sort((a, b) => {
-        const av = a[sort.key], bv = b[sort.key];
-        const an = Number(av), bn = Number(bv);
-        if (av !== "" && bv !== "" && av != null && bv != null && Number.isFinite(an) && Number.isFinite(bn)) return (an - bn) * dir;
-        return String(av ?? "").localeCompare(String(bv ?? ""), undefined, { numeric: true }) * dir;
-      });
-    }
-    return rows;
-  }, [list, filters, sort, columns, filterCols, hasCaratBand]);
-  const toggleSort = (key) =>
-    setSort((s) => (s.key !== key ? { key, dir: "asc" } : s.dir === "asc" ? { key, dir: "desc" } : { key: null, dir: "asc" }));
-  const filtersActive = filters.search || filters.status || filters.carat !== "" || filterCols.some((c) => filters[c.key]);
+  }, [list, filters, filterCols, hasCaratBand]);
 
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) =>
-      prev.size === visible.length ? new Set() : new Set(visible.map((r) => r.id))
-    );
-  };
-  const toggleSelectRow = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
+  const filtersActive = Object.values(filters).some((v) => v !== "" && v !== undefined && v !== null);
+  const resetFilters = () =>
+    setFilters((prev) => Object.fromEntries(Object.keys(prev).map((k) => [k, ""])));
+
+  // The quick search runs through every configured column of the master.
+  const filterFunction = useCallback(
+    (data, query) => {
+      const q = query.trim().toLowerCase();
+      if (!q) return data;
+      return data.filter((row) =>
+        columns.some((c) => String(row[c.key] ?? "").toLowerCase().includes(q))
+      );
+    },
+    [columns]
+  );
+
+  // Dropdown filters rendered inside the list toolbar.
+  const filterDropdownProps = useMemo(() => {
+    const dropdowns = {
+      status: {
+        value: filters.status || ALL_FILTER,
+        onChange: (value) =>
+          setFilters((f) => ({ ...f, status: value === ALL_FILTER ? "" : value })),
+        placeholder: "All statuses",
+        options: [
+          { value: ALL_FILTER, label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ],
+      },
+    };
+    filterCols.forEach((c) => {
+      dropdowns[c.key] = {
+        value: filters[c.key] || ALL_FILTER,
+        onChange: (value) =>
+          setFilters((f) => ({ ...f, [c.key]: value === ALL_FILTER ? "" : value })),
+        placeholder: `All ${c.label}`,
+        options: [
+          { value: ALL_FILTER, label: `All ${c.label}` },
+          ...c.values.map((v) => ({ value: v, label: v })),
+        ],
+      };
     });
-  };
+    return dropdowns;
+  }, [filters, filterCols]);
 
-  const handleBulkDelete = async () => {
-    setBulkDeleting(true);
-    const ids = [...selectedIds];
+  const openAdd = useCallback(() => {
+    const blankForm = fields.reduce(
+      (a, f) => ({ ...a, [f.key]: f.default ?? "" }),
+      { status: "active" }
+    );
+    setForm(blankForm);
+    setEditId(null);
+    setTouched({});
+    setOpen(true);
+  }, [fields]);
+
+  const openEdit = useCallback((row) => {
+    const f = {};
+    fields.forEach((fl) => {
+      f[fl.key] = fl.type === "date" && row[fl.key]
+        ? new Date(row[fl.key]).toISOString().slice(0, 10)
+        : row[fl.key] ?? "";
+    });
+    f.status = row.status ?? "active";
+    setForm(f); setEditId(row.id); setTouched({}); setOpen(true);
+  }, [fields]);
+
+  const handleBulkDelete = useCallback(async (ids) => {
+    if (!ids.length) return;
     try {
       // One request, deleted server-side in a single query — firing one
       // DELETE per row (the old approach) fanned a large selection out into
@@ -280,32 +353,112 @@ export default function RateMasterManager({ title, description, resource, column
       }
       const deleted = json?.data?.deleted ?? ids.length;
       toast.success(`${deleted} rate(s) deleted`);
-      setSelectedIds(new Set());
     } catch (e) {
       toast.error(e.message || "Failed to delete selected rates");
     } finally {
       // Always refresh, even on failure — a partial delete (or none at all)
       // should still show the admin the current, real state of the table.
       fetchData();
-      setBulkDeleting(false);
-      setBulkConfirmOpen(false);
     }
-  };
+  }, [resource, fetchData]);
 
-  const blank = () =>
-    fields.reduce((a, f) => ({ ...a, [f.key]: f.default ?? "" }), { status: "active" });
+  // Grid columns: selection, one column per master field, status and actions.
+  const tableColumns = useMemo(() => {
+    const cols = [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 40,
+        meta: { headerTitle: "Select" },
+      },
+    ];
 
-  const openAdd = () => { setForm(blank()); setEditId(null); setTouched({}); setOpen(true); };
-  const openEdit = (row) => {
-    const f = {};
-    fields.forEach((fl) => {
-      f[fl.key] = fl.type === "date" && row[fl.key]
-        ? new Date(row[fl.key]).toISOString().slice(0, 10)
-        : row[fl.key] ?? "";
+    columns.forEach((c, index) => {
+      cols.push({
+        id: c.key,
+        header: ({ column }) => (
+          <DataGridColumnHeader title={c.label} column={column} />
+        ),
+        accessorFn: (row) => row[c.key],
+        cell: ({ row }) => {
+          const value = fmt(row.original[c.key], c.type);
+          return c.type === "csv-list" ? (
+            <TruncatedText value={value} />
+          ) : (
+            <span>{value}</span>
+          );
+        },
+        enableSorting: true,
+        sortingFn: compareValues,
+        size: columnSize(c),
+        meta: {
+          headerTitle: c.label,
+          identity: index === 0,
+          truncate: c.type === "csv-list",
+        },
+      });
     });
-    f.status = row.status ?? "active";
-    setForm(f); setEditId(row.id); setTouched({}); setOpen(true);
-  };
+
+    cols.push({
+      id: "status",
+      header: ({ column }) => (
+        <DataGridColumnHeader title="Status" column={column} />
+      ),
+      accessorFn: (row) => row.status,
+      cell: ({ row }) => <StatusBadge status={row.original.status || "inactive"} />,
+      enableSorting: true,
+      sortingFn: compareValues,
+      size: 110,
+      meta: { headerTitle: "Status" },
+    });
+
+    cols.push({
+      id: "action",
+      header: ({ column }) => (
+        <DataGridColumnHeader title="Actions" column={column} />
+      ),
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          {can("pricing", "edit") && (
+            <Button
+              variant="outline"
+              mode="icon"
+              size="sm"
+              aria-label={`Edit rate ${row.original.id}`}
+              title="Edit rate"
+              onClick={() => openEdit(row.original)}
+            >
+              <Pencil className="size-4" />
+            </Button>
+          )}
+          {can("pricing", "delete") && (
+            <Button
+              variant="outline"
+              mode="icon"
+              size="sm"
+              aria-label={`Delete rate ${row.original.id}`}
+              title="Delete rate"
+              onClick={() => {
+                setDeleteId(row.original.id);
+                setConfirmOpen(true);
+              }}
+            >
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          )}
+        </div>
+      ),
+      enableSorting: false,
+      enableHiding: false,
+      size: 96,
+      meta: { headerTitle: "Actions" },
+    });
+
+    return cols;
+  }, [columns, can, openEdit]);
 
   const isFieldInvalid = (f) => !f.optional && touched[f.key] && !form[f.key];
 
@@ -400,29 +553,38 @@ export default function RateMasterManager({ title, description, resource, column
     }
   };
 
-  if (loading) return <ContentLoader />;
+  if (loading) {
+    return (
+      <Page>
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-10 w-full max-w-md" />
+        <Skeleton className="h-[420px] w-full rounded-xl" />
+      </Page>
+    );
+  }
 
   return (
-    <div className="space-y-4">
+    <Page>
       <PageHeader
         title={title}
         description={description}
         actions={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={handleExportCsv}>
-              <Download className="h-4 w-4" /> Export CSV
+          <>
+            <Button variant="outline" size="md" onClick={handleExportCsv}>
+              <Download className="size-4" /> Export CSV
             </Button>
             {can("pricing", "create") && (
               <>
                 <Button
                   variant="outline"
+                  size="md"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={importing}
                 >
                   {importing ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin" />
                   ) : (
-                    <Upload className="h-4 w-4" />
+                    <Upload className="size-4" />
                   )}
                   {importing ? "Importing…" : "Import CSV"}
                 </Button>
@@ -433,159 +595,77 @@ export default function RateMasterManager({ title, description, resource, column
                   className="hidden"
                   onChange={(e) => handleImportFile(e.target.files?.[0])}
                 />
-                <Button onClick={openAdd}>
-                  <Plus className="h-4 w-4" /> Add Rate
+                <Button variant="primary" size="md" onClick={openAdd}>
+                  <Plus className="size-4" /> Add Rate
                 </Button>
               </>
             )}
-          </div>
+          </>
         }
       />
 
-      {can("pricing", "delete") && selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
-          <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ms-auto text-red-600 border-red-200 hover:bg-red-50"
-            onClick={() => setBulkConfirmOpen(true)}
-          >
-            Delete
-          </Button>
+      {list.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
+          <p className="text-sm font-medium text-foreground">No rates configured yet</p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Add the first row for this master — it goes live for the pricing
+            engine immediately.
+          </p>
+          {can("pricing", "create") && (
+            <Button variant="primary" onClick={openAdd}>
+              <Plus className="size-4" /> Add Rate
+            </Button>
+          )}
         </div>
-      )}
-
-      <div className="flex flex-wrap items-end gap-2">
-        <Input
-          placeholder="Search…"
-          value={filters.search}
-          onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-          className="w-48"
-        />
-        {hasCaratBand && (
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Carat (e.g. 0.03)"
-            value={filters.carat}
-            onChange={(e) => setFilters((f) => ({ ...f, carat: e.target.value }))}
-            className="w-40"
-            title="Show rows whose carat band contains this weight"
-          />
-        )}
-        {filterCols.map((c) => (
-          <select
-            key={c.key}
-            value={filters[c.key] || ""}
-            onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
-            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-            aria-label={`Filter by ${c.label}`}
-          >
-            <option value="">All {c.label}</option>
-            {c.values.map((v) => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </select>
-        ))}
-        <select
-          value={filters.status}
-          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-          aria-label="Filter by status"
-        >
-          <option value="">All statuses</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        {filtersActive && (
-          <Button variant="ghost" size="sm" onClick={() => setFilters({ search: "", status: "", carat: "" })}>
-            <X className="h-4 w-4 mr-1" /> Clear
-          </Button>
-        )}
-        <span className="ms-auto text-xs text-muted-foreground">
-          Showing {visible.length} of {list.length}
-        </span>
-      </div>
-
-      <div className="overflow-x-auto border border-border rounded-lg">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr className="text-left">
-              <th className="p-3 font-medium w-10">
-                <input
-                  type="checkbox"
-                  checked={visible.length > 0 && selectedIds.size === visible.length}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 cursor-pointer"
-                  aria-label="Select all"
+      ) : (
+        <ListWithCardToggle
+          title={title}
+          titleAs="none"
+          data={visible}
+          columns={tableColumns}
+          filterFunction={filterFunction}
+          filterDropdownProps={filterDropdownProps}
+          filterActions={
+            <>
+              {hasCaratBand && (
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Carat (e.g. 0.03)"
+                  value={filters.carat}
+                  onChange={(e) => setFilters((f) => ({ ...f, carat: e.target.value }))}
+                  className="w-40"
+                  title="Show rows whose carat band contains this weight"
+                  aria-label="Filter by carat"
                 />
-              </th>
-              {columns.map((c) => (
-                <th key={c.key} className="p-3 font-medium whitespace-nowrap">
-                  <button type="button" onClick={() => toggleSort(c.key)} className="inline-flex items-center gap-1 hover:text-foreground">
-                    {c.label}
-                    {sort.key === c.key ? (
-                      sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                    ) : (
-                      <ArrowUpDown className="h-3 w-3 opacity-40" />
-                    )}
-                  </button>
-                </th>
-              ))}
-              <th className="p-3 font-medium text-center">
-                <button type="button" onClick={() => toggleSort("status")} className="inline-flex items-center gap-1">
-                  Status {sort.key === "status" ? (sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
-                </button>
-              </th>
-              <th className="p-3 font-medium text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map((row) => (
-              <tr key={row.id} className="border-t border-border">
-                <td className="p-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(row.id)}
-                    onChange={() => toggleSelectRow(row.id)}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label="Select row"
-                  />
-                </td>
-                {columns.map((c) => (
-                  <td key={c.key} className="p-3 whitespace-nowrap">{fmt(row[c.key], c.type)}</td>
-                ))}
-                <td className="p-3 text-center">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                    row.status === "active" ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
-                  }`}>{row.status}</span>
-                </td>
-                <td className="p-3">
-                  <div className="flex items-center justify-center gap-2">
-                    {can("pricing", "edit") && (
-                      <Button variant="outline" mode="icon" size="sm" onClick={() => openEdit(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {can("pricing", "delete") && (
-                      <Button variant="outline" mode="icon" size="sm" onClick={() => { setDeleteId(row.id); setConfirmOpen(true); }}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {visible.length === 0 && (
-              <tr><td colSpan={columns.length + 3} className="p-6 text-center text-muted-foreground">
-                {list.length ? "No rates match these filters." : "No rates configured yet."}
-              </td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              )}
+              {filtersActive && (
+                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  <X className="size-4" /> Clear
+                </Button>
+              )}
+            </>
+          }
+          resizableColumns
+          bulkActions={
+            can("pricing", "delete")
+              ? [
+                  {
+                    key: "delete",
+                    label: "Delete",
+                    variant: "destructive",
+                    confirmMessage:
+                      "Delete the selected rate(s)? This cannot be undone.",
+                    onRun: async (rows) => {
+                      await handleBulkDelete(rows.map((r) => r.id));
+                    },
+                  },
+                ]
+              : []
+          }
+        />
+      )}
 
       <Sheet open={open} onOpenChange={(v) => !v && setOpen(false)}>
         <SheetContent side="right" className="w-[92%] md:max-w-[50vw] lg:max-w-[34vw] inset-4 start-auto h-auto rounded-lg p-0">
@@ -597,7 +677,7 @@ export default function RateMasterManager({ title, description, resource, column
               const invalid = isFieldInvalid(f);
               return (
                 <div key={f.key} className="space-y-1.5">
-                  <label htmlFor={`field-${f.key}`} className="text-sm font-medium">{f.label}</label>
+                  <Label htmlFor={`field-${f.key}`}>{f.label}</Label>
                   {f.type === "select" ? (
                     <>
                       <Select
@@ -650,7 +730,7 @@ export default function RateMasterManager({ title, description, resource, column
               );
             })}
             <div className="space-y-1.5">
-              <label htmlFor="field-status" className="text-sm font-medium">Status</label>
+              <Label htmlFor="field-status">Status</Label>
               <Select
                 value={form.status ?? "active"}
                 onValueChange={(v) => setForm((s) => ({ ...s, status: v }))}
@@ -667,7 +747,7 @@ export default function RateMasterManager({ title, description, resource, column
           </SheetBody>
           <SheetFooter className="border-t px-5 py-3 gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            <Button variant="primary" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
@@ -679,15 +759,6 @@ export default function RateMasterManager({ title, description, resource, column
         title="Delete Rate"
         message="Remove this rate? History is preserved by effective dates; deleting removes the row entirely."
       />
-
-      <ConfirmDialog
-        open={bulkConfirmOpen}
-        onClose={() => setBulkConfirmOpen(false)}
-        onConfirm={handleBulkDelete}
-        title="Delete selected rates"
-        message={`Delete ${selectedIds.size} selected rate(s)? This cannot be undone.`}
-        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
-      />
-    </div>
+    </Page>
   );
 }

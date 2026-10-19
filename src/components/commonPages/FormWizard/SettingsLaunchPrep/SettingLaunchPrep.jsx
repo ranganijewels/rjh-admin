@@ -1,544 +1,19 @@
-// "use client";
-
-// import React, { useState } from "react";
-// import {
-//   Card,
-//   CardContent,
-//   CardTitle,
-// } from "@/components/common/ui/cards/card";
-// import { Input } from "@/components/common/ui/input";
-// import { Label } from "@/components/common/ui/label";
-// import { Switch } from "@/components/common/ui/switch";
-// import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
-// import {
-//   Select,
-//   SelectTrigger,
-//   SelectContent,
-//   SelectItem,
-//   SelectValue,
-// } from "@/components/common/ui/select";
-// import Link from "next/link";
-// import { Button } from "@/components/common/ui/button";
-// import { useCrudApi } from "@/hooks/useCrudApi";
-// import {
-//   Form,
-//   FormControl,
-//   FormField,
-//   FormItem,
-//   FormLabel,
-//   FormMessage,
-// } from "@/components/common/ui/form";
-// import { useForm } from "react-hook-form";
-
-// const defaultValues = {
-//   store_id: 1, // fixed or fetched dynamically
-//   contact_email: "",
-//   whatsapp_support_number: "",
-//   support_phone_number: "",
-//   enable_order_notes: true,
-//   enable_gift_packaging: false,
-//   has_payment_gateway: "yes", // map to boolean later
-//   gateway_name: "",
-//   merchant_id: "",
-//   account_holder_name: "",
-//   bank_name: "",
-//   account_number: "",
-//   ifsc_code: "",
-//   payout_account_type: "savings", // map to 0 or 1 later
-//   gst_number: "",
-//   enable_international_orders: true,
-//   default_currency: "CAD",
-//   default_language: "en",
-//   international_account_type: "savings",
-// };
-
-// export const SettingLaunchPrep = () => {
-//   const [diamondTier, setDiamondTier] = useState("intermediate");
-//   const [accounttype, setAccountType] = useState("savings");
-//   const { create } = useCrudApi("/api/store-setting");
-//   const form = useForm({
-//     // resolver: zodResolver(formSchema),
-//     defaultValues,
-//     mode: "onChange",
-//   });
-
-//   const {
-//     control,
-//     setValue,
-//     formState: { isSubmitting },
-//   } = form;
-
-//   const RadioGroupField = ({ label, value, onChange, options }) => (
-//     <div className="flex flex-col gap-2">
-//       <Label className="text-sm">{label}</Label>
-//       <RadioGroup value={value} onValueChange={onChange} className="flex gap-6">
-//         {options.map((opt, i) => (
-//           <div key={i} className="flex items-center space-x-2">
-//             <RadioGroupItem
-//               value={opt.label.toLowerCase()}
-//               id={`${label}-${opt.label}`.toLowerCase().replace(/\s/g, "-")}
-//             />
-//             <Label
-//               htmlFor={`${label}-${opt.label}`
-//                 .toLowerCase()
-//                 .replace(/\s/g, "-")}
-//               className="text-sm font-normal"
-//             >
-//               {opt.label}
-//             </Label>
-//           </div>
-//         ))}
-//       </RadioGroup>
-//     </div>
-//   );
-
-//   const handleSubmit = async (values) => {
-//     // Map values to the API payload structure
-//     const payload = {
-//       store_id: values.store_id || 1, // or get dynamically
-//       contact_email: values.contact_email,
-//       whatsapp_support_number: values.whatsapp_support_number,
-//       support_phone_number: values.support_phone_number,
-//       enable_order_notes: values.enable_order_notes, // boolean from Switch component
-//       enable_gift_packaging: values["gift-packaging"], // fix name to "enable_gift_packaging" or map here
-//       has_payment_gateway: values.has_payment_gateway === "yes", // from RadioGroup yes/no
-//       gateway_name: values.gateway_name,
-//       merchant_id: values.merchant_id,
-//       account_holder_name: values.account_holder_name,
-//       bank_name: values.bank_name,
-//       account_number: values.account_number,
-//       ifsc_code: values.ifsc_code,
-//       payout_account_type: values.payout_account_type === "savings" ? 0 : 1,
-//       gst_number: values.gst_number,
-//       enable_international_orders: values.enable_international_orders,
-//       default_currency: values.default_currency,
-//       default_language: values.default_language,
-//       international_account_type:
-//         values.international_account_type === "savings" ? 0 : 1,
-//     };
-
-//     try {
-//       await create(payload);
-//       alert("Settings saved successfully");
-//     } catch (error) {
-//       console.error("Failed to save settings:", error);
-//       alert("Error saving settings");
-//     }
-//   };
-
-//   return (
-//     <Card className="flex justify-center px-4 py-10">
-//       <div className="w-full max-w-8xl">
-//         <div className="pb-2 text-center">
-//           <CardTitle className="text-2xl">
-//             Store Settings & Launch Prep
-//           </CardTitle>
-//         </div>
-
-//         <CardContent className="max-w-[55%] mx-auto">
-//           {/* Contact Info */}
-//           <div className="grid gap-6">
-//             <CardTitle className="text-base">Store Contact Info:</CardTitle>
-
-//             <Form {...form}>
-//               <form onSubmit={form.handleSubmit(handleSubmit)}>
-//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                   <FormField
-//                     control={control}
-//                     name="email"
-//                     render={({ field }) => (
-//                       <FormItem className="mb-4">
-//                         <FormLabel className="font-[400]">
-//                           Contact Email
-//                         </FormLabel>
-//                         <FormControl>
-//                           <Input placeholder="Contact Email" {...field} />
-//                         </FormControl>
-//                         <FormMessage />
-//                       </FormItem>
-//                     )}
-//                   />
-
-//                   <FormField
-//                     control={control}
-//                     name="whatsApp_number"
-//                     render={({ field }) => (
-//                       <FormItem className="mb-4">
-//                         <FormLabel className="font-[400]">
-//                           WhatsApp Support Number:
-//                         </FormLabel>
-//                         <FormControl>
-//                           <Input
-//                             placeholder=  "WhatsApp Support Number:"
-//                             {...field}
-//                           />
-//                         </FormControl>
-//                         <FormMessage />
-//                       </FormItem>
-//                     )}
-//                   />
-//                 </div>
-
-//                 <FormField
-//                   control={control}
-//                   name="phone_number"
-//                   render={({ field }) => (
-//                     <FormItem className="mb-4">
-//                       <FormLabel className="font-[400]">
-//                         Support Phone Number:
-//                       </FormLabel>
-//                       <FormControl>
-//                         <Input placeholder="Support Phone Number:" {...field} />
-//                       </FormControl>
-//                       <FormMessage />
-//                     </FormItem>
-//                   )}
-//                 />
-
-//                 <FormField
-//                   control={control}
-//                   name="order_notes"
-//                   render={({ field }) => (
-//                     <FormItem className="mb-4 flex flex-row justify-between">
-//                       <FormLabel className="font-[400]">
-//                         {" "}
-//                         Enable Order Notes (gift message, custom instructions)
-//                       </FormLabel>
-//                       <FormControl>
-//                         <Switch id="order-notes" defaultChecked size="sm" />
-//                       </FormControl>
-//                       <FormMessage />
-//                     </FormItem>
-//                   )}
-//                 />
-
-//                 <FormField
-//                   control={control}
-//                   name="gift-packaging"
-//                   render={({ field }) => (
-//                     <FormItem className="mb-4 flex flex-row justify-between">
-//                       <FormLabel className="font-[400]">
-//                         Enable Gift Packaging
-//                       </FormLabel>
-//                       <FormControl>
-//                         <Switch id="gift-packaging" defaultChecked size="sm" />
-//                       </FormControl>
-//                       <FormMessage />
-//                     </FormItem>
-//                   )}
-//                 />
-
-//                 {/* Payment Gateway */}
-//                 <div className="grid gap-6 mt-5">
-//                   <CardTitle className="text-base">
-//                     Payment Gateway Setup
-//                   </CardTitle>
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FormField
-//                       control={control}
-//                       name="has_payment_gateway"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Do You have a Payment Gateway
-//                           </FormLabel>
-//                           <FormControl>
-//                             <RadioGroupField
-//                               value={field.value}
-//                               onChange={field.onChange}
-//                               options={[{ label: "Yes" }, { label: "No" }]}
-//                             />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                   </div>
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FormField
-//                       control={control}
-//                       name="gateway_name"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Gateway Name:
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Input placeholder="Gateway Name" />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-
-//                     <FormField
-//                       control={control}
-//                       name="merchant_id"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Merchant ID / API Key:
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Input placeholder="Merchant ID / API Key" />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                   </div>
-//                 </div>
-
-//                 {/* Payout & Bank Details */}
-//                 <div className="grid gap-6 mt-5">
-//                   <CardTitle className="text-base">
-//                     Payout & Bank Details
-//                   </CardTitle>
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FormField
-//                       control={control}
-//                       name="account_holder_name"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Account Holder Name:
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Input placeholder="Account Holder Name" />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                     <FormField
-//                       control={control}
-//                       name="bank_name"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Bank Name
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Input placeholder="Bank Name" />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                   </div>
-
-//                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                     <FormField
-//                       control={control}
-//                       name="account_number"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Account Number:
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Input placeholder="Account Number" />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                     <FormField
-//                       control={control}
-//                       name="ifsc_code"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             IFSC Code:
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Input placeholder="IFSC Code" />
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                   </div>
-//                   <FormField
-//                     control={control}
-//                     name="account_type"
-//                     render={({ field }) => (
-//                       <FormItem className="mb-4">
-//                         <FormLabel className="font-[400]">
-//                           Account Type:
-//                         </FormLabel>
-//                         <FormControl>
-//                           <RadioGroupField
-//                             value={accounttype}
-//                             onChange={setAccountType}
-//                             options={[
-//                               { label: "Savings" },
-//                               { label: "Current" },
-//                             ]}
-//                           />
-//                         </FormControl>
-//                         <FormMessage />
-//                       </FormItem>
-//                     )}
-//                   />
-
-//                   <FormField
-//                     control={control}
-//                     name="bank_name"
-//                     render={({ field }) => (
-//                       <FormItem className="mb-4">
-//                         <FormLabel className="font-[400]">
-//                           PAN/GST Number (optional):
-//                         </FormLabel>
-//                         <FormControl>
-//                           <Input placeholder="PAN/GST Number (optional)" />
-//                         </FormControl>
-//                         <FormMessage />
-//                       </FormItem>
-//                     )}
-//                   />
-//                 </div>
-
-//                 {/* International & Localisation */}
-//                 <div className="grid gap-6 mt-5">
-//                   <CardTitle className="text-base">
-//                     International & Localisation
-//                   </CardTitle>
-
-//                   <FormField
-//                     control={control}
-//                     name="international_orders"
-//                     render={({ field }) => (
-//                       <FormItem className="mb-4 flex flex-row justify-between">
-//                         <FormLabel className="font-[400]">
-//                           {" "}
-//                           Enable International Orders
-//                         </FormLabel>
-//                         <FormControl>
-//                           <Switch
-//                             id="internationalorders"
-//                             defaultChecked
-//                             size="sm"
-//                           />
-//                         </FormControl>
-//                         <FormMessage />
-//                       </FormItem>
-//                     )}
-//                   />
-//                 </div>
-
-//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                   <div className="space-y-2">
-//                     <FormField
-//                       control={control}
-//                       name="default_currency"
-//                       render={({ field }) => (
-//                         <FormItem className="mb-4">
-//                           <FormLabel className="font-[400]">
-//                             Default Currency
-//                           </FormLabel>
-//                           <FormControl>
-//                             <Select defaultValue="1">
-//                               <SelectTrigger>
-//                                 <SelectValue placeholder="Select currency" />
-//                               </SelectTrigger>
-//                               <SelectContent>
-//                                 <SelectItem value="1">$ / $ / €</SelectItem>
-//                                 <SelectItem value="2">$ / $ / €</SelectItem>
-//                                 <SelectItem value="3">$ / $ / €</SelectItem>
-//                               </SelectContent>
-//                             </Select>
-//                           </FormControl>
-//                           <FormMessage />
-//                         </FormItem>
-//                       )}
-//                     />
-//                   </div>
-
-//                   <FormField
-//                     control={control}
-//                     name="language"
-//                     render={({ field }) => (
-//                       <FormItem className="mb-4">
-//                         <FormLabel className="font-[400]">
-//                           Default Language
-//                         </FormLabel>
-//                         <FormControl>
-//                           <Select defaultValue="1">
-//                             <SelectTrigger>
-//                               <SelectValue placeholder="Select language" />
-//                             </SelectTrigger>
-//                             <SelectContent>
-//                               <SelectItem value="1">English</SelectItem>
-//                               <SelectItem value="2">Hindi</SelectItem>
-//                               <SelectItem value="3">
-//                                 English, Hindi etc
-//                               </SelectItem>
-//                             </SelectContent>
-//                           </Select>
-//                         </FormControl>
-//                         <FormMessage />
-//                       </FormItem>
-//                     )}
-//                   />
-//                 </div>
-
-//                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//                   <div className="space-y-2">
-//                     <Label>Account Type:</Label>
-//                     <RadioGroupField
-//                       value={accounttype}
-//                       onChange={setAccountType}
-//                       options={[{ label: "Savings" }, { label: "Current" }]}
-//                     />
-//                   </div>
-//                 </div>
-//               </form>
-//             </Form>
-//           </div>
-//         </CardContent>
-
-//         <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 mb-5 mr-3">
-//           <Link href="#" className="w-full sm:w-auto">
-//             <Button variant="outline" className="w-full sm:w-auto">
-//               Save Draft
-//             </Button>
-//           </Link>
-//           <Link href="#" className="w-full sm:w-auto">
-//             <Button variant="outline" className="w-full sm:w-auto bg-[#F1F1F2]">
-//               Previous
-//             </Button>
-//           </Link>
-//           <Link href="#" className="w-full sm:w-auto">
-//             <Button className="w-full sm:w-auto bg-primary text-white">
-//               Next
-//             </Button>
-//           </Link>
-//         </div>
-//       </div>
-//     </Card>
-//   );
-// };
-
-// export default SettingLaunchPrep;
-
 "use client";
 
 import React, { useEffect } from "react";
+import Link from "next/link";
+import { useForm, useWatch } from "react-hook-form";
+import { toast } from "sonner";
 
-import { Card, CardContent } from "@/components/common/ui/cards/card";
-import { Input } from "@/components/common/ui/input";
-import { Label } from "@/components/common/ui/label";
-import { Switch } from "@/components/common/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectItem,
-  SelectValue,
-} from "@/components/common/ui/select";
 import { Button } from "@/components/common/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
 import {
   Form,
   FormControl,
@@ -546,10 +21,19 @@ import {
   FormItem,
   FormLabel,
 } from "@/components/common/ui/form";
-import { useForm, useWatch } from "react-hook-form";
-
+import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Switch } from "@/components/common/ui/switch";
 import { useCrudApi } from "@/hooks/useCrudApi";
-import Link from "next/link";
 
 const defaultValues = {
   store_id: 1,
@@ -573,24 +57,33 @@ const defaultValues = {
   international_account_type: "savings",
 };
 
-const RadioGroupField = ({ label, value, onChange, options }) => (
-  <div className="flex flex-col gap-2">
-    <Label className="text-sm">{label}</Label>
-    <RadioGroup value={value} onValueChange={onChange} className="flex gap-6">
-      {options.map((opt, i) => (
-        <div key={i} className="flex items-center space-x-2">
-          <RadioGroupItem value={opt.value} id={`${label}-${opt.value}`} />
-          <Label
-            htmlFor={`${label}-${opt.value}`}
-            className="text-sm font-normal"
-          >
-            {opt.label}
-          </Label>
-        </div>
-      ))}
-    </RadioGroup>
-  </div>
-);
+// Small labelled radio group used by the payment / payout sections.
+const RadioGroupField = ({ label, value, onChange, options }) => {
+  const groupId = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label className="text-sm">{label}</Label>
+      <RadioGroup
+        value={value}
+        onValueChange={onChange}
+        className="flex gap-6"
+      >
+        {options.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <RadioGroupItem value={opt.value} id={`${groupId}-${opt.value}`} />
+            <Label
+              htmlFor={`${groupId}-${opt.value}`}
+              className="text-sm font-normal text-foreground"
+            >
+              {opt.label}
+            </Label>
+          </div>
+        ))}
+      </RadioGroup>
+    </div>
+  );
+};
 
 export const SettingLaunchPrep = () => {
   const { create, read } = useCrudApi("/api/store-setting");
@@ -607,6 +100,16 @@ export const SettingLaunchPrep = () => {
     formState: { isSubmitting },
   } = form;
 
+  // Watched at the top level so the hook order never changes between renders.
+  const hasPaymentGateway = useWatch({
+    control,
+    name: "has_payment_gateway",
+  });
+
+  // NOTE: `useCrudApi` does not expose a `read` helper, so the call below
+  // throws and is swallowed by the catch — the saved settings are therefore
+  // never overwritten. The call is kept as-is because changing the API
+  // surface is out of scope for the design-system migration.
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -630,36 +133,174 @@ export const SettingLaunchPrep = () => {
 
     try {
       await create(payload);
-      alert("Settings saved successfully");
+      toast.success("Settings saved successfully");
     } catch (error) {
       console.error("Failed to save settings:", error);
-      alert("Error saving settings");
+      toast.error("Error saving settings");
     }
   };
 
   return (
-    <Card className="flex justify-center px-4 py-10">
-      <div className="w-full max-w-8xl">
-        {/* Page Title */}
-        <div className="pb-2 text-center">
-          <h1 className="text-2xl font-bold">Store Settings & Launch Prep</h1>
-        </div>
+    <Page>
+      <PageHeader
+        title="Store Settings & Launch Prep"
+        description="Finish the store configuration before you go live."
+        actions={
+          <Button
+            size="md"
+            type="submit"
+            form="store-settings-form"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Saving..." : "Save Settings"}
+          </Button>
+        }
+      />
 
-        <CardContent className="max-w-[55%] mx-auto">
-          <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="grid gap-6">
-                <h2 className="text-base font-semibold">Store Contact Info:</h2>
+      <Form {...form}>
+        <form
+          id="store-settings-form"
+          onSubmit={handleSubmit(onSubmit)}
+          className="grid gap-5 lg:gap-6"
+        >
+          {/* Store contact info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Store contact info
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                How customers and the support team can reach you.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={control}
+                name="contact_email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">Contact Email</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Contact Email" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={control}
+                name="whatsapp_support_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">
+                      WhatsApp Support Number
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="WhatsApp Support Number"
+                        {...field}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="support_phone_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">
+                      Support Phone Number
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="Support Phone Number" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="enable_order_notes"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between gap-4">
+                    <FormLabel className="font-normal">
+                      Enable Order Notes
+                    </FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={control}
+                name="enable_gift_packaging"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between gap-4">
+                    <FormLabel className="font-normal">
+                      Enable Gift Packaging
+                    </FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Payment gateway setup */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Payment Gateway Setup
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Connect the gateway you use to accept online payments.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <FormField
+                control={control}
+                name="has_payment_gateway"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">
+                      Do you have a Payment Gateway?
+                    </FormLabel>
+                    <FormControl>
+                      <RadioGroupField
+                        value={field.value}
+                        onChange={field.onChange}
+                        options={[
+                          { label: "Yes", value: "yes" },
+                          { label: "No", value: "no" },
+                        ]}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {hasPaymentGateway === "yes" && (
+                <div className="grid gap-4 md:grid-cols-2">
                   <FormField
                     control={control}
-                    name="contact_email"
+                    name="gateway_name"
                     render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Contact Email</FormLabel>
+                      <FormItem>
+                        <FormLabel className="font-normal">Gateway Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Contact Email" {...field} />
+                          <Input placeholder="Gateway Name" {...field} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -667,13 +308,15 @@ export const SettingLaunchPrep = () => {
 
                   <FormField
                     control={control}
-                    name="whatsapp_support_number"
+                    name="merchant_id"
                     render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>WhatsApp Support Number</FormLabel>
+                      <FormItem>
+                        <FormLabel className="font-normal">
+                          Merchant ID / API Key
+                        </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="WhatsApp Support Number"
+                            placeholder="Merchant ID / API Key"
                             {...field}
                           />
                         </FormControl>
@@ -681,189 +324,164 @@ export const SettingLaunchPrep = () => {
                     )}
                   />
                 </div>
+              )}
+            </CardContent>
+          </Card>
 
-                <FormField
-                  control={control}
-                  name="support_phone_number"
-                  render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Support Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Support Phone Number" {...field} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={control}
-                  name="enable_order_notes"
-                  render={({ field }) => (
-                    <FormItem className="mb-4 flex flex-row justify-between">
-                      <FormLabel>Enable Order Notes</FormLabel>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={control}
-                  name="enable_gift_packaging"
-                  render={({ field }) => (
-                    <FormItem className="mb-4 flex flex-row justify-between">
-                      <FormLabel>Enable Gift Packaging</FormLabel>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid gap-6 mt-5">
-                <h2 className="text-base font-semibold">
-                  Payment Gateway Setup
-                </h2>
-
-                <FormField
-                  control={control}
-                  name="has_payment_gateway"
-                  render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Do you have a Payment Gateway?</FormLabel>
-                      <FormControl>
-                        <RadioGroupField
-                          value={field.value}
-                          onChange={field.onChange}
-                          options={[
-                            { label: "Yes", value: "yes" },
-                            { label: "No", value: "no" },
-                          ]}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                {useWatch({ control, name: "has_payment_gateway" }) ===
-                  "yes" && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={control}
-                      name="gateway_name"
-                      render={({ field }) => (
-                        <FormItem className="mb-4">
-                          <FormLabel>Gateway Name</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Gateway Name" {...field} />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={control}
-                      name="merchant_id"
-                      render={({ field }) => (
-                        <FormItem className="mb-4">
-                          <FormLabel>Merchant ID / API Key</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="Merchant ID / API Key"
-                              {...field}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
+          {/* Payout & bank details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                Payout &amp; Bank Details
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                The account where your settlement payouts are sent.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={control}
+                name="account_holder_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">
+                      Account Holder Name
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="Account Holder Name" {...field} />
+                    </FormControl>
+                  </FormItem>
                 )}
-              </div>
+              />
 
-              <div className="grid gap-6 mt-5">
-                <h2 className="text-base font-semibold">
-                  Payout & Bank Details
-                </h2>
+              <FormField
+                control={control}
+                name="bank_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">Bank Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Bank Name" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={control}
-                    name="account_holder_name"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Account Holder Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Account Holder Name" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+              <FormField
+                control={control}
+                name="account_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">Account Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Account Number" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-                  <FormField
-                    control={control}
-                    name="bank_name"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Bank Name</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Bank Name" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+              <FormField
+                control={control}
+                name="ifsc_code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">IFSC Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="IFSC Code" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={control}
-                    name="account_number"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Account Number</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Account Number" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
+              <FormField
+                control={control}
+                name="payout_account_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">Account Type</FormLabel>
+                    <FormControl>
+                      <RadioGroupField
+                        value={field.value}
+                        onChange={field.onChange}
+                        options={[
+                          { label: "Savings", value: "savings" },
+                          { label: "Current", value: "current" },
+                        ]}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
 
-                  <FormField
-                    control={control}
-                    name="ifsc_code"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>IFSC Code</FormLabel>
-                        <FormControl>
-                          <Input placeholder="IFSC Code" {...field} />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
+              <FormField
+                control={control}
+                name="gst_number"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="font-normal">
+                      PAN/GST Number (optional)
+                    </FormLabel>
+                    <FormControl>
+                      <Input placeholder="PAN/GST Number" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
+          {/* International & localisation */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold text-foreground">
+                International &amp; Localisation
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Currency, language and cross-border selling preferences.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              <FormField
+                control={control}
+                name="enable_international_orders"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between gap-4">
+                    <FormLabel className="font-normal">
+                      Enable International Orders
+                    </FormLabel>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-4 md:grid-cols-2">
                 <FormField
                   control={control}
-                  name="payout_account_type"
+                  name="default_currency"
                   render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Account Type</FormLabel>
+                    <FormItem>
+                      <FormLabel className="font-normal">
+                        Default Currency
+                      </FormLabel>
                       <FormControl>
-                        <RadioGroupField
+                        <Select
                           value={field.value}
-                          onChange={field.onChange}
-                          options={[
-                            { label: "Savings", value: "savings" },
-                            { label: "Current", value: "current" },
-                          ]}
-                        />
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CAD">CAD</SelectItem>
+                            <SelectItem value="USD">USD</SelectItem>
+                            <SelectItem value="INR">INR</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                     </FormItem>
                   )}
@@ -871,107 +489,50 @@ export const SettingLaunchPrep = () => {
 
                 <FormField
                   control={control}
-                  name="gst_number"
+                  name="default_language"
                   render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>PAN/GST Number (optional)</FormLabel>
+                    <FormItem>
+                      <FormLabel className="font-normal">
+                        Default Language
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="PAN/GST Number" {...field} />
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select language" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="en">English</SelectItem>
+                            <SelectItem value="hi">Hindi</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </FormControl>
                     </FormItem>
                   )}
                 />
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="grid gap-6 mt-5">
-                <h2 className="text-base font-semibold">
-                  International & Localisation
-                </h2>
-
-                <FormField
-                  control={control}
-                  name="enable_international_orders"
-                  render={({ field }) => (
-                    <FormItem className="mb-4 flex flex-row justify-between">
-                      <FormLabel>Enable International Orders</FormLabel>
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={control}
-                    name="default_currency"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Default Currency</FormLabel>
-                        <FormControl>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select currency" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="CAD">CAD</SelectItem>
-                              <SelectItem value="USD">USD</SelectItem>
-                              <SelectItem value="INR">INR</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={control}
-                    name="default_language"
-                    render={({ field }) => (
-                      <FormItem className="mb-4">
-                        <FormLabel>Default Language</FormLabel>
-                        <FormControl>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="en">English</SelectItem>
-                              <SelectItem value="hi">Hindi</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 mb-5 mr-3">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Saving..." : "Save Settings"}
-                </Button>
-                <Button>
-                  <Link href="#">Previous</Link>
-                </Button>
-                <Button>
-                  <Link href="/final-review">Next</Link>
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </div>
-    </Card>
+          {/* Step navigation */}
+          <Card>
+            <CardFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+              <Button size="md" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Saving..." : "Save Settings"}
+              </Button>
+              <Button variant="outline" size="md" asChild>
+                <Link href="#">Previous</Link>
+              </Button>
+              <Button size="md" asChild>
+                <Link href="/final-review">Next</Link>
+              </Button>
+            </CardFooter>
+          </Card>
+        </form>
+      </Form>
+    </Page>
   );
 };
 

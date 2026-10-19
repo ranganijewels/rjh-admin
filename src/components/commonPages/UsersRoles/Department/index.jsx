@@ -8,7 +8,7 @@ import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
-import { userDepartments } from "./hooks/userDepartments";
+import { useUserDepartments } from "./hooks/useUserDepartments";
 import AddDepartmentModel from "./AddDepartmentsModel";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { usePermissions } from "@/provider/permission-provider";
@@ -30,7 +30,7 @@ const Department = () => {
     handleDelete,
   } = useCrudList("/api/departments");
   const { remove } = useCrudApi("/api/departments");
-  const columns = userDepartments({
+  const columns = useUserDepartments({
     onEdit: (item) => {
       setEditData(item);
       setDialogOpen(true);

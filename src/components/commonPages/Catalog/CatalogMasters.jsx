@@ -2,16 +2,40 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ImageUp, Pencil, Plus, Trash2, X } from "lucide-react";
+
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { Button } from "@/components/common/ui/button";
 import {
-  Section,
-  Grid,
-  Field,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
+import { Checkbox } from "@/components/common/ui/checkbox";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
+import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
   Select,
-  Input,
-  Textarea,
-  authHeaders,
-} from "@/components/commonPages/Catalog/_ui";
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { TruncatedText } from "@/components/common/ui/short-id";
+import { Textarea } from "@/components/common/ui/textarea";
+import { authHeaders } from "@/components/commonPages/Catalog/_ui";
+import { cn } from "@/lib/utils";
 
 // Known kinds rendered as the top pill row. Admin can still create values for
 // brand-new kinds via the API, but these cover the standard reference data.
@@ -50,8 +74,6 @@ const EMPTY_FORM = {
   applicableMetals: [],
 };
 
-const NAVY = "#162640";
-
 function parseSynonyms(raw) {
   if (Array.isArray(raw)) return raw;
   if (!raw) return [];
@@ -64,14 +86,86 @@ function parseSynonyms(raw) {
 // Round color swatch; renders a diagonal split when a second hex is set (two-tone).
 export function ColorSwatch({ hex, hex2, size = 22 }) {
   const style = hex2
-    ? { background: `linear-gradient(135deg, ${hex || "#ccc"} 50%, ${hex2} 50%)` }
-    : { background: hex || "#ccc" };
+    ? { background: `linear-gradient(135deg, ${hex || "var(--muted)"} 50%, ${hex2} 50%)` }
+    : { background: hex || "var(--muted)" };
   return (
     <span
-      className="inline-block rounded-full border border-gray-300 dark:border-border align-middle"
+      className="inline-block shrink-0 rounded-full border border-border align-middle"
       style={{ width: size, height: size, ...style }}
       title={hex2 ? `${hex} / ${hex2}` : hex}
     />
+  );
+}
+
+// Kind-specific "Details" cell for the table.
+function renderMasterDetails(row, kind) {
+  const md = row?.metadata || {};
+  const metals =
+    Array.isArray(md.applicableMetals) && md.applicableMetals.length
+      ? ` · ${md.applicableMetals.join(", ")}`
+      : "";
+
+  if (kind === "metal_color") {
+    return (
+      <div className="flex items-center gap-2">
+        <ColorSwatch hex={md.hex} hex2={md.hex2} />
+        <TruncatedText
+          value={`${
+            md.hex2 ? `Two-tone ${md.hex} / ${md.hex2}` : md.hex || "no color"
+          }${metals}`}
+          className="min-w-0 text-xs text-muted-foreground"
+        />
+      </div>
+    );
+  }
+  if (kind === "product_badge") {
+    return (
+      <div className="flex items-center gap-2">
+        <ColorSwatch hex={md.hex} />
+        <TruncatedText
+          value={md.hex || "no color"}
+          className="min-w-0 text-xs text-muted-foreground"
+        />
+      </div>
+    );
+  }
+  if (kind === "metal_purity") {
+    return (
+      <TruncatedText
+        value={`${
+          md.pricingFactor
+            ? `factor ${md.pricingFactor} → price = 24K × ${md.pricingFactor} ÷ 99.9`
+            : "—"
+        }${metals}`}
+        className="text-xs text-muted-foreground"
+      />
+    );
+  }
+  if (kind === "diamond_shape") {
+    return md.iconUrl ? (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={md.iconUrl}
+        alt={row.name}
+        className="h-8 w-8 rounded border border-border bg-card object-contain"
+      />
+    ) : (
+      <span className="text-xs text-muted-foreground">no icon</span>
+    );
+  }
+  return (
+    <TruncatedText value={md.note || "—"} className="text-xs text-muted-foreground" />
+  );
+}
+
+// Small labelled field wrapper: shared Label + optional hint.
+function FormField({ label, htmlFor, hint, children, className }) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {children}
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </div>
   );
 }
 
@@ -108,34 +202,41 @@ function IconUpload({ value, onChange }) {
 
   return (
     <div className="flex items-center gap-3">
-      <div
+      <Button
+        type="button"
+        variant="outline"
+        mode="icon"
         onClick={() => !uploading && inputRef.current?.click()}
-        className="w-14 h-14 rounded-md border border-dashed border-gray-300 dark:border-border bg-white dark:bg-card flex items-center justify-center cursor-pointer overflow-hidden shrink-0"
+        disabled={uploading}
+        aria-label="Upload shape icon"
         title="Upload icon"
+        className="h-14 w-14 shrink-0 overflow-hidden rounded-md border-dashed bg-card p-0 hover:bg-muted"
       >
         {uploading ? (
           <span className="text-[10px] text-muted-foreground">…</span>
         ) : value ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={value} alt="icon" className="w-full h-full object-contain" />
+          <img src={value} alt="icon" className="size-full object-contain" />
         ) : (
-          <span className="text-xl text-gray-400 dark:text-muted-foreground">+</span>
+          <ImageUp className="size-5 text-muted-foreground" aria-hidden="true" />
         )}
-      </div>
-      <div className="flex-1 min-w-0">
+      </Button>
+      <div className="min-w-0 flex-1">
         <Input
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="…or paste an image/SVG URL"
         />
         {value && (
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="mt-1 h-auto px-0 py-0 text-xs"
             onClick={() => onChange("")}
-            className="text-xs text-red-600 hover:underline mt-1"
           >
             Remove icon
-          </button>
+          </Button>
         )}
       </div>
       <input
@@ -154,20 +255,21 @@ function MetalChecks({ value, onChange }) {
     onChange(value.includes(m) ? value.filter((v) => v !== m) : [...value, m]);
   return (
     <div className="flex flex-wrap gap-1.5">
-      {METALS.map((m) => (
-        <button
-          type="button"
-          key={m}
-          onClick={() => toggle(m)}
-          className={`px-2.5 py-1 rounded-full text-xs border ${
-            value.includes(m)
-              ? "bg-muted/60 text-foreground border-primary"
-              : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border"
-          }`}
-        >
-          {m.charAt(0) + m.slice(1).toLowerCase()}
-        </button>
-      ))}
+      {METALS.map((m) => {
+        const active = value.includes(m);
+        return (
+          <Button
+            type="button"
+            key={m}
+            size="sm"
+            variant={active ? "primary" : "outline"}
+            aria-pressed={active}
+            onClick={() => toggle(m)}
+          >
+            {m.charAt(0) + m.slice(1).toLowerCase()}
+          </Button>
+        );
+      })}
     </div>
   );
 }
@@ -198,6 +300,9 @@ export default function CatalogMasters() {
   const loadList = useCallback(async (k) => {
     setLoading(true);
     setError(null);
+    // The list unmounts while it reloads, which drops the grid selection —
+    // keep the bulk-selection state in sync with it.
+    setSelectedIds(new Set());
     try {
       const res = await fetch(
         `/api/catalog/masters?kind=${encodeURIComponent(k)}&all=true`,
@@ -219,19 +324,9 @@ export default function CatalogMasters() {
     setSelectedIds(new Set());
   }, [kind, loadList]);
 
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) =>
-      prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))
-    );
-  };
-  const toggleSelectRow = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const handleSelectionChange = useCallback((selectedRows) => {
+    setSelectedIds(new Set((selectedRows || []).map((row) => row.id)));
+  }, []);
 
   const handleBulkDelete = async () => {
     setBulkDeleting(true);
@@ -262,7 +357,7 @@ export default function CatalogMasters() {
     setPanelOpen(true);
   };
 
-  const openEdit = (row) => {
+  const openEdit = useCallback((row) => {
     const md = row?.metadata || {};
     setEditingId(row.id);
     setBaseMetadata(md);
@@ -282,7 +377,7 @@ export default function CatalogMasters() {
       applicableMetals: Array.isArray(md.applicableMetals) ? md.applicableMetals : [],
     });
     setPanelOpen(true);
-  };
+  }, []);
 
   const closePanel = () => {
     setPanelOpen(false);
@@ -369,473 +464,502 @@ export default function CatalogMasters() {
     }
   };
 
-  const handleDelete = async (row) => {
-    if (!confirm(`Delete "${row.name || row.code}"? This cannot be undone.`)) {
-      return;
-    }
-    try {
-      const res = await fetch(`/api/catalog/masters/${row.id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.message || `Delete failed (${res.status})`);
+  const handleDelete = useCallback(
+    async (row) => {
+      if (!confirm(`Delete "${row.name || row.code}"? This cannot be undone.`)) {
+        return;
       }
-      toast.success("Value deleted.");
-      loadList(kind);
-    } catch (err) {
-      toast.error(err?.message || "Failed to delete value.");
-    }
-  };
+      try {
+        const res = await fetch(`/api/catalog/masters/${row.id}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.message || `Delete failed (${res.status})`);
+        }
+        toast.success("Value deleted.");
+        loadList(kind);
+      } catch (err) {
+        toast.error(err?.message || "Failed to delete value.");
+      }
+    },
+    [kind, loadList]
+  );
 
-  // Kind-specific "Details" cell for the table.
-  const renderDetails = (row) => {
-    const md = row?.metadata || {};
-    if (kind === "metal_color") {
-      return (
-        <div className="flex items-center gap-2">
-          <ColorSwatch hex={md.hex} hex2={md.hex2} />
-          <span className="text-xs text-muted-foreground">
-            {md.hex2 ? `Two-tone ${md.hex} / ${md.hex2}` : md.hex || "no color"}
-            {Array.isArray(md.applicableMetals) && md.applicableMetals.length
-              ? ` · ${md.applicableMetals.join(", ")}`
-              : ""}
-          </span>
-        </div>
-      );
-    }
-    if (kind === "product_badge") {
-      return (
-        <div className="flex items-center gap-2">
-          <ColorSwatch hex={md.hex} />
-          <span className="text-xs text-muted-foreground">{md.hex || "no color"}</span>
-        </div>
-      );
-    }
-    if (kind === "metal_purity") {
-      return (
-        <span className="text-xs text-muted-foreground">
-          {md.pricingFactor
-            ? `factor ${md.pricingFactor} → price = 24K × ${md.pricingFactor} ÷ 99.9`
-            : "—"}
-          {Array.isArray(md.applicableMetals) && md.applicableMetals.length
-            ? ` · ${md.applicableMetals.join(", ")}`
-            : ""}
-        </span>
-      );
-    }
-    if (kind === "diamond_shape") {
-      return md.iconUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={md.iconUrl}
-          alt={row.name}
-          className="h-8 w-8 object-contain rounded border border-gray-200 dark:border-border bg-white dark:bg-card"
-        />
-      ) : (
-        <span className="text-xs text-muted-foreground">no icon</span>
-      );
-    }
-    return <span className="text-xs text-muted-foreground">{md.note || "—"}</span>;
-  };
+  const columns = useMemo(
+    () => [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+        meta: { headerTitle: "Select" },
+      },
+      {
+        id: "code",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Code" column={column} />
+        ),
+        accessorFn: (row) => row.code,
+        cell: ({ row }) => (
+          <TruncatedText value={row.original.code} className="font-mono text-xs" />
+        ),
+        size: 160,
+        meta: { headerTitle: "Code", identity: true, truncate: true },
+      },
+      {
+        id: "name",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Name" column={column} />
+        ),
+        accessorFn: (row) => row.name,
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.original.name}
+            className="font-medium text-foreground"
+          />
+        ),
+        size: 200,
+        meta: { headerTitle: "Name", truncate: true },
+      },
+      {
+        id: "details",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Details" column={column} />
+        ),
+        accessorFn: (row) => row?.metadata?.note || "",
+        cell: ({ row }) => renderMasterDetails(row.original, kind),
+        size: 280,
+        meta: { headerTitle: "Details", truncate: true },
+      },
+      {
+        id: "sortOrder",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Sort" column={column} />
+        ),
+        accessorFn: (row) => row.sortOrder ?? 0,
+        cell: ({ row }) => <span>{row.original.sortOrder ?? 0}</span>,
+        size: 90,
+        meta: { headerTitle: "Sort" },
+      },
+      {
+        id: "status",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
+        accessorFn: (row) => row.status,
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        size: 110,
+        meta: { headerTitle: "Status" },
+      },
+      {
+        id: "action",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <Button
+              mode="icon"
+              variant="outline"
+              aria-label={`Edit ${row.original.name || row.original.code || "value"}`}
+              title="Edit value"
+              onClick={(event) => {
+                event.stopPropagation();
+                openEdit(row.original);
+              }}
+            >
+              <Pencil />
+            </Button>
+            <Button
+              mode="icon"
+              variant="outline"
+              aria-label={`Delete ${row.original.name || row.original.code || "value"}`}
+              title="Delete value"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleDelete(row.original);
+              }}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        size: 104,
+        meta: { headerTitle: "Actions" },
+      },
+    ],
+    [kind, openEdit, handleDelete]
+  );
+
+  const filterFunction = useCallback((data, query) => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return data;
+    return data.filter((row) =>
+      [row.code, row.name, row.seoSlug, row.status].some((field) =>
+        String(field ?? "").toLowerCase().includes(needle)
+      )
+    );
+  }, []);
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-xl font-semibold" style={{ color: NAVY }}>
-          Catalog Masters
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Shapes (with icons), KT purities (with pricing factors), metal colors
-          (incl. two-tone) &amp; more — all feed the product form and price
-          dropdowns. No code changes needed.
-        </p>
-      </div>
+    <Page>
+      <PageHeader
+        title="Catalog Masters"
+        description="Shapes (with icons), KT purities (with pricing factors), metal colors (incl. two-tone) and more — they feed the product form and price dropdowns."
+        actions={
+          <Button type="button" onClick={openAdd}>
+            <Plus className="size-4" />
+            Add Value
+          </Button>
+        }
+      />
 
       {/* Kind pills */}
-      <div className="flex flex-wrap gap-2 mb-5">
+      <div className="flex flex-wrap gap-2">
         {KINDS.map((k) => {
           const active = k.value === kind;
           return (
-            <button
+            <Button
               key={k.value}
               type="button"
+              size="sm"
+              variant={active ? "primary" : "outline"}
+              aria-pressed={active}
               onClick={() => setKind(k.value)}
-              className="rounded-full px-4 py-1.5 text-sm font-medium border transition-colors"
-              style={
-                active
-                  ? { backgroundColor: NAVY, color: "#fff", borderColor: NAVY }
-                  : {
-                      backgroundColor: "#fff",
-                      color: NAVY,
-                      borderColor: "#e5e7eb",
-                    }
-              }
             >
               {k.label}
-            </button>
+            </Button>
           );
         })}
       </div>
 
       {kind === "metal_purity" && (
-        <div className="mb-4 rounded-lg border border-dashed border-gray-300 dark:border-border bg-gray-50 dark:bg-muted px-4 py-3 text-xs text-muted-foreground">
-          <b className="text-foreground">How KT pricing works:</b> you enter only
-          the <b>24KT gold rate</b> in Pricing → Metal Rates. Every other karat is
-          priced automatically as <b>24K price × factor ÷ 99.9</b> — e.g. 18KT
-          factor 78, 14KT factor 60, 10KT factor 43. Edit a karat below to change
-          its factor.
+        <div className="rounded-lg border border-dashed border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+          <span className="font-semibold text-foreground">How KT pricing works:</span>{" "}
+          you enter only the{" "}
+          <span className="font-semibold text-foreground">24KT gold rate</span> in
+          Pricing → Metal Rates. Every other karat is priced automatically as{" "}
+          <span className="font-semibold text-foreground">
+            24K price × factor ÷ 99.9
+          </span>{" "}
+          — e.g. 18KT factor 78, 14KT factor 60, 10KT factor 43. Edit a karat
+          below to change its factor.
         </div>
       )}
 
-      <Section
-        title={kindLabel}
-        action={
-          <button
-            type="button"
-            onClick={openAdd}
-            className="rounded-md px-3.5 py-1.5 text-sm font-medium text-white transition-colors hover:bg-[#091930]"
-            style={{ backgroundColor: NAVY }}
-          >
-            + Add Value
-          </button>
-        }
-      >
-        {/* Inline add/edit panel */}
-        {panelOpen && (
-          <form
-            onSubmit={handleSave}
-            className="mb-5 rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/60 p-4"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h4 className="text-sm font-semibold" style={{ color: NAVY }}>
+      {/* Inline add/edit panel */}
+      {panelOpen && (
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-semibold text-foreground">
                 {editingId ? "Edit Value" : `Add ${kindLabel.replace(/s$/, "")}`}
-              </h4>
-              <button
-                type="button"
-                onClick={closePanel}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
-                Close
-              </button>
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                {editingId
+                  ? `Update this ${kindLabel.toLowerCase()} entry.`
+                  : `Create a new ${kindLabel.toLowerCase()} entry.`}
+              </CardDescription>
             </div>
-
-            <Grid cols={3}>
-              <Field label="Code">
+            <Button
+              type="button"
+              variant="ghost"
+              mode="icon"
+              size="sm"
+              onClick={closePanel}
+              aria-label="Close editor"
+              title="Close editor"
+            >
+              <X />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <form
+              onSubmit={handleSave}
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              <FormField label="Code" htmlFor="master-code">
                 <Input
+                  id="master-code"
                   value={form.code}
                   onChange={setField("code")}
                   placeholder="e.g. round"
                 />
-              </Field>
-              <Field label="Name">
+              </FormField>
+              <FormField label="Name" htmlFor="master-name">
                 <Input
+                  id="master-name"
                   value={form.name}
                   onChange={setField("name")}
                   placeholder="e.g. Round Brilliant"
                 />
-              </Field>
-              <Field label="Sort Order">
+              </FormField>
+              <FormField label="Sort Order" htmlFor="master-sort-order">
                 <Input
+                  id="master-sort-order"
                   type="number"
                   value={form.sortOrder}
                   onChange={setField("sortOrder")}
                   placeholder="0"
                 />
-              </Field>
+              </FormField>
 
               {/* ── Kind-specific fields ─────────────────────────────── */}
               {kind === "metal_color" && (
                 <>
-                  <Field label="Color" hint="Shown as the storefront swatch">
+                  <FormField
+                    label="Color"
+                    htmlFor="master-hex"
+                    hint="Shown as the storefront swatch"
+                  >
                     <div className="flex items-center gap-2">
-                      <input
+                      <Input
                         type="color"
+                        aria-label="Pick color"
                         value={form.hex || "#cccccc"}
                         onChange={(e) => setField("hex")(e.target.value)}
-                        className="h-9 w-12 rounded border border-gray-300 dark:border-border bg-white dark:bg-card p-0.5 cursor-pointer"
+                        className="h-9 w-12 shrink-0 cursor-pointer p-1"
                       />
                       <Input
+                        id="master-hex"
                         value={form.hex}
                         onChange={setField("hex")}
                         placeholder="#E6C200"
                       />
                     </div>
-                  </Field>
-                  <Field
-                    label={
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={form.twoTone}
-                          onChange={(e) =>
-                            setForm((f) => ({ ...f, twoTone: e.target.checked }))
-                          }
-                        />
-                        Two-tone (second color)
-                      </span>
-                    }
+                  </FormField>
+                  <FormField
+                    label="Two-tone (second color)"
+                    htmlFor="master-two-tone"
                     hint="Storefront shows a split swatch of both colors"
                   >
-                    {form.twoTone ? (
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={form.hex2 || "#cccccc"}
-                          onChange={(e) => setField("hex2")(e.target.value)}
-                          className="h-9 w-12 rounded border border-gray-300 dark:border-border bg-white dark:bg-card p-0.5 cursor-pointer"
+                        <Checkbox
+                          id="master-two-tone"
+                          checked={form.twoTone}
+                          onCheckedChange={(checked) =>
+                            setForm((f) => ({ ...f, twoTone: checked === true }))
+                          }
                         />
-                        <Input
-                          value={form.hex2}
-                          onChange={setField("hex2")}
-                          placeholder="#E8E8E8"
-                        />
-                        <ColorSwatch hex={form.hex} hex2={form.hex2} size={28} />
+                        <Label
+                          htmlFor="master-two-tone"
+                          className="text-xs font-normal text-muted-foreground"
+                        >
+                          Enable two-tone
+                        </Label>
                       </div>
-                    ) : (
-                      <div className="flex items-center h-9">
-                        <ColorSwatch hex={form.hex} size={28} />
-                      </div>
-                    )}
-                  </Field>
-                  <Field label="Applies to metals">
+                      {form.twoTone ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="color"
+                            aria-label="Pick second color"
+                            value={form.hex2 || "#cccccc"}
+                            onChange={(e) => setField("hex2")(e.target.value)}
+                            className="h-9 w-12 shrink-0 cursor-pointer p-1"
+                          />
+                          <Input
+                            value={form.hex2}
+                            onChange={setField("hex2")}
+                            placeholder="#E8E8E8"
+                            aria-label="Second color hex"
+                          />
+                          <ColorSwatch hex={form.hex} hex2={form.hex2} size={28} />
+                        </div>
+                      ) : (
+                        <div className="flex h-9 items-center">
+                          <ColorSwatch hex={form.hex} size={28} />
+                        </div>
+                      )}
+                    </div>
+                  </FormField>
+                  <FormField label="Applies to metals">
                     <MetalChecks
                       value={form.applicableMetals}
                       onChange={(v) => setForm((f) => ({ ...f, applicableMetals: v }))}
                     />
-                  </Field>
+                  </FormField>
                 </>
               )}
 
               {kind === "product_badge" && (
-                <Field label="Badge Color" hint="Shown as the badge background on product cards and the PDP">
+                <FormField
+                  label="Badge Color"
+                  htmlFor="master-badge-hex"
+                  hint="Shown as the badge background on product cards and the PDP"
+                >
                   <div className="flex items-center gap-2">
-                    <input
+                    <Input
                       type="color"
+                      aria-label="Pick badge color"
                       value={form.hex || "#162640"}
                       onChange={(e) => setField("hex")(e.target.value)}
-                      className="h-9 w-12 rounded border border-gray-300 dark:border-border bg-white dark:bg-card p-0.5 cursor-pointer"
+                      className="h-9 w-12 shrink-0 cursor-pointer p-1"
                     />
-                    <Input value={form.hex} onChange={setField("hex")} placeholder="#162640" />
+                    <Input
+                      id="master-badge-hex"
+                      value={form.hex}
+                      onChange={setField("hex")}
+                      placeholder="#162640"
+                    />
                     <ColorSwatch hex={form.hex} size={28} />
                   </div>
-                </Field>
+                </FormField>
               )}
 
               {kind === "metal_purity" && (
                 <>
-                  <Field
+                  <FormField
                     label="Pricing Factor"
+                    htmlFor="master-pricing-factor"
                     hint="price = 24K rate × factor ÷ 99.9 (blank = needs its own rate row)"
                   >
                     <Input
+                      id="master-pricing-factor"
                       type="number"
                       step="0.1"
                       value={form.pricingFactor}
                       onChange={setField("pricingFactor")}
                       placeholder="e.g. 78"
                     />
-                  </Field>
-                  <Field label="Applies to metals">
+                  </FormField>
+                  <FormField label="Applies to metals">
                     <MetalChecks
                       value={form.applicableMetals}
                       onChange={(v) => setForm((f) => ({ ...f, applicableMetals: v }))}
                     />
-                  </Field>
+                  </FormField>
                 </>
               )}
 
               {kind === "diamond_shape" && (
-                <Field label="Shape Icon / Image" full>
+                <FormField
+                  label="Shape Icon / Image"
+                  hint="Upload a PNG/SVG or paste an image URL"
+                  className="sm:col-span-full"
+                >
                   <IconUpload
                     value={form.iconUrl}
                     onChange={(v) => setForm((f) => ({ ...f, iconUrl: v }))}
                   />
-                </Field>
+                </FormField>
               )}
 
-              <Field label="SEO Slug">
+              <FormField label="SEO Slug" htmlFor="master-seo-slug">
                 <Input
+                  id="master-seo-slug"
                   value={form.seoSlug}
                   onChange={setField("seoSlug")}
                   placeholder="round-brilliant"
                 />
-              </Field>
-              <Field
+              </FormField>
+              <FormField
                 label="Synonyms"
+                htmlFor="master-synonyms"
                 hint="Comma-separated (e.g. brilliant, rd)"
               >
                 <Input
+                  id="master-synonyms"
                   value={form.synonyms}
                   onChange={setField("synonyms")}
                   placeholder="brilliant, rd"
                 />
-              </Field>
-              <Field label="Status">
+              </FormField>
+              <FormField label="Status" htmlFor="master-status">
                 <Select
                   value={form.status}
-                  onChange={setField("status")}
-                  options={[
-                    { value: "active", label: "Active" },
-                    { value: "inactive", label: "Inactive" },
-                  ]}
-                />
-              </Field>
-              <Field label="Metadata Note (optional)" full>
+                  onValueChange={(value) => setField("status")(value)}
+                >
+                  <SelectTrigger id="master-status" className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                label="Metadata Note (optional)"
+                htmlFor="master-metadata-note"
+                className="sm:col-span-full"
+              >
                 <Textarea
+                  id="master-metadata-note"
                   value={form.metadataNote}
                   onChange={setField("metadataNote")}
                   placeholder="Any free-form note stored in metadata"
                   rows={2}
                 />
-              </Field>
-            </Grid>
+              </FormField>
 
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-md px-4 py-1.5 text-sm font-medium text-white transition-colors disabled:opacity-50 hover:bg-[#091930] disabled:hover:bg-primary"
-                style={{ backgroundColor: NAVY }}
-              >
-                {saving ? "Saving…" : editingId ? "Update" : "Save"}
-              </button>
-              <button
-                type="button"
-                onClick={closePanel}
-                className="rounded-md border border-gray-300 dark:border-border bg-white dark:bg-card px-4 py-1.5 text-sm font-medium text-gray-700 dark:text-foreground hover:bg-gray-100 dark:bg-muted"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        )}
+              <div className="flex items-center gap-2 sm:col-span-full">
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : editingId ? "Update" : "Save"}
+                </Button>
+                <Button type="button" variant="outline" onClick={closePanel}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
-        {/* Bulk action bar */}
-        {selectedIds.size > 0 && (
-          <div className="mb-3 flex items-center gap-3 rounded-md border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted px-4 py-2.5">
-            <span className="text-sm font-medium">{selectedIds.size} selected</span>
-            <button
-              type="button"
-              onClick={() => setBulkConfirmOpen(true)}
-              className="ms-auto rounded-md border border-red-200 bg-white dark:bg-card px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
-            >
-              Delete
-            </button>
-          </div>
-        )}
-
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/60 text-foreground text-left">
-                <th className="px-4 py-2.5 font-medium w-10">
-                  <input
-                    type="checkbox"
-                    checked={rows.length > 0 && selectedIds.size === rows.length}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label="Select all"
-                  />
-                </th>
-                <th className="px-4 py-2.5 font-medium">Code</th>
-                <th className="px-4 py-2.5 font-medium">Name</th>
-                <th className="px-4 py-2.5 font-medium">Details</th>
-                <th className="px-4 py-2.5 font-medium">Sort</th>
-                <th className="px-4 py-2.5 font-medium">Status</th>
-                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Loading…
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-red-600"
-                  >
-                    {error}
-                  </td>
-                </tr>
-              ) : rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    No values yet. Click “Add Value” to create one.
-                  </td>
-                </tr>
-              ) : (
-                rows.map((row, i) => (
-                  <tr
-                    key={row.id ?? `${row.code}-${i}`}
-                    className={i % 2 ? "bg-gray-50 dark:bg-muted" : "bg-white dark:bg-card"}
-                  >
-                    <td className="px-4 py-2.5">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(row.id)}
-                        onChange={() => toggleSelectRow(row.id)}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label="Select row"
-                      />
-                    </td>
-                    <td className="px-4 py-2.5 font-mono text-xs">
-                      {row.code}
-                    </td>
-                    <td className="px-4 py-2.5">{row.name}</td>
-                    <td className="px-4 py-2.5">{renderDetails(row)}</td>
-                    <td className="px-4 py-2.5">{row.sortOrder ?? 0}</td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                          row.status === "inactive"
-                            ? "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground"
-                            : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {row.status === "inactive" ? "Inactive" : "Active"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(row)}
-                          className="text-sm font-medium hover:underline"
-                          style={{ color: NAVY }}
-                        >
-                          Edit
-                        </button>
-                        <span className="text-border" role="presentation" aria-hidden="true">|</span>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(row)}
-                          className="text-sm font-medium text-red-600 hover:underline"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="ms-auto"
+            onClick={() => setBulkConfirmOpen(true)}
+          >
+            <Trash2 className="size-4" />
+            Delete
+          </Button>
         </div>
-      </Section>
+      )}
+
+      {/* Values list */}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-sm font-semibold text-foreground">{kindLabel}</h2>
+        {loading ? (
+          <Card>
+            <CardContent className="space-y-3">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-9 w-full" />
+              ))}
+            </CardContent>
+          </Card>
+        ) : error ? (
+          <div
+            role="alert"
+            className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          >
+            {error}
+          </div>
+        ) : (
+          <ListWithCardToggle
+            title="Catalog masters"
+            titleAs="none"
+            data={rows}
+            columns={columns}
+            filterFunction={filterFunction}
+            resizableColumns
+            onSelectionChange={handleSelectionChange}
+            paginationResetKey={kind}
+          />
+        )}
+      </div>
 
       <ConfirmDialog
         open={bulkConfirmOpen}
@@ -845,6 +969,6 @@ export default function CatalogMasters() {
         message={`Delete ${selectedIds.size} selected value(s)? This cannot be undone.`}
         confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
-    </div>
+    </Page>
   );
 }

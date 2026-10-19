@@ -65,7 +65,6 @@ const ManualOrderModel = ({ showOrderModal, setShowOrderModal, product }) => {
       const response = await create(payload);
 
       toast.success("Manual order created successfully!");
-      console.log("Order Created:", response);
 
       setShowOrderModal(false);
     } catch (error) {

@@ -362,10 +362,10 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
                 <p>{"{productCode}"}-{"{metalColor}"}-main.jpg → main image for that color</p>
                 <p>{"{productCode}"}-{"{metalColor}"}-rollover.jpg → hover-swap image for that color</p>
                 <p>{"{productCode}"}-{"{metalColor}"}-gallery-2.jpg → gallery image #2 for that color</p>
-                <p>{"{productCode}"}-White-Rose-main.jpg → the White/Rose two-tone variant's own photo</p>
+                <p>{"{productCode}"}-White-Rose-main.jpg → the White/Rose two-tone variant&apos;s own photo</p>
               </div>
               <p className="mt-1 text-gray-400 dark:text-muted-foreground">
-                Every color needs its own file — colors are never shared or duplicated from one upload. productCode must match an existing product exactly (case-insensitive). metalColor is optional on single-color products (White/Yellow/Rose/Gold/Silver/Platinum), plus two-tone combos (White-Rose, White-Yellow, Yellow-Rose). Videos work the same way as images (mp4, mov, webm) — a video can be the "main" or "rollover" slot for a color too. Any image format works (jpg, png, webp, gif).
+                Every color needs its own file — colors are never shared or duplicated from one upload. productCode must match an existing product exactly (case-insensitive). metalColor is optional on single-color products (White/Yellow/Rose/Gold/Silver/Platinum), plus two-tone combos (White-Rose, White-Yellow, Yellow-Rose). Videos work the same way as images (mp4, mov, webm) — a video can be the &quot;main&quot; or &quot;rollover&quot; slot for a color too. Any image format works (jpg, png, webp, gif).
               </p>
             </details>
 
@@ -957,6 +957,14 @@ const ProductMasterList = () => {
         responsiveCards
         data={filteredRows}
         columns={columns}
+        // The catalogue carries more fields than fit on screen — the least
+        // used ones stay collapsed until the user opens the Columns menu.
+        defaultHiddenColumns={{
+          collection: false,
+          createdAt: false,
+          lastUpdatedDate: false,
+          gender: false,
+        }}
         filterDropdownProps={filterDropdowns}
         filterActions={
           activeFilterCount > 0 ? (

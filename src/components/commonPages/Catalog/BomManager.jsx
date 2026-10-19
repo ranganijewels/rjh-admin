@@ -1,28 +1,43 @@
 "use client";
 // Bill of Materials editor — versioned weight curves (carat→grams) + ring-size delta.
 // This is the engineering source of truth pricing reads from.
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  Section,
-  Grid,
-  Field,
-  Select,
-  Input,
-  Textarea,
-  Button,
-  authHeaders,
-} from "@/components/commonPages/Catalog/_ui";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
+
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { Button } from "@/components/common/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
+import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { TruncatedText } from "@/components/common/ui/short-id";
+import { Textarea } from "@/components/common/ui/textarea";
+import { authHeaders } from "@/components/commonPages/Catalog/_ui";
+import { cn } from "@/lib/utils";
 
 const STATUS_OPTIONS = ["draft", "review", "approved", "obsolete"];
-
-const STATUS_STYLES = {
-  draft: "bg-muted text-muted-foreground",
-  review: "bg-amber-100 text-amber-800",
-  approved: "bg-emerald-100 text-emerald-800",
-  obsolete: "bg-rose-100 text-rose-700",
-};
 
 const emptyForm = () => ({
   masterCode: "",
@@ -46,6 +61,20 @@ const curveToRows = (curve) => {
   return rows.length ? rows : [{ carat: "", weightG: "" }];
 };
 
+const curvePointCount = (curve) =>
+  curve && typeof curve === "object" ? Object.keys(curve).length : 0;
+
+// Small labelled field wrapper: shared Label + optional hint.
+function FormField({ label, htmlFor, hint, children, className }) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {children}
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+    </div>
+  );
+}
+
 export default function BomManager() {
   const [boms, setBoms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +90,7 @@ export default function BomManager() {
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -75,21 +104,11 @@ export default function BomManager() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) =>
-      prev.size === boms.length ? new Set() : new Set(boms.map((b) => b.id))
-    );
-  };
-  const toggleSelectRow = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const handleSelectionChange = useCallback((selectedRows) => {
+    setSelectedIds(new Set((selectedRows || []).map((row) => row.id)));
+  }, []);
 
   const handleBulkDelete = async () => {
     setBulkDeleting(true);
@@ -115,7 +134,7 @@ export default function BomManager() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const set = (key) => (e) =>
     setForm((f) => ({ ...f, [key]: e?.target ? e.target.value : e }));
@@ -127,7 +146,7 @@ export default function BomManager() {
     setEditorOpen(true);
   };
 
-  const openEdit = (bom) => {
+  const openEdit = useCallback((bom) => {
     setEditingId(bom.id);
     setForm({
       masterCode: bom.masterCode ?? "",
@@ -145,7 +164,7 @@ export default function BomManager() {
     });
     setCurveRows(curveToRows(bom.weightCurve));
     setEditorOpen(true);
-  };
+  }, []);
 
   const closeEditor = () => {
     setEditorOpen(false);
@@ -228,7 +247,7 @@ export default function BomManager() {
     }
   };
 
-  const requestRemove = (bom) => setPendingDelete(bom);
+  const requestRemove = useCallback((bom) => setPendingDelete(bom), []);
   const cancelRemove = () => {
     if (deleting) return;
     setPendingDelete(null);
@@ -254,340 +273,431 @@ export default function BomManager() {
     }
   };
 
-  const curvePointCount = (curve) =>
-    curve && typeof curve === "object" ? Object.keys(curve).length : 0;
+  const columns = useMemo(
+    () => [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+        meta: { headerTitle: "Select" },
+      },
+      {
+        id: "masterCode",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Master Code" column={column} />
+        ),
+        accessorFn: (row) => row.masterCode,
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.original.masterCode}
+            className="font-medium text-foreground"
+          />
+        ),
+        size: 200,
+        meta: { headerTitle: "Master Code", identity: true, truncate: true },
+      },
+      {
+        id: "revNo",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Rev" column={column} />
+        ),
+        accessorFn: (row) => row.revNo,
+        cell: ({ row }) => <span>{row.original.revNo ?? "—"}</span>,
+        size: 90,
+        meta: { headerTitle: "Rev" },
+      },
+      {
+        id: "status",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
+        accessorFn: (row) => row.status,
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        size: 120,
+        meta: { headerTitle: "Status" },
+      },
+      {
+        id: "curvePoints",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="# Curve points" column={column} />
+        ),
+        accessorFn: (row) => curvePointCount(row.weightCurve),
+        cell: ({ row }) => (
+          <span>{curvePointCount(row.original.weightCurve)}</span>
+        ),
+        size: 130,
+        meta: { headerTitle: "# Curve points" },
+      },
+      {
+        id: "metalLossPct",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Loss %" column={column} />
+        ),
+        accessorFn: (row) => row.metalLossPct,
+        cell: ({ row }) => (
+          <span>{row.original.metalLossPct == null ? "—" : row.original.metalLossPct}</span>
+        ),
+        size: 100,
+        meta: { headerTitle: "Loss %" },
+      },
+      {
+        id: "laborMinutes",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Labor min" column={column} />
+        ),
+        accessorFn: (row) => row.laborMinutes,
+        cell: ({ row }) => (
+          <span>{row.original.laborMinutes == null ? "—" : row.original.laborMinutes}</span>
+        ),
+        size: 110,
+        meta: { headerTitle: "Labor min" },
+      },
+      {
+        id: "action",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <Button
+              mode="icon"
+              variant="outline"
+              aria-label={`Edit BOM ${row.original.masterCode || ""} revision ${row.original.revNo ?? ""}`}
+              title="Edit BOM revision"
+              onClick={(event) => {
+                event.stopPropagation();
+                openEdit(row.original);
+              }}
+            >
+              <Pencil />
+            </Button>
+            <Button
+              mode="icon"
+              variant="outline"
+              aria-label={`Delete BOM ${row.original.masterCode || ""} revision ${row.original.revNo ?? ""}`}
+              title="Delete BOM revision"
+              onClick={(event) => {
+                event.stopPropagation();
+                requestRemove(row.original);
+              }}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        size: 104,
+        meta: { headerTitle: "Actions" },
+      },
+    ],
+    [openEdit, requestRemove]
+  );
+
+  const filterFunction = useCallback((data, query) => {
+    const needle = query.trim().toLowerCase();
+    if (!needle) return data;
+    return data.filter((row) =>
+      [row.masterCode, row.status, row.revNo].some((field) =>
+        String(field ?? "").toLowerCase().includes(needle)
+      )
+    );
+  }, []);
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
-        <div>
-          <h1 className="text-xl font-semibold text-[var(--primary)]">
-            Bill of Materials
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Versioned weight curves (carat→grams) + ring-size delta. Drives the
-            configurator &amp; pricing.
-          </p>
-        </div>
-        <Button
-          onClick={openNew}
-          className="bg-[var(--primary)] hover:bg-[#091930] text-white"
-        >
-          New BOM Revision
-        </Button>
-      </div>
+    <Page>
+      <PageHeader
+        title="Bill of Materials"
+        description="Versioned weight curves (carat→grams) + ring-size delta. Drives the configurator & pricing."
+        actions={
+          <Button type="button" onClick={openNew}>
+            <Plus className="size-4" />
+            New BOM Revision
+          </Button>
+        }
+      />
 
       {/* Editor */}
       {editorOpen && (
-        <Section title={editingId ? "Edit BOM Revision" : "New BOM Revision"}>
-          <div className="space-y-5">
-            <Grid cols={3}>
-              <Field
-                label="Master Code"
-                hint="Product code this BOM applies to, e.g. LR-001-RND"
-              >
-                <Input
-                  value={form.masterCode}
-                  onChange={set("masterCode")}
-                  placeholder="LR-001-RND"
-                />
-              </Field>
-              <Field label="Status">
-                <Select
-                  value={form.status}
-                  onChange={set("status")}
-                  options={STATUS_OPTIONS}
-                />
-              </Field>
-              <Field label="Effective Date">
-                <Input
-                  type="date"
-                  value={form.effectiveDate}
-                  onChange={set("effectiveDate")}
-                />
-              </Field>
-
-              <Field
-                label="Base Ring Size"
-                hint="Reference size for the weight curve"
-              >
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={form.baseRingSize}
-                  onChange={set("baseRingSize")}
-                />
-              </Field>
-              <Field
-                label="Ring-size Δ per size (g)"
-                hint="Grams added/removed per ring size step"
-              >
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={form.ringSizeDeltaPerSize}
-                  onChange={set("ringSizeDeltaPerSize")}
-                  placeholder="0.05"
-                />
-              </Field>
-              <Field label="Metal Loss %" hint="Casting / finishing loss">
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={form.metalLossPct}
-                  onChange={set("metalLossPct")}
-                  placeholder="8"
-                />
-              </Field>
-
-              <Field label="Labor Minutes">
-                <Input
-                  type="number"
-                  step="1"
-                  value={form.laborMinutes}
-                  onChange={set("laborMinutes")}
-                  placeholder="45"
-                />
-              </Field>
-              <Field label="CAD Version">
-                <Input
-                  value={form.cadVersion}
-                  onChange={set("cadVersion")}
-                  placeholder="v1.2"
-                />
-              </Field>
-              <Field label="Mold Version">
-                <Input
-                  value={form.moldVersion}
-                  onChange={set("moldVersion")}
-                  placeholder="M-04"
-                />
-              </Field>
-            </Grid>
-
-            {/* Weight curve */}
-            <div className="rounded-lg border border-border">
-              <div className="flex items-center justify-between bg-muted/60 px-4 py-2.5 rounded-t-lg">
-                <div>
-                  <h4 className="text-sm font-semibold text-[var(--primary)]">
-                    Weight Curve
-                  </h4>
-                  <p className="text-[11px] text-muted-foreground">
-                    Carat (ct) → metal weight (g). Pricing interpolates across
-                    these points.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={addCurveRow}
-                  className="text-xs font-medium text-[var(--primary)] hover:text-[#091930]"
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-semibold text-foreground">
+                {editingId ? "Edit BOM Revision" : "New BOM Revision"}
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Weight curve, ring-size delta and the manufacturing details for
+                this revision.
+              </CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              mode="icon"
+              size="sm"
+              onClick={closeEditor}
+              aria-label="Close editor"
+              title="Close editor"
+            >
+              <X />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <FormField
+                  label="Master Code"
+                  htmlFor="bom-master-code"
+                  hint="Product code this BOM applies to, e.g. LR-001-RND"
                 >
-                  + Add point
-                </button>
-              </div>
-              <div className="p-4 space-y-2">
-                <div className="hidden sm:grid grid-cols-[1fr_1fr_auto] gap-3 px-1 text-[11px] font-medium text-muted-foreground">
-                  <span>Carat (ct)</span>
-                  <span>Weight (g)</span>
-                  <span className="w-16 text-right">Remove</span>
-                </div>
-                {curveRows.map((row, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-[1fr_1fr_auto] gap-3 items-center"
+                  <Input
+                    id="bom-master-code"
+                    value={form.masterCode}
+                    onChange={set("masterCode")}
+                    placeholder="LR-001-RND"
+                  />
+                </FormField>
+                <FormField label="Status" htmlFor="bom-status">
+                  <Select
+                    value={form.status}
+                    onValueChange={(value) => set("status")(value)}
                   >
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={row.carat}
-                      onChange={setCurveRow(idx, "carat")}
-                      placeholder="0.50"
-                      aria-label={`Carat (ct), point ${idx + 1}`}
-                    />
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={row.weightG}
-                      onChange={setCurveRow(idx, "weightG")}
-                      placeholder="3.20"
-                      aria-label={`Weight (g), point ${idx + 1}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeCurveRow(idx)}
-                      disabled={curveRows.length <= 1}
-                      aria-disabled={curveRows.length <= 1}
-                      aria-label={`Remove curve point ${idx + 1}`}
-                      className="w-16 text-xs text-rose-600 hover:text-rose-800 disabled:opacity-50 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:text-muted-foreground text-right pr-1"
-                    >
-                      Remove
-                    </button>
+                    <SelectTrigger id="bom-status" className="w-full">
+                      <SelectValue placeholder="Select a status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </FormField>
+                <FormField label="Effective Date" htmlFor="bom-effective-date">
+                  <Input
+                    id="bom-effective-date"
+                    type="date"
+                    value={form.effectiveDate}
+                    onChange={set("effectiveDate")}
+                  />
+                </FormField>
+
+                <FormField
+                  label="Base Ring Size"
+                  htmlFor="bom-base-ring-size"
+                  hint="Reference size for the weight curve"
+                >
+                  <Input
+                    id="bom-base-ring-size"
+                    type="number"
+                    step="0.5"
+                    value={form.baseRingSize}
+                    onChange={set("baseRingSize")}
+                  />
+                </FormField>
+                <FormField
+                  label="Ring-size Δ per size (g)"
+                  htmlFor="bom-ring-size-delta"
+                  hint="Grams added/removed per ring size step"
+                >
+                  <Input
+                    id="bom-ring-size-delta"
+                    type="number"
+                    step="0.01"
+                    value={form.ringSizeDeltaPerSize}
+                    onChange={set("ringSizeDeltaPerSize")}
+                    placeholder="0.05"
+                  />
+                </FormField>
+                <FormField
+                  label="Metal Loss %"
+                  htmlFor="bom-metal-loss"
+                  hint="Casting / finishing loss"
+                >
+                  <Input
+                    id="bom-metal-loss"
+                    type="number"
+                    step="0.1"
+                    value={form.metalLossPct}
+                    onChange={set("metalLossPct")}
+                    placeholder="8"
+                  />
+                </FormField>
+
+                <FormField label="Labor Minutes" htmlFor="bom-labor-minutes">
+                  <Input
+                    id="bom-labor-minutes"
+                    type="number"
+                    step="1"
+                    value={form.laborMinutes}
+                    onChange={set("laborMinutes")}
+                    placeholder="45"
+                  />
+                </FormField>
+                <FormField label="CAD Version" htmlFor="bom-cad-version">
+                  <Input
+                    id="bom-cad-version"
+                    value={form.cadVersion}
+                    onChange={set("cadVersion")}
+                    placeholder="v1.2"
+                  />
+                </FormField>
+                <FormField label="Mold Version" htmlFor="bom-mold-version">
+                  <Input
+                    id="bom-mold-version"
+                    value={form.moldVersion}
+                    onChange={set("moldVersion")}
+                    placeholder="M-04"
+                  />
+                </FormField>
+              </div>
+
+              {/* Weight curve */}
+              <Card>
+                <CardHeader className="flex-row items-center justify-between gap-3 py-4">
+                  <div className="min-w-0">
+                    <CardTitle className="text-sm font-semibold text-foreground">
+                      Weight Curve
+                    </CardTitle>
+                    <CardDescription className="text-xs text-muted-foreground">
+                      Carat (ct) → metal weight (g). Pricing interpolates across
+                      these points.
+                    </CardDescription>
                   </div>
-                ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCurveRow}
+                  >
+                    <Plus className="size-4" />
+                    Add point
+                  </Button>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="hidden gap-3 px-1 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[1fr_1fr_auto]">
+                    <span>Carat (ct)</span>
+                    <span>Weight (g)</span>
+                    <span className="w-16 text-right">Remove</span>
+                  </div>
+                  {curveRows.map((row, idx) => (
+                    <div
+                      key={idx}
+                      className="grid grid-cols-[1fr_1fr_auto] items-center gap-3"
+                    >
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={row.carat}
+                        onChange={setCurveRow(idx, "carat")}
+                        placeholder="0.50"
+                        aria-label={`Carat (ct), point ${idx + 1}`}
+                      />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={row.weightG}
+                        onChange={setCurveRow(idx, "weightG")}
+                        placeholder="3.20"
+                        aria-label={`Weight (g), point ${idx + 1}`}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        mode="icon"
+                        size="sm"
+                        onClick={() => removeCurveRow(idx)}
+                        disabled={curveRows.length <= 1}
+                        aria-disabled={curveRows.length <= 1}
+                        aria-label={`Remove curve point ${idx + 1}`}
+                        title={`Remove curve point ${idx + 1}`}
+                        className="w-16 justify-self-end"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <FormField
+                label="Manufacturing Notes"
+                htmlFor="bom-manufacturing-notes"
+              >
+                <Textarea
+                  id="bom-manufacturing-notes"
+                  rows={3}
+                  value={form.manufacturingNotes}
+                  onChange={set("manufacturingNotes")}
+                  placeholder="Casting tree layout, stone-setting sequence, QC checkpoints…"
+                />
+              </FormField>
+
+              <div className="flex items-center justify-end gap-2">
+                <Button type="button" variant="outline" onClick={closeEditor}>
+                  Cancel
+                </Button>
+                <Button type="button" onClick={save} disabled={saving}>
+                  {saving
+                    ? "Saving…"
+                    : editingId
+                      ? "Update Revision"
+                      : "Create Revision"}
+                </Button>
               </div>
             </div>
-
-            <Field label="Manufacturing Notes" full>
-              <Textarea
-                rows={3}
-                value={form.manufacturingNotes}
-                onChange={set("manufacturingNotes")}
-                placeholder="Casting tree layout, stone-setting sequence, QC checkpoints…"
-              />
-            </Field>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                onClick={closeEditor}
-                className="px-3 py-2 text-sm rounded-md border border-border hover:bg-muted"
-              >
-                Cancel
-              </button>
-              <Button
-                onClick={save}
-                disabled={saving}
-                className="bg-[var(--primary)] hover:bg-[#091930] text-white"
-              >
-                {saving
-                  ? "Saving…"
-                  : editingId
-                    ? "Update Revision"
-                    : "Create Revision"}
-              </Button>
-            </div>
-          </div>
-        </Section>
+          </CardContent>
+        </Card>
       )}
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="mb-3 flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
+        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <button
+          <Button
             type="button"
+            variant="destructive"
+            size="sm"
+            className="ms-auto"
             onClick={() => setBulkConfirmOpen(true)}
-            className="ms-auto rounded-md border border-rose-200 bg-white dark:bg-card px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
           >
+            <Trash2 className="size-4" />
             Delete
-          </button>
+          </Button>
         </div>
       )}
 
-      {/* Table */}
-      <div className="rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-[var(--primary)] text-white text-left">
-                <th scope="col" className="px-4 py-3 font-medium w-10">
-                  <input
-                    type="checkbox"
-                    checked={boms.length > 0 && selectedIds.size === boms.length}
-                    onChange={toggleSelectAll}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label="Select all"
-                  />
-                </th>
-                <th scope="col" className="px-4 py-3 font-medium">Master Code</th>
-                <th scope="col" className="px-4 py-3 font-medium">Rev</th>
-                <th scope="col" className="px-4 py-3 font-medium">Status</th>
-                <th scope="col" className="px-4 py-3 font-medium"># Curve points</th>
-                <th scope="col" className="px-4 py-3 font-medium">Loss %</th>
-                <th scope="col" className="px-4 py-3 font-medium">Labor min</th>
-                <th scope="col" className="px-4 py-3 font-medium text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Loading BOMs…
-                  </td>
-                </tr>
-              ) : error ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-8 text-center text-rose-600"
-                  >
-                    {error}
-                  </td>
-                </tr>
-              ) : boms.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    No BOMs yet. Create your first revision.
-                  </td>
-                </tr>
-              ) : (
-                boms.map((bom, i) => (
-                  <tr
-                    key={bom.id ?? i}
-                    className={i % 2 === 0 ? "bg-white dark:bg-card" : "bg-muted/40"}
-                  >
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(bom.id)}
-                        onChange={() => toggleSelectRow(bom.id)}
-                        className="h-4 w-4 cursor-pointer"
-                        aria-label="Select row"
-                      />
-                    </td>
-                    <td className="px-4 py-3 font-medium text-[var(--primary)]">
-                      {bom.masterCode || "—"}
-                    </td>
-                    <td className="px-4 py-3">{bom.revNo ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${
-                          STATUS_STYLES[bom.status] || "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {bom.status || "—"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      {curvePointCount(bom.weightCurve)}
-                    </td>
-                    <td className="px-4 py-3">
-                      {bom.metalLossPct == null ? "—" : bom.metalLossPct}
-                    </td>
-                    <td className="px-4 py-3">
-                      {bom.laborMinutes == null ? "—" : bom.laborMinutes}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-3">
-                        <button
-                          onClick={() => openEdit(bom)}
-                          aria-label={`Edit BOM ${bom.masterCode || ""} revision ${bom.revNo ?? ""}`}
-                          className="text-xs font-medium text-[var(--primary)] hover:text-[#091930]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => requestRemove(bom)}
-                          aria-label={`Delete BOM ${bom.masterCode || ""} revision ${bom.revNo ?? ""}`}
-                          className="text-xs font-medium text-rose-600 hover:text-rose-800"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+      {/* BOM list */}
+      {loading ? (
+        <Card>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
         </div>
-      </div>
+      ) : (
+        <ListWithCardToggle
+          title="BOM revisions"
+          titleAs="none"
+          data={boms}
+          columns={columns}
+          filterFunction={filterFunction}
+          resizableColumns
+          onSelectionChange={handleSelectionChange}
+        />
+      )}
 
       <ConfirmDialog
         open={!!pendingDelete}
@@ -611,6 +721,6 @@ export default function BomManager() {
         message={`Delete ${selectedIds.size} selected BOM revision(s)? This cannot be undone.`}
         confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
-    </div>
+    </Page>
   );
 }

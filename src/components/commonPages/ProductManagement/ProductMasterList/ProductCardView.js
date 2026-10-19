@@ -20,7 +20,7 @@ import {
 import dynamic from "next/dynamic";
 import { formatDateLong, toTitleCase } from "@/lib/utils";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
-import { useFileType } from "@/hooks/useFileType";
+import { getFileType } from "@/lib/getFileType";
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const ProductCardView = ({ open, closeProductDetailSheet, product }) => {
@@ -180,7 +180,7 @@ const ProductCardView = ({ open, closeProductDetailSheet, product }) => {
             <div className="flex flex-wrap gap-4 md:gap-5 my-6 md:my-8 justify-center md:justify-start">
               {product?.media &&
                 product?.media.map((image, index) => {
-                  const { isVideo } = useFileType(image?.url);
+                  const { isVideo } = getFileType(image?.url);
 
                   return (
                     <button

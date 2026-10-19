@@ -4,18 +4,28 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
-import { Card, CardContent } from "@/components/common/ui/cards/card";
+import { Loader2 } from "lucide-react";
+
+import { Button } from "@/components/common/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
 import {
   FormControl,
-  FormItem,
   FormField,
+  FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/common/ui/form";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
 import { Textarea } from "@/components/common/ui/textarea";
-import { Label } from "@/components/common/ui/label";
-import { Button } from "@/components/common/ui/button";
-import { Loader2 } from "lucide-react";
 
 export const PoliciesandCustomerAssurance = () => {
   const form = useForm();
@@ -23,10 +33,9 @@ export const PoliciesandCustomerAssurance = () => {
   const [submitError, setSubmitError] = useState(null);
   const isSubmitting = form.formState.isSubmitting;
 
-  const onSubmit = async (data) => {
+  const onSubmit = async () => {
     setSubmitError(null);
     try {
-      console.log("Submitted data:", data);
       router.push("/product-shopping-experience");
     } catch (error) {
       setSubmitError(
@@ -36,158 +45,222 @@ export const PoliciesandCustomerAssurance = () => {
   };
 
   return (
-    <Card className={"w-full p-6"}>
-      <CardContent>
-        <h2 className="text-center text-2xl font-semibold mb-6">
-          Policies & Customer Assurance
-        </h2>
-        <FormProvider {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="p-6 space-y-6"
+    <Page>
+      <PageHeader
+        title="Policies & Customer Assurance"
+        description="Set the returns, shipping, warranty and privacy rules your customers will see at checkout."
+        actions={
+          <Button
+            type="submit"
+            form="policies-form"
+            disabled={isSubmitting}
             aria-busy={isSubmitting}
           >
-            {submitError && (
-              <div
-                role="alert"
-                className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-              >
-                {submitError}
-              </div>
+            {isSubmitting ? (
+              <>
+                <Loader2
+                  className="size-4 animate-spin"
+                  aria-hidden="true"
+                />
+                Saving...
+              </>
+            ) : (
+              "Next"
             )}
-            <FormField
-              control={form.control}
-              name="returnpolicy"
-              render={({ field }) => (
-                <FormItem>
-                  <span className="text-base font-medium text-foreground">
-                    Return & Exchange Policy
-                  </span>
-                  <FormControl>
-                    <Textarea
-                      rows={3}
-                      id="returnpolicy"
-                      {...field}
-                      placeholder="Describe your return/exchange policy..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="shippinginfo"
-              render={({ field }) => (
-                <FormItem>
-                  <span className="text-base font-medium text-foreground">
-                    Shipping Information
-                  </span>
-                  <FormControl>
-                    <Textarea
-                      rows={3}
-                      id="shippinginfo"
-                      {...field}
-                      placeholder="Share your shipping methods, delivery times, and charges..."
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-foreground pb-0.5">
-                Warranty Details
-              </span>
-              <div className="flex flex-col items-start gap-4">
-                <RadioGroup defaultValue="intermediate">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="beginner" />
-                    <Label variant="secondary">Yes</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-              <span className="text-base font-medium text-foreground pb-0.5">
-                Ethical Sourcing Statement
-              </span>
-              <div className="flex flex-col items-start gap-4">
-                <RadioGroup defaultValue="intermediate">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="beginner" />
-                    <Label variant="secondary">Yes</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+          </Button>
+        }
+      />
+
+      <FormProvider {...form}>
+        <form
+          id="policies-form"
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="flex flex-col gap-5 lg:gap-6"
+          aria-busy={isSubmitting}
+        >
+          {submitError && (
+            <div
+              role="alert"
+              className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+            >
+              {submitError}
             </div>
-            <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-foreground pb-0.5">
-                Privacy Policy & Terms
-              </span>
+          )}
+
+          {/* Policy content */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Policy Content
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Explain your return and shipping terms in plain language.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <FormField
+                control={form.control}
+                name="returnpolicy"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Return &amp; Exchange Policy</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={3}
+                        id="returnpolicy"
+                        {...field}
+                        placeholder="Describe your return/exchange policy..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="shippinginfo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Shipping Information</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={3}
+                        id="shippinginfo"
+                        {...field}
+                        placeholder="Share your shipping methods, delivery times, and charges..."
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Customer assurance */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Customer Assurance
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Reassure customers about warranty, sourcing and packaging.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Warranty Details
+                </Label>
+                <div className="flex flex-col items-start gap-4">
+                  <RadioGroup defaultValue="intermediate">
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="beginner" id="warranty-yes" />
+                      <Label htmlFor="warranty-yes" variant="secondary">
+                        Yes
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Ethical Sourcing Statement
+                </Label>
+                <div className="flex flex-col items-start gap-4">
+                  <RadioGroup defaultValue="intermediate">
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="beginner" id="sourcing-yes" />
+                      <Label htmlFor="sourcing-yes" variant="secondary">
+                        Yes
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Packaging Details
+                </Label>
+                <div className="flex flex-col items-start gap-4">
+                  <RadioGroup defaultValue="intermediate">
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="beginner" id="packaging-yes" />
+                      <Label htmlFor="packaging-yes" variant="secondary">
+                        Yes
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Privacy policy */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Privacy Policy &amp; Terms
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Tell us if you already have your own policy and terms.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
               <RadioGroup
                 defaultValue="intermediate"
-                className="flex flex-row gap-6"
+                className="flex flex-row flex-wrap gap-6"
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <RadioGroupItem value="own" id="policy-own" />
                   <Label htmlFor="policy-own" variant="secondary">
                     I have my own
                   </Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center gap-2">
                   <RadioGroupItem value="help" id="policy-help" />
                   <Label htmlFor="policy-help" variant="secondary">
                     I need help creating them
                   </Label>
                 </div>
               </RadioGroup>
-            </div>
-            <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-foreground pb-0.5">
-                Packaging Details
-              </span>
-              <div className="flex flex-col items-start gap-4">
-                <RadioGroup defaultValue="intermediate">
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="beginner" />
-                    <Label variant="secondary">Yes</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-            </div>
-            <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 mb-5 mr-3 mt-5">
-              <Link href="#" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  disabled={isSubmitting}
-                >
-                  Save Draft
-                </Button>
-              </Link>
-              <Link href="/content-branding" className="w-full sm:w-auto">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto bg-[#F1F1F2]"
-                  disabled={isSubmitting}
+            </CardContent>
+            <CardFooter className="flex flex-wrap items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isSubmitting}
+                title="Save Draft is not available yet"
+              >
+                Save Draft
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                className={
+                  isSubmitting ? "pointer-events-none opacity-50" : undefined
+                }
+              >
+                <Link
+                  href="/content-branding"
+                  aria-disabled={isSubmitting || undefined}
                 >
                   Previous
-                </Button>
-              </Link>
-              <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting} aria-busy={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                    Saving...
-                  </>
-                ) : (
-                  "Next"
-                )}
+                </Link>
               </Button>
-            </div>
-          </form>
-        </FormProvider>
-      </CardContent>
-    </Card>
+            </CardFooter>
+          </Card>
+        </form>
+      </FormProvider>
+    </Page>
   );
 };
 

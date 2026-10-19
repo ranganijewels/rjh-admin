@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSelector } from "react-redux";
+import { toast } from "sonner";
 import {
   ShoppingBag,
   Users,
@@ -14,10 +15,12 @@ import {
   ArrowUpRight,
   UserPlus,
   Boxes,
+  Download,
 } from "lucide-react";
 
 import { Card, CardContent, CardHeader } from "@/components/common/ui/cards/card";
 import { StatusBadge } from "@/components/common/ui/badge";
+import { Button } from "@/components/common/ui/button";
 import { KpiCard } from "@/components/common/ui/kpi-card";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Page, PageHeader } from "@/components/common/ui/page";
@@ -189,14 +192,21 @@ const Overview = () => {
         label: "Total revenue",
         value: fmtMoney(revenue.total),
         icon: DollarSign,
-        sub: "vs last month",
-        trend: revenue.growthPct,
+        // A zero growth reading only makes sense when there is a previous
+        // month to compare against — otherwise it would read as "no change".
+        sub:
+          revenue.lastMonth > 0
+            ? "vs last month"
+            : "no prior month to compare",
+        trend: revenue.lastMonth > 0 ? revenue.growthPct : null,
+        sparkline: trend.map((t) => Number(t.revenue) || 0),
       },
       {
         label: "Total orders",
         value: fmtNum(orders.total),
         icon: ShoppingBag,
         sub: `${fmtNum(orders.today)} today`,
+        sparkline: trend.map((t) => Number(t.orders) || 0),
       },
       {
         label: "Avg. order value",
@@ -218,8 +228,74 @@ const Overview = () => {
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [d, revenue, orders, customers, products, liveProducts, totalProducts]
+    [d, revenue, orders, customers, products, trend, liveProducts, totalProducts]
   );
+
+  // A month of zeros still renders a (flat) chart, which reads as broken —
+  // treat "no movement at all" as no data.
+  const hasTrendData = trend.some(
+    (t) => (Number(t.revenue) || 0) > 0 || (Number(t.orders) || 0) > 0
+  );
+
+  // The dashboard is a read-only summary, so the export is the same numbers
+  // the cards show — nothing is recomputed from a different source.
+  const handleExport = useCallback(() => {
+    const csvCell = (value) => {
+      const text = String(value ?? "");
+      return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+
+    const rows = [
+      ["Metric", "Value"],
+      ["Total revenue", revenue.total],
+      ["Revenue this month", revenue.thisMonth],
+      ["Revenue last month", revenue.lastMonth],
+      ["Revenue growth %", revenue.growthPct],
+      ["Total orders", orders.total],
+      ["Orders today", orders.today],
+      ["Orders pending", orders.pending],
+      ["Orders in production", orders.processing],
+      ["Average order value", d?.aov],
+      ["Customers", customers.total],
+      ["New customers this month", customers.newThisMonth],
+      ["Products total", totalProducts],
+      ["Products live", liveProducts],
+      [],
+      ["Month", "Revenue", "Orders"],
+      ...trend.map((t) => [t.month, t.revenue, t.orders]),
+      [],
+      ["Order status", "Count"],
+      ...statusBreakdown.map((s) => [s.status, s.count]),
+      [],
+      ["Top product", "Orders", "Revenue"],
+      ...topProducts.map((p) => [p.name, p.orders, p.revenue]),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((cell) => csvCell(cell)).join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `dashboard-summary-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast.success("Dashboard summary exported");
+  }, [
+    revenue,
+    orders,
+    d,
+    customers,
+    totalProducts,
+    liveProducts,
+    trend,
+    statusBreakdown,
+    topProducts,
+  ]);
 
   if (loading) return <DashboardSkeleton />;
 
@@ -333,6 +409,12 @@ const Overview = () => {
       <PageHeader
         title={`Welcome back${user?.name ? `, ${user.name}` : ""}`}
         description="Here's what's happening across your store today."
+        actions={
+          <Button variant="outline" size="md" onClick={handleExport}>
+            <Download className="size-4" />
+            Export summary
+          </Button>
+        }
       />
 
       {/* KPI cards */}
@@ -345,6 +427,7 @@ const Overview = () => {
             icon={kpi.icon}
             sub={kpi.sub}
             trend={kpi.trend}
+            sparkline={kpi.sparkline}
           />
         ))}
       </div>
@@ -363,7 +446,7 @@ const Overview = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {trend.length ? (
+            {hasTrendData ? (
               <ApexChart
                 options={trendOptions}
                 series={trendOptions.series}
@@ -371,8 +454,13 @@ const Overview = () => {
                 height={300}
               />
             ) : (
-              <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
-                No sales data yet
+              <div className="flex h-64 flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No sales in the last 12 months
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  The chart fills in as soon as the first order is placed.
+                </p>
               </div>
             )}
           </CardContent>

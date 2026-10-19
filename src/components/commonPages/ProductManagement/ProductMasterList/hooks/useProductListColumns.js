@@ -15,7 +15,7 @@ import {
   Trash2Icon,
   ImageOff,
 } from "lucide-react";
-import { toTitleCase } from "@/lib/utils";
+import { cn, toTitleCase } from "@/lib/utils";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import {
   Tooltip,
@@ -32,7 +32,6 @@ export const useProductListColumns = ({
   setEditingCell,
   editedValue,
   handleSaveEdit,
-  onClick,
   onView,
   onEdit,
   onDelete,
@@ -59,80 +58,61 @@ export const useProductListColumns = ({
         meta: { headerTitle: "Select" },
       },
       {
-        // The design number is what identifies a product on the storefront
-        // (titles are often empty), so it is the pinned identity column.
-        id: "design_no",
+        // Thumbnail + name in a single pinned cell. Catalogue rows often have
+        // no title, so the design number doubles as the display name and the
+        // category sits underneath as context.
+        id: "product",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Design No" column={column} />
+          <DataGridColumnHeader title="Product" column={column} />
         ),
-        accessorFn: (row) => row.design_no,
-        cell: ({ row }) => (
-          <TruncatedText
-            value={row.original.design_no || "—"}
-            className="font-medium text-foreground"
-          />
-        ),
-        size: 140,
-        meta: {
-          identity: true,
-          headerTitle: "Design No",
-          truncate: true,
-          skeleton: <Skeleton className="h-4 w-[90px]" />,
-        },
-      },
-      {
-        id: "product_image",
-        header: ({ column }) => (
-          <DataGridColumnHeader
-            title="Image"
-            column={column}
-            onClick={() => onClick("image")}
-          />
-        ),
-        accessorFn: (row) => row.product_image,
+        accessorFn: (row) => row.title || row.design_no || "",
         cell: ({ row }) => {
-          const productImage = row.original.product_image;
-
-          if (!productImage) {
-            return (
-              <div className="flex h-[70px] w-[55px] items-center justify-center rounded bg-muted">
-                <ImageOff className="h-4 w-4 text-muted-foreground" />
-              </div>
-            );
-          }
+          const { title, design_no, category, product_image } = row.original;
+          const name = toTitleCase(title) || design_no || "—";
+          // The design number is the row's real identity, so it always shows
+          // — under the name when there is one, otherwise as the name itself
+          // (with the category underneath).
+          const sub = title && design_no ? design_no : toTitleCase(category);
 
           return (
-            <img
-              src={productImage}
-              className="h-[70px] w-[55px] object-cover"
-              alt={
-                row.original.title ||
-                row.original.design_no ||
-                "Product image"
-              }
-            />
+            <div className="flex items-center gap-3">
+              {product_image ? (
+                <img
+                  src={product_image}
+                  alt={name}
+                  className="h-11 w-9 shrink-0 rounded-md object-cover"
+                />
+              ) : (
+                <div className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                  <ImageOff className="size-4 text-muted-foreground" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <TruncatedText
+                  value={name}
+                  className="font-medium text-foreground"
+                />
+                {sub && (
+                  <p
+                    className={cn(
+                      "truncate text-xs text-muted-foreground",
+                      title && design_no && "font-mono"
+                    )}
+                  >
+                    {sub}
+                  </p>
+                )}
+              </div>
+            </div>
           );
         },
-        enableSorting: true,
-        size: 100,
+        size: 220,
         meta: {
-          headerTitle: "Image",
-          skeleton: <Skeleton className="h-4 w-[125px]" />,
+          identity: true,
+          headerTitle: "Product",
+          truncate: true,
+          skeleton: <Skeleton className="h-11 w-[220px]" />,
         },
-      },
-      {
-        id: "title",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Title" column={column} />
-        ),
-        accessorFn: (row) => row.title,
-        cell: ({ row }) => {
-          const t = toTitleCase(row.original.title) || "-";
-          // Truncate to a single line; full name on hover. Drag the column edge to widen.
-          return <TruncatedText value={t} />;
-        },
-        size: 200,
-        meta: { headerTitle: "Title", truncate: true },
       },
       {
         id: "category",
@@ -141,7 +121,7 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.category,
         cell: ({ row }) => toTitleCase(row.original.category) || "—",
-        size: 130,
+        size: 110,
         meta: { headerTitle: "Category" },
       },
       {
@@ -151,7 +131,7 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.style,
         cell: ({ row }) => toTitleCase(row.original.style) || "—",
-        size: 120,
+        size: 100,
         meta: { headerTitle: "Style" },
       },
       {
@@ -161,7 +141,7 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.shape,
         cell: ({ row }) => row.original.shape || "—",
-        size: 110,
+        size: 100,
         meta: { headerTitle: "Shape" },
       },
       {
@@ -171,7 +151,7 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.metal_color,
         cell: ({ row }) => toTitleCase(row.original.metal_color) || "—",
-        size: 120,
+        size: 110,
         meta: { headerTitle: "Metal Color" },
       },
       {
@@ -186,7 +166,7 @@ export const useProductListColumns = ({
             ? `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
             : "—";
         },
-        size: 120,
+        size: 110,
         meta: { headerTitle: "Price (live)" },
       },
       {
@@ -206,7 +186,7 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.created_at,
         cell: ({ row }) => formatDate(row.original.created_at),
-        size: 140,
+        size: 120,
         meta: { headerTitle: "Created At" },
       },
       {
@@ -255,7 +235,7 @@ export const useProductListColumns = ({
             )}
           </div>
         ),
-        size: 110,
+        size: 100,
         meta: { headerTitle: "Active" },
       },
       {
@@ -331,7 +311,6 @@ export const useProductListColumns = ({
       onView,
       onEdit,
       onDelete,
-      onClick,
       toggleStatus,
     ]
   );

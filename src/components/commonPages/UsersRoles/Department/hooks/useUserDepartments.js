@@ -10,7 +10,7 @@ import { Edit2Icon } from "lucide-react";
 import { RiDeleteBin5Line } from "@remixicon/react";
 import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 
-export const userDepartments = ({ onEdit, onDelete }) => {
+export const useUserDepartments = ({ onEdit, onDelete }) => {
   return useMemo(
     () => [
       {

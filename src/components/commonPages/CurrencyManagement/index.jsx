@@ -1,15 +1,22 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
 import { Plus, RefreshCw, Star, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { Skeleton } from "@/components/common/ui/skeleton";
 import { Checkbox } from "@/components/common/ui/checkbox";
-import StatusBadge from "@/components/commonPages/Catalog/StatusBadge";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
+import { TruncatedText } from "@/components/common/ui/short-id";
 import {
   Sheet,
   SheetBody,
@@ -18,6 +25,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/common/ui/sheet";
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 
 const authHeaders = () => {
   const token =
@@ -40,9 +48,17 @@ const EMPTY = {
   isActive: true,
 };
 
-const ACTIVE_STATUS_MAP = {
-  active: "bg-green-100 text-green-700",
-  off: "bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground",
+// Sort numerically when both values are numbers, otherwise as a
+// natural-language string.
+const compareValues = (rowA, rowB, columnId) => {
+  const av = rowA.getValue(columnId);
+  const bv = rowB.getValue(columnId);
+  const an = Number(av);
+  const bn = Number(bv);
+  if (av !== "" && bv !== "" && av != null && bv != null && Number.isFinite(an) && Number.isFinite(bn)) {
+    return an - bn;
+  }
+  return String(av ?? "").localeCompare(String(bv ?? ""), undefined, { numeric: true });
 };
 
 const CurrencyManagement = () => {
@@ -55,9 +71,6 @@ const CurrencyManagement = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [selectedIds, setSelectedIds] = useState(new Set());
-  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -67,49 +80,12 @@ const CurrencyManagement = () => {
       });
       const json = await res.json();
       setList(json?.data || []);
-      setSelectedIds(new Set());
     } catch (e) {
       toast.error("Failed to load currencies");
     } finally {
       setLoading(false);
     }
   }, []);
-
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) =>
-      prev.size === list.length ? new Set() : new Set(list.map((c) => c.id))
-    );
-  };
-  const toggleSelectRow = (id) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleBulkDelete = async () => {
-    setBulkDeleting(true);
-    try {
-      await Promise.all(
-        [...selectedIds].map((id) =>
-          fetch(`/api/currency-management/${id}`, {
-            method: "DELETE",
-            headers: authHeaders(),
-          })
-        )
-      );
-      toast.success(`${selectedIds.size} currenc(ies) removed`);
-      setSelectedIds(new Set());
-      fetchData();
-    } catch {
-      toast.error("Failed to delete selected currencies");
-    } finally {
-      setBulkDeleting(false);
-      setBulkConfirmOpen(false);
-    }
-  };
 
   useEffect(() => {
     fetchData();
@@ -143,7 +119,7 @@ const CurrencyManagement = () => {
     setFormOpen(true);
   };
 
-  const openEdit = (c) => {
+  const openEdit = useCallback((c) => {
     setForm({
       countryCode: c.countryCode || "",
       countryName: c.countryName || "",
@@ -155,7 +131,7 @@ const CurrencyManagement = () => {
     });
     setEditId(c.id);
     setFormOpen(true);
-  };
+  }, []);
 
   const save = async () => {
     if (!form.countryCode || !form.countryName || !form.currencyCode) {
@@ -186,7 +162,7 @@ const CurrencyManagement = () => {
     }
   };
 
-  const toggleActive = async (c) => {
+  const toggleActive = useCallback(async (c) => {
     try {
       const res = await fetch(`/api/currency-management/${c.id}`, {
         method: "PUT",
@@ -198,9 +174,9 @@ const CurrencyManagement = () => {
     } catch {
       toast.error("Failed to update");
     }
-  };
+  }, [fetchData]);
 
-  const setDefault = async (c) => {
+  const setDefault = useCallback(async (c) => {
     try {
       const res = await fetch(`/api/currency-management/${c.id}/default`, {
         method: "PATCH",
@@ -212,7 +188,7 @@ const CurrencyManagement = () => {
     } catch {
       toast.error("Failed to set default");
     }
-  };
+  }, [fetchData]);
 
   const doDelete = async () => {
     try {
@@ -230,9 +206,224 @@ const CurrencyManagement = () => {
     }
   };
 
+  const handleBulkDelete = useCallback(async (rows) => {
+    try {
+      await Promise.all(
+        rows.map((c) =>
+          fetch(`/api/currency-management/${c.id}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          })
+        )
+      );
+      toast.success(`${rows.length} currenc(ies) removed`);
+      fetchData();
+    } catch {
+      toast.error("Failed to delete selected currencies");
+    }
+  }, [fetchData]);
+
   const setField = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
-  if (loading) return <ContentLoader />;
+  // Quick search over the currency's identifying fields.
+  const filterFunction = useCallback((data, query) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return data;
+    return data.filter((c) =>
+      [c.countryName, c.countryCode, c.currencyCode, c.currencySymbol].some((v) =>
+        String(v ?? "").toLowerCase().includes(q)
+      )
+    );
+  }, []);
+
+  const tableColumns = useMemo(
+    () => [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 40,
+        meta: { headerTitle: "Select" },
+      },
+      {
+        id: "countryName",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Country" column={column} />
+        ),
+        accessorFn: (row) => row.countryName,
+        cell: ({ row }) => <TruncatedText value={row.original.countryName} />,
+        size: 180,
+        meta: { headerTitle: "Country", identity: true, truncate: true },
+      },
+      {
+        id: "countryCode",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Code" column={column} />
+        ),
+        accessorFn: (row) => row.countryCode,
+        cell: ({ row }) => <span>{row.original.countryCode || "—"}</span>,
+        size: 90,
+        meta: { headerTitle: "Code" },
+      },
+      {
+        id: "currencyCode",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Currency" column={column} />
+        ),
+        accessorFn: (row) => row.currencyCode,
+        cell: ({ row }) => (
+          <span className="font-medium text-foreground">
+            {row.original.currencyCode || "—"}
+          </span>
+        ),
+        size: 110,
+        meta: { headerTitle: "Currency" },
+      },
+      {
+        id: "currencySymbol",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Symbol" column={column} />
+        ),
+        accessorFn: (row) => row.currencySymbol,
+        cell: ({ row }) => <span>{row.original.currencySymbol || "—"}</span>,
+        size: 90,
+        meta: { headerTitle: "Symbol" },
+      },
+      {
+        id: "rate",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Rate (1 USD =)" column={column} />
+        ),
+        accessorFn: (row) => row.rate,
+        cell: ({ row }) => (
+          <span className="tabular-nums">
+            {Number(row.original.rate).toLocaleString(undefined, {
+              maximumFractionDigits: 4,
+            })}
+          </span>
+        ),
+        sortingFn: compareValues,
+        size: 130,
+        meta: { headerTitle: "Rate (1 USD =)" },
+      },
+      {
+        id: "isActive",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Active" column={column} />
+        ),
+        accessorFn: (row) => row.isActive,
+        cell: ({ row }) => {
+          const c = row.original;
+          const label = c.currencyCode || "currency";
+          return (
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-pressed={!!c.isActive}
+              aria-label={
+                c.isActive ? `Deactivate ${label}` : `Activate ${label}`
+              }
+              title={c.isActive ? "Deactivate" : "Activate"}
+              onClick={() => toggleActive(c)}
+            >
+              <StatusBadge status={c.isActive ? "active" : "inactive"} />
+            </Button>
+          );
+        },
+        size: 120,
+        meta: { headerTitle: "Active" },
+      },
+      {
+        id: "isDefault",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Default" column={column} />
+        ),
+        accessorFn: (row) => row.isDefault,
+        cell: ({ row }) => {
+          const c = row.original;
+          const label = c.currencyCode || "currency";
+          return (
+            <Button
+              mode="icon"
+              variant="ghost"
+              size="sm"
+              aria-pressed={!!c.isDefault}
+              aria-label={
+                c.isDefault
+                  ? `${label} is the default currency`
+                  : `Set ${label} as default currency`
+              }
+              title={c.isDefault ? "Default country" : "Set as default"}
+              onClick={() => setDefault(c)}
+            >
+              <Star
+                className={`size-4 ${
+                  c.isDefault
+                    ? "fill-warning text-warning"
+                    : "text-muted-foreground"
+                }`}
+              />
+            </Button>
+          );
+        },
+        size: 90,
+        meta: { headerTitle: "Default" },
+      },
+      {
+        id: "action",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
+        cell: ({ row }) => {
+          const c = row.original;
+          return (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                mode="icon"
+                size="sm"
+                aria-label={`Edit ${c.currencyCode || "currency"}`}
+                title="Edit currency"
+                onClick={() => openEdit(c)}
+              >
+                <Pencil className="size-4" />
+              </Button>
+              <Button
+                variant="outline"
+                mode="icon"
+                size="sm"
+                aria-label={`Delete ${c.currencyCode || "currency"}`}
+                title="Delete currency"
+                onClick={() => {
+                  setDeleteId(c.id);
+                  setConfirmOpen(true);
+                }}
+              >
+                <Trash2 className="size-4 text-destructive" />
+              </Button>
+            </div>
+          );
+        },
+        enableSorting: false,
+        enableHiding: false,
+        size: 96,
+        meta: { headerTitle: "Actions" },
+      },
+    ],
+    [toggleActive, setDefault, openEdit]
+  );
+
+  if (loading) {
+    return (
+      <Page>
+        <Skeleton className="h-8 w-56" />
+        <Skeleton className="h-10 w-full max-w-md" />
+        <Skeleton className="h-[420px] w-full rounded-xl" />
+      </Page>
+    );
+  }
 
   return (
     <Page>
@@ -240,157 +431,59 @@ const CurrencyManagement = () => {
         title="Currency & Countries"
         description="Storefront currencies, live FX rates, and the default country. Base currency is USD (rate = 1 USD in that currency)."
         actions={
-          <div className="flex gap-2">
+          <>
             <Button
               variant="outline"
+              size="md"
               onClick={refreshRates}
               disabled={refreshing}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+                className={`size-4 ${refreshing ? "animate-spin" : ""}`}
               />
               {refreshing ? "Refreshing…" : "Refresh Live Rates"}
             </Button>
-            <Button onClick={openAdd}>
-              <Plus className="mr-2 h-4 w-4" />
+            <Button variant="primary" size="md" onClick={openAdd}>
+              <Plus className="size-4" />
               Add Currency
             </Button>
-          </div>
+          </>
         }
       />
 
-      {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
-          <span className="text-sm font-medium">{selectedIds.size} selected</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ms-auto text-red-600 border-red-200 hover:bg-red-50"
-            onClick={() => setBulkConfirmOpen(true)}
-          >
-            Delete
+      {list.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
+          <p className="text-sm font-medium text-foreground">
+            No currencies configured yet
+          </p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Add a country and its currency to start selling in that market.
+          </p>
+          <Button variant="primary" onClick={openAdd}>
+            <Plus className="size-4" />
+            Add Currency
           </Button>
         </div>
+      ) : (
+        <ListWithCardToggle
+          title="Currencies"
+          titleAs="none"
+          data={list}
+          columns={tableColumns}
+          filterFunction={filterFunction}
+          resizableColumns
+          bulkActions={[
+            {
+              key: "delete",
+              label: "Delete",
+              variant: "destructive",
+              confirmMessage:
+                "Remove the selected currenc(ies) from the storefront? This cannot be undone.",
+              onRun: handleBulkDelete,
+            },
+          ]}
+        />
       )}
-
-      <div className="overflow-x-auto border border-border rounded-lg">
-        <table className="w-full text-sm">
-          <thead className="bg-muted/50">
-            <tr className="text-left">
-              <th scope="col" className="p-3 font-medium w-10">
-                <input
-                  type="checkbox"
-                  checked={list.length > 0 && selectedIds.size === list.length}
-                  onChange={toggleSelectAll}
-                  className="h-4 w-4 cursor-pointer"
-                  aria-label="Select all"
-                />
-              </th>
-              <th scope="col" className="p-3 font-medium">Country</th>
-              <th scope="col" className="p-3 font-medium">Code</th>
-              <th scope="col" className="p-3 font-medium">Currency</th>
-              <th scope="col" className="p-3 font-medium hidden sm:table-cell">Symbol</th>
-              <th scope="col" className="p-3 font-medium text-right">Rate (1 USD =)</th>
-              <th scope="col" className="p-3 font-medium text-center">Active</th>
-              <th scope="col" className="p-3 font-medium text-center">Default</th>
-              <th scope="col" className="p-3 font-medium text-center">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {list.map((c) => (
-              <tr key={c.id} className="border-t border-border">
-                <td className="p-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.has(c.id)}
-                    onChange={() => toggleSelectRow(c.id)}
-                    className="h-4 w-4 cursor-pointer"
-                    aria-label="Select row"
-                  />
-                </td>
-                <td className="p-3">{c.countryName}</td>
-                <td className="p-3">{c.countryCode}</td>
-                <td className="p-3">{c.currencyCode}</td>
-                <td className="p-3 hidden sm:table-cell">{c.currencySymbol}</td>
-                <td className="p-3 text-right tabular-nums">
-                  {Number(c.rate).toLocaleString(undefined, {
-                    maximumFractionDigits: 4,
-                  })}
-                </td>
-                <td className="p-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => toggleActive(c)}
-                    aria-pressed={c.isActive}
-                    aria-label={
-                      c.isActive
-                        ? `Deactivate ${c.currencyCode || "currency"}`
-                        : `Activate ${c.currencyCode || "currency"}`
-                    }
-                    className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <StatusBadge
-                      status={c.isActive ? "active" : "off"}
-                      map={ACTIVE_STATUS_MAP}
-                      capitalize
-                    />
-                  </button>
-                </td>
-                <td className="p-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => setDefault(c)}
-                    title={c.isDefault ? "Default country" : "Set as default"}
-                    aria-label={
-                      c.isDefault
-                        ? `${c.currencyCode || "Currency"} is the default currency`
-                        : `Set ${c.currencyCode || "currency"} as default currency`
-                    }
-                    aria-pressed={!!c.isDefault}
-                    className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  >
-                    <Star
-                      className={`h-4 w-4 mx-auto ${
-                        c.isDefault
-                          ? "fill-yellow-500 text-yellow-700"
-                          : "text-gray-300 dark:text-muted-foreground"
-                      }`}
-                    />
-                  </button>
-                </td>
-                <td className="p-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      mode="icon"
-                      onClick={() => openEdit(c)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      mode="icon"
-                      onClick={() => {
-                        setDeleteId(c.id);
-                        setConfirmOpen(true);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {list.length === 0 && (
-              <tr>
-                <td colSpan={9} className="p-6 text-center text-muted-foreground">
-                  No currencies configured yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
 
       {/* Add/Edit sheet */}
       <Sheet open={formOpen} onOpenChange={(v) => !v && setFormOpen(false)}>
@@ -402,8 +495,9 @@ const CurrencyManagement = () => {
             <SheetTitle>{editId ? "Edit" : "Add"} Currency</SheetTitle>
           </SheetHeader>
           <SheetBody className="px-5 py-4 space-y-4">
-            <Field label="Country Code (ISO-2, e.g. US)">
+            <Field label="Country Code (ISO-2, e.g. US)" htmlFor="currency-countryCode">
               <Input
+                id="currency-countryCode"
                 value={form.countryCode}
                 maxLength={2}
                 onChange={(e) =>
@@ -412,15 +506,17 @@ const CurrencyManagement = () => {
                 placeholder="US"
               />
             </Field>
-            <Field label="Country Name">
+            <Field label="Country Name" htmlFor="currency-countryName">
               <Input
+                id="currency-countryName"
                 value={form.countryName}
                 onChange={(e) => setField("countryName", e.target.value)}
                 placeholder="United States"
               />
             </Field>
-            <Field label="Currency Code (ISO, e.g. USD)">
+            <Field label="Currency Code (ISO, e.g. USD)" htmlFor="currency-currencyCode">
               <Input
+                id="currency-currencyCode"
                 value={form.currencyCode}
                 maxLength={3}
                 onChange={(e) =>
@@ -429,15 +525,17 @@ const CurrencyManagement = () => {
                 placeholder="USD"
               />
             </Field>
-            <Field label="Currency Symbol">
+            <Field label="Currency Symbol" htmlFor="currency-currencySymbol">
               <Input
+                id="currency-currencySymbol"
                 value={form.currencySymbol}
                 onChange={(e) => setField("currencySymbol", e.target.value)}
                 placeholder="$"
               />
             </Field>
-            <Field label="Rate (1 USD = ? this currency)">
+            <Field label="Rate (1 USD = ? this currency)" htmlFor="currency-rate">
               <Input
+                id="currency-rate"
                 type="number"
                 step="0.0001"
                 value={form.rate}
@@ -445,31 +543,31 @@ const CurrencyManagement = () => {
                 placeholder="1.0"
               />
             </Field>
-            <Field label="Sort Order">
+            <Field label="Sort Order" htmlFor="currency-sortOrder">
               <Input
+                id="currency-sortOrder"
                 type="number"
                 value={form.sortOrder}
                 onChange={(e) => setField("sortOrder", e.target.value)}
                 placeholder="0"
               />
             </Field>
-            <label
-              htmlFor="currency-isActive"
-              className="flex items-center gap-2 text-sm"
-            >
+            <div className="flex items-center gap-2">
               <Checkbox
                 id="currency-isActive"
                 checked={!!form.isActive}
                 onCheckedChange={(checked) => setField("isActive", !!checked)}
               />
-              Active on storefront
-            </label>
+              <Label htmlFor="currency-isActive" className="font-normal">
+                Active on storefront
+              </Label>
+            </div>
           </SheetBody>
           <SheetFooter className="px-5 py-4 gap-2">
             <Button variant="outline" onClick={() => setFormOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={save} disabled={saving}>
+            <Button variant="primary" onClick={save} disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </SheetFooter>
@@ -483,22 +581,13 @@ const CurrencyManagement = () => {
         title="Delete Currency"
         message="Remove this country/currency from the storefront? This cannot be undone."
       />
-
-      <ConfirmDialog
-        open={bulkConfirmOpen}
-        onClose={() => setBulkConfirmOpen(false)}
-        onConfirm={handleBulkDelete}
-        title="Delete selected currencies"
-        message={`Remove ${selectedIds.size} selected currenc(ies) from the storefront? This cannot be undone.`}
-        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
-      />
     </Page>
   );
 };
 
-const Field = ({ label, children }) => (
+const Field = ({ label, htmlFor, children }) => (
   <div className="space-y-1.5">
-    <label className="text-sm font-medium">{label}</label>
+    <Label htmlFor={htmlFor}>{label}</Label>
     {children}
   </div>
 );

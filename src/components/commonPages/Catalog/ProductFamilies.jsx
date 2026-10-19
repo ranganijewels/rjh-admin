@@ -1,19 +1,36 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
+
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { Button } from "@/components/common/ui/button";
 import {
-  Section,
-  Grid,
-  Field,
-  Select,
-  Input,
-  Textarea,
-  Button,
-  authHeaders,
-} from "@/components/commonPages/Catalog/_ui";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
+import { Checkbox } from "@/components/common/ui/checkbox";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
 import { Page, PageHeader } from "@/components/common/ui/page";
-import StatusBadge from "@/components/commonPages/Catalog/StatusBadge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { TruncatedText } from "@/components/common/ui/short-id";
+import { Textarea } from "@/components/common/ui/textarea";
+import { authHeaders } from "@/components/commonPages/Catalog/_ui";
+import { cn } from "@/lib/utils";
 
 const CATEGORIES = [
   "Rings",
@@ -38,6 +55,8 @@ const AXIS_TYPES = [
 ];
 
 const STATUS_FILTERS = ["all", ...STATUSES];
+
+const PAGE_SIZE = 50;
 
 const emptyAxis = () => ({
   axis: "shape",
@@ -70,20 +89,51 @@ const axisToEditor = (a = {}) => ({
   affectsPrice: a.affectsPrice !== false,
 });
 
+// Small labelled field wrapper: shared Label + optional hint / error.
+function FormField({
+  label,
+  htmlFor,
+  hint,
+  error,
+  errorId,
+  children,
+  className,
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      <Label htmlFor={htmlFor}>{label}</Label>
+      {children}
+      {error ? (
+        <span id={errorId} role="alert" className="text-xs text-destructive">
+          {error}
+        </span>
+      ) : (
+        hint && <span className="text-xs text-muted-foreground">{hint}</span>
+      )}
+    </div>
+  );
+}
+
 export default function ProductFamilies() {
   const [families, setFamilies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(emptyForm());
 
-  const PAGE_SIZE = 50;
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // The list is server-paginated, so the grid keeps a controlled pagination
+  // that always mirrors the page size we ask the API for.
+  const [pagination, setPagination] = useState({
+    pageIndex: 0,
+    pageSize: PAGE_SIZE,
+  });
 
   const load = useCallback(
     async (nextOffset = 0, { append = false } = {}) => {
@@ -118,26 +168,11 @@ export default function ProductFamilies() {
 
   useEffect(() => {
     load(0);
+    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   const loadMore = () => load(offset + PAGE_SIZE, { append: true });
-
-  // Auto-load the next page as the sentinel scrolls into view, instead of
-  // requiring a manual "Load more" click.
-  const sentinelRef = useRef(null);
-  useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !loadingMore) loadMore();
-      },
-      { rootMargin: "400px" }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, offset]);
 
   const [formErrors, setFormErrors] = useState({});
 
@@ -157,7 +192,7 @@ export default function ProductFamilies() {
     setEditorOpen(true);
   };
 
-  const openEdit = (fam) => {
+  const openEdit = useCallback((fam) => {
     setForm({
       id: fam.id,
       familyCode: fam.familyCode ?? "",
@@ -174,7 +209,7 @@ export default function ProductFamilies() {
     });
     setFormErrors({});
     setEditorOpen(true);
-  };
+  }, []);
 
   const closeEditor = () => {
     setEditorOpen(false);
@@ -258,44 +293,173 @@ export default function ProductFamilies() {
     }
   };
 
-  const remove = async (fam) => {
-    if (
-      !confirm(
-        `Delete family "${fam.familyCode || fam.name || fam.id}"? This cannot be undone.`
+  const remove = useCallback(
+    async (fam) => {
+      if (
+        !confirm(
+          `Delete family "${fam.familyCode || fam.name || fam.id}"? This cannot be undone.`
+        )
       )
-    )
-      return;
-    try {
-      const res = await fetch(`/api/catalog/families/${fam.id}`, {
-        method: "DELETE",
-        headers: authHeaders(),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data?.message || "Delete failed");
+        return;
+      try {
+        const res = await fetch(`/api/catalog/families/${fam.id}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.message || "Delete failed");
+        }
+        toast.success("Family deleted");
+        if (form.id === fam.id) closeEditor();
+        load();
+      } catch (e) {
+        toast.error(e?.message || "Delete failed");
       }
-      toast.success("Family deleted");
-      if (form.id === fam.id) closeEditor();
-      load();
-    } catch (e) {
-      toast.error(e?.message || "Delete failed");
-    }
-  };
+    },
+    [form.id, load]
+  );
+
+  const columns = useMemo(
+    () => [
+      {
+        id: "familyCode",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Family Code" column={column} />
+        ),
+        accessorFn: (row) => row.familyCode,
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.original.familyCode}
+            className="font-medium text-foreground"
+          />
+        ),
+        size: 180,
+        meta: { headerTitle: "Family Code", identity: true, truncate: true },
+      },
+      {
+        id: "name",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Name" column={column} />
+        ),
+        accessorFn: (row) => row.name,
+        cell: ({ row }) => <TruncatedText value={row.original.name} />,
+        size: 240,
+        meta: { headerTitle: "Name", truncate: true },
+      },
+      {
+        id: "category",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Category" column={column} />
+        ),
+        accessorFn: (row) => row.category,
+        cell: ({ row }) => <TruncatedText value={row.original.category} />,
+        size: 160,
+        meta: { headerTitle: "Category", truncate: true },
+      },
+      {
+        id: "status",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
+        accessorFn: (row) => row.status,
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        size: 120,
+        meta: { headerTitle: "Status" },
+      },
+      {
+        id: "axesCount",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="# Axes" column={column} />
+        ),
+        accessorFn: (row) => (Array.isArray(row.axes) ? row.axes.length : 0),
+        cell: ({ row }) => (
+          <span>{Array.isArray(row.original.axes) ? row.original.axes.length : 0}</span>
+        ),
+        size: 100,
+        meta: { headerTitle: "# Axes" },
+      },
+      {
+        id: "action",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
+        cell: ({ row }) => (
+          <div className="flex gap-2">
+            <Button
+              mode="icon"
+              variant="outline"
+              aria-label={`Edit family ${row.original.familyCode || row.original.name || ""}`}
+              title="Edit family"
+              onClick={(event) => {
+                event.stopPropagation();
+                openEdit(row.original);
+              }}
+            >
+              <Pencil />
+            </Button>
+            <Button
+              mode="icon"
+              variant="outline"
+              aria-label={`Delete family ${row.original.familyCode || row.original.name || ""}`}
+              title="Delete family"
+              onClick={(event) => {
+                event.stopPropagation();
+                remove(row.original);
+              }}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        size: 104,
+        meta: { headerTitle: "Actions" },
+      },
+    ],
+    [openEdit, remove]
+  );
+
+  // Search runs over the rows already loaded from the API.
+  const visibleFamilies = useMemo(() => {
+    const needle = searchQuery.trim().toLowerCase();
+    if (!needle) return families;
+    return families.filter((fam) =>
+      [fam.familyCode, fam.name, fam.category, fam.status].some((field) =>
+        String(field ?? "").toLowerCase().includes(needle)
+      )
+    );
+  }, [families, searchQuery]);
+
+  const handlePaginationChange = useCallback((updater) => {
+    setPagination((prev) => ({
+      ...prev,
+      ...(typeof updater === "function" ? updater(prev) : updater),
+    }));
+  }, []);
 
   return (
-    <div>
-      {/* Header */}
+    <Page>
       <PageHeader
         title="Product Families"
         description="Designs + their configurable axes. Variants resolve on demand — never pre-materialized."
         actions={
           <>
-            <Select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              options={STATUS_FILTERS}
-            />
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[180px]" aria-label="Family status">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status === "all" ? "All statuses" : status}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button type="button" variant="primary" size="md" onClick={openNew}>
+              <Plus className="size-4" />
               New Family
             </Button>
           </>
@@ -304,143 +468,191 @@ export default function ProductFamilies() {
 
       {/* Editor */}
       {editorOpen && (
-        <Section
-          title={form.id ? "Edit Family" : "New Family"}
-          action={
-            <button
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-semibold text-foreground">
+                {form.id ? "Edit Family" : "New Family"}
+              </CardTitle>
+              <CardDescription className="text-xs text-muted-foreground">
+                Design details plus the axes shoppers configure on the storefront.
+              </CardDescription>
+            </div>
+            <Button
               type="button"
+              variant="ghost"
+              mode="icon"
+              size="sm"
               onClick={closeEditor}
-              className="text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+              aria-label="Close editor"
+              title="Close editor"
             >
-              Close
-            </button>
-          }
-        >
-          <Grid cols={3}>
-            <Field
-              label="Family Code"
-              htmlFor="family-code"
-              error={formErrors.familyCode}
-              errorId="family-code-error"
-            >
-              <Input
-                id="family-code"
-                value={form.familyCode}
-                onChange={(e) => setField("familyCode", e.target.value)}
-                placeholder="e.g. LR-001"
-                aria-invalid={Boolean(formErrors.familyCode)}
-                aria-describedby={
-                  formErrors.familyCode ? "family-code-error" : undefined
-                }
-              />
-            </Field>
-            <Field
-              label="Name"
-              htmlFor="family-name"
-              error={formErrors.name}
-              errorId="family-name-error"
-            >
-              <Input
-                id="family-name"
-                value={form.name}
-                onChange={(e) => setField("name", e.target.value)}
-                placeholder="e.g. Luna Solitaire Ring"
-                aria-invalid={Boolean(formErrors.name)}
-                aria-describedby={
-                  formErrors.name ? "family-name-error" : undefined
-                }
-              />
-            </Field>
-            <Field label="Category">
-              <Select
-                value={form.category}
-                onChange={(e) => setField("category", e.target.value)}
-                options={CATEGORIES}
-              />
-            </Field>
-            <Field label="Default Shape">
-              <Input
-                value={form.defaultShape}
-                onChange={(e) => setField("defaultShape", e.target.value)}
-                placeholder="e.g. Round"
-              />
-            </Field>
-            <Field label="Default Metal Type">
-              <Input
-                value={form.defaultMetalType}
-                onChange={(e) => setField("defaultMetalType", e.target.value)}
-                placeholder="e.g. 18K Yellow Gold"
-              />
-            </Field>
-            <Field label="Status">
-              <Select
-                value={form.status}
-                onChange={(e) => setField("status", e.target.value)}
-                options={STATUSES}
-              />
-            </Field>
-            <Field label="Story (Markdown)" full>
-              <Textarea
-                value={form.storyMd}
-                onChange={(e) => setField("storyMd", e.target.value)}
-                placeholder="Design story / narrative (markdown supported)"
-                rows={4}
-              />
-            </Field>
-          </Grid>
-
-          {/* Axes editor */}
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-semibold text-foreground">
-                  Configurable Axes
-                </h4>
-                <p className="text-[11px] text-muted-foreground">
-                  Each axis defines a dimension shoppers configure. Variants
-                  resolve from these — they are never stored.
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={addAxis}
+              <X />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField
+                label="Family Code"
+                htmlFor="family-code"
+                error={formErrors.familyCode}
+                errorId="family-code-error"
               >
-                + Add Axis
-              </Button>
+                <Input
+                  id="family-code"
+                  value={form.familyCode}
+                  onChange={(e) => setField("familyCode", e.target.value)}
+                  placeholder="e.g. LR-001"
+                  aria-invalid={Boolean(formErrors.familyCode)}
+                  aria-describedby={
+                    formErrors.familyCode ? "family-code-error" : undefined
+                  }
+                />
+              </FormField>
+              <FormField
+                label="Name"
+                htmlFor="family-name"
+                error={formErrors.name}
+                errorId="family-name-error"
+              >
+                <Input
+                  id="family-name"
+                  value={form.name}
+                  onChange={(e) => setField("name", e.target.value)}
+                  placeholder="e.g. Luna Solitaire Ring"
+                  aria-invalid={Boolean(formErrors.name)}
+                  aria-describedby={
+                    formErrors.name ? "family-name-error" : undefined
+                  }
+                />
+              </FormField>
+              <FormField label="Category" htmlFor="family-category">
+                <Select
+                  value={form.category}
+                  onValueChange={(value) => setField("category", value)}
+                >
+                  <SelectTrigger id="family-category" className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((category) => (
+                      <SelectItem key={category} value={category}>
+                        {category}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField label="Default Shape" htmlFor="family-default-shape">
+                <Input
+                  id="family-default-shape"
+                  value={form.defaultShape}
+                  onChange={(e) => setField("defaultShape", e.target.value)}
+                  placeholder="e.g. Round"
+                />
+              </FormField>
+              <FormField
+                label="Default Metal Type"
+                htmlFor="family-default-metal-type"
+              >
+                <Input
+                  id="family-default-metal-type"
+                  value={form.defaultMetalType}
+                  onChange={(e) => setField("defaultMetalType", e.target.value)}
+                  placeholder="e.g. 18K Yellow Gold"
+                />
+              </FormField>
+              <FormField label="Status" htmlFor="family-status">
+                <Select
+                  value={form.status}
+                  onValueChange={(value) => setField("status", value)}
+                >
+                  <SelectTrigger id="family-status" className="w-full">
+                    <SelectValue placeholder="Select a status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUSES.map((status) => (
+                      <SelectItem key={status} value={status}>
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </FormField>
+              <FormField
+                label="Story (Markdown)"
+                htmlFor="family-story"
+                className="sm:col-span-full"
+              >
+                <Textarea
+                  id="family-story"
+                  value={form.storyMd}
+                  onChange={(e) => setField("storyMd", e.target.value)}
+                  placeholder="Design story / narrative (markdown supported)"
+                  rows={4}
+                />
+              </FormField>
             </div>
 
-            {(!form.axes || form.axes.length === 0) && (
-              <div className="rounded-md border border-dashed border-gray-300 dark:border-border p-4 text-center text-xs text-muted-foreground">
-                No axes yet. Click “Add Axis” to define one.
+            {/* Axes editor */}
+            <div className="mt-6 flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-foreground">
+                    Configurable Axes
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Each axis defines a dimension shoppers configure. Variants
+                    resolve from these — they are never stored.
+                  </p>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addAxis}>
+                  <Plus className="size-4" />
+                  Add Axis
+                </Button>
               </div>
-            )}
 
-            <div className="flex flex-col gap-3">
+              {(!form.axes || form.axes.length === 0) && (
+                <div className="rounded-md border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
+                  No axes yet. Click “Add Axis” to define one.
+                </div>
+              )}
+
               {form.axes.map((axis, idx) => (
                 <div
                   key={idx}
-                  className="rounded-lg border border-gray-200 dark:border-border bg-muted/30 p-3"
+                  className="rounded-lg border border-border bg-muted/30 p-3"
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
                     <div className="sm:col-span-3">
-                      <Field label="Axis">
+                      <FormField label="Axis" htmlFor={`axis-type-${idx}`}>
                         <Select
                           value={axis.axis}
-                          onChange={(e) =>
-                            setAxisField(idx, "axis", e.target.value)
+                          onValueChange={(value) =>
+                            setAxisField(idx, "axis", value)
                           }
-                          options={AXIS_TYPES}
-                        />
-                      </Field>
+                        >
+                          <SelectTrigger id={`axis-type-${idx}`} className="w-full">
+                            <SelectValue placeholder="Select an axis" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {AXIS_TYPES.map((type) => (
+                              <SelectItem key={type} value={type}>
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormField>
                     </div>
                     <div className="sm:col-span-5">
-                      <Field
+                      <FormField
                         label="Allowed Values"
+                        htmlFor={`axis-values-${idx}`}
                         hint="Comma-separated (e.g. Round, Oval, Cushion)"
                       >
                         <Input
+                          id={`axis-values-${idx}`}
                           value={axis.allowedValuesCsv}
                           onChange={(e) =>
                             setAxisField(
@@ -451,266 +663,135 @@ export default function ProductFamilies() {
                           }
                           placeholder="e.g. Round, Oval, Cushion"
                         />
-                      </Field>
+                      </FormField>
                     </div>
                     <div className="sm:col-span-3">
-                      <Field label="Default Value">
+                      <FormField
+                        label="Default Value"
+                        htmlFor={`axis-default-${idx}`}
+                      >
                         <Input
+                          id={`axis-default-${idx}`}
                           value={axis.defaultValue}
                           onChange={(e) =>
                             setAxisField(idx, "defaultValue", e.target.value)
                           }
                           placeholder="e.g. Round"
                         />
-                      </Field>
+                      </FormField>
                     </div>
                     <div className="flex items-end sm:col-span-1">
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        mode="icon"
+                        size="sm"
                         onClick={() => removeAxis(idx)}
                         aria-label={`Remove axis ${idx + 1}`}
-                        className="w-full rounded-md border border-rose-200 px-2 py-2 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        title={`Remove axis ${idx + 1}`}
+                        className="w-full"
                       >
-                        Remove
-                      </button>
+                        <Trash2 />
+                      </Button>
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-4">
-                    <label className="flex items-center gap-2 text-xs text-secondary-foreground">
-                      <input
-                        type="checkbox"
+                  <div className="mt-3 flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`axis-weight-${idx}`}
                         checked={axis.affectsWeight !== false}
-                        onChange={(e) =>
-                          setAxisField(idx, "affectsWeight", e.target.checked)
+                        onCheckedChange={(checked) =>
+                          setAxisField(idx, "affectsWeight", checked === true)
                         }
                       />
-                      Affects weight
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-secondary-foreground">
-                      <input
-                        type="checkbox"
+                      <Label
+                        htmlFor={`axis-weight-${idx}`}
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Affects weight
+                      </Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id={`axis-price-${idx}`}
                         checked={axis.affectsPrice !== false}
-                        onChange={(e) =>
-                          setAxisField(idx, "affectsPrice", e.target.checked)
+                        onCheckedChange={(checked) =>
+                          setAxisField(idx, "affectsPrice", checked === true)
                         }
                       />
-                      Affects price
-                    </label>
+                      <Label
+                        htmlFor={`axis-price-${idx}`}
+                        className="text-xs font-normal text-muted-foreground"
+                      >
+                        Affects price
+                      </Label>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* Editor actions */}
-          <div className="mt-6 flex items-center justify-end gap-2">
-            <Button type="button" variant="outline" size="md" onClick={closeEditor}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              size="md"
-              onClick={save}
-              disabled={saving}
-              aria-busy={saving}
-            >
-              {saving && (
-                <svg
-                  className="h-3.5 w-3.5 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-                  />
-                </svg>
-              )}
-              {saving ? "Saving…" : form.id ? "Update Family" : "Create Family"}
-            </Button>
-          </div>
-        </Section>
-      )}
-
-      {/* Table (md and up) */}
-      <div className="hidden overflow-hidden rounded-xl border border-gray-200 dark:border-border md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
-            <thead>
-              <tr className="bg-muted/60 text-left text-foreground">
-                <th scope="col" className="px-4 py-3 font-semibold">Family Code</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Name</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Category</th>
-                <th scope="col" className="px-4 py-3 font-semibold">Status</th>
-                <th scope="col" className="px-4 py-3 font-semibold"># Axes</th>
-                <th scope="col" className="px-4 py-3 text-right font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    Loading families…
-                  </td>
-                </tr>
-              )}
-
-              {!loading && error && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-rose-600"
-                  >
-                    {error}
-                  </td>
-                </tr>
-              )}
-
-              {!loading && !error && families.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="px-4 py-8 text-center text-muted-foreground"
-                  >
-                    No product families yet. Click “New Family” to create one.
-                  </td>
-                </tr>
-              )}
-
-              {!loading &&
-                !error &&
-                families.map((fam, i) => (
-                  <tr
-                    key={fam.id ?? fam.familyCode ?? i}
-                    className={i % 2 === 0 ? "bg-white dark:bg-card" : "bg-gray-50 dark:bg-muted"}
-                  >
-                    <td className="px-4 py-3 font-medium text-foreground">
-                      {fam.familyCode || "—"}
-                    </td>
-                    <td className="px-4 py-3">{fam.name || "—"}</td>
-                    <td className="px-4 py-3">{fam.category || "—"}</td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={fam.status} />
-                    </td>
-                    <td className="px-4 py-3">
-                      {Array.isArray(fam.axes) ? fam.axes.length : 0}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => openEdit(fam)}
-                          aria-label={`Edit family ${fam.familyCode || fam.name || ""}`}
-                          className="rounded-md border border-primary px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => remove(fam)}
-                          aria-label={`Delete family ${fam.familyCode || fam.name || ""}`}
-                          className="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Card layout (below md) */}
-      <div className="flex flex-col gap-3 md:hidden">
-        {loading && (
-          <div className="rounded-xl border border-gray-200 dark:border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            Loading families…
-          </div>
-        )}
-
-        {!loading && error && (
-          <div className="rounded-xl border border-gray-200 dark:border-border px-4 py-8 text-center text-sm text-rose-600">
-            {error}
-          </div>
-        )}
-
-        {!loading && !error && families.length === 0 && (
-          <div className="rounded-xl border border-gray-200 dark:border-border px-4 py-8 text-center text-sm text-muted-foreground">
-            No product families yet. Tap “New Family” to create one.
-          </div>
-        )}
-
-        {!loading &&
-          !error &&
-          families.map((fam, i) => (
-            <div
-              key={fam.id ?? fam.familyCode ?? i}
-              className="rounded-xl border border-gray-200 dark:border-border bg-white dark:bg-card p-4"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-sm font-semibold text-foreground">
-                    {fam.familyCode || "—"}
-                  </div>
-                  <div className="text-sm">{fam.name || "—"}</div>
-                </div>
-                <StatusBadge status={fam.status} />
-              </div>
-              <dl className="mt-3 grid grid-cols-2 gap-2 text-xs text-secondary-foreground">
-                <div>
-                  <dt className="text-muted-foreground">Category</dt>
-                  <dd>{fam.category || "—"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground"># Axes</dt>
-                  <dd>{Array.isArray(fam.axes) ? fam.axes.length : 0}</dd>
-                </div>
-              </dl>
-              <div className="mt-3 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => openEdit(fam)}
-                  aria-label={`Edit family ${fam.familyCode || fam.name || ""}`}
-                  className="rounded-md border border-primary px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => remove(fam)}
-                  aria-label={`Delete family ${fam.familyCode || fam.name || ""}`}
-                  className="rounded-md border border-rose-200 px-3 py-1.5 text-xs font-medium text-rose-600 transition-colors hover:bg-rose-50 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                >
-                  Delete
-                </button>
-              </div>
+            {/* Editor actions */}
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" size="md" onClick={closeEditor}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="md"
+                onClick={save}
+                disabled={saving}
+                aria-busy={saving}
+              >
+                {saving
+                  ? "Saving…"
+                  : form.id
+                    ? "Update Family"
+                    : "Create Family"}
+              </Button>
             </div>
-          ))}
-      </div>
-
-      {!loading && !error && hasMore && (
-        <div ref={sentinelRef} className="mt-4 flex justify-center py-6">
-          {loadingMore && (
-            <span className="text-sm text-muted-foreground">Loading more…</span>
-          )}
-        </div>
+          </CardContent>
+        </Card>
       )}
-    </div>
+
+      {/* Family list */}
+      {loading ? (
+        <Card>
+          <CardContent className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : error ? (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+        >
+          {error}
+        </div>
+      ) : (
+        <ListWithCardToggle
+          title="Product families"
+          titleAs="none"
+          data={visibleFamilies}
+          columns={columns}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          serverSidePagination
+          pagination={pagination}
+          onPaginationChange={handlePaginationChange}
+          pageCount={Math.max(1, Math.ceil(families.length / PAGE_SIZE))}
+          totalCount={families.length}
+          infiniteScroll
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={loadMore}
+          resizableColumns
+          paginationResetKey={statusFilter}
+        />
+      )}
+    </Page>
   );
 }

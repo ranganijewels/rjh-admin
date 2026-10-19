@@ -42,6 +42,13 @@ const statusToVariant = {
   failed: 'destructive',
   error: 'destructive',
   voided: 'destructive',
+  // Support tickets
+  open: 'info',
+  'in progress': 'warning',
+  'in-progress': 'warning',
+  resolved: 'success',
+  closed: 'secondary',
+  escalated: 'destructive',
 };
 
 const badgeVariants = cva(

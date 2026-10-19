@@ -1,18 +1,30 @@
 "use client";
+
 import { useEffect, useState } from "react";
-import { Button } from "@/components/common/ui/button";
-import { Card, CardContent } from "@/components/common/ui/cards/card";
-import { Input } from "@/components/common/ui/input";
-import { Textarea } from "@/components/common/ui/textarea";
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/common/ui/select";
-import { useCrudApi } from "@/hooks/useCrudApi";
+  Alert,
+  AlertContent,
+  AlertDescription,
+  AlertIcon,
+  AlertTitle,
+} from "@/components/common/ui/alert";
+import { Button } from "@/components/common/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
 import {
   Form,
   FormControl,
@@ -21,14 +33,21 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/common/ui/form";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useRouter } from "next/navigation";
+import { Input } from "@/components/common/ui/input";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { Textarea } from "@/components/common/ui/textarea";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import { useWizardPaths } from "@/hooks/useWizardPaths";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { useWizard } from "@/context/WizardContext";
-import { useDispatch } from "react-redux";
 import { setStoreId } from "@/store/slices/storeSlice";
 
 const BusinessDetailsForm = () => {
@@ -42,7 +61,6 @@ const BusinessDetailsForm = () => {
   const { wizardData } = useWizard();
   const dispatch = useDispatch();
 
-  console.log("wizardData", wizardData);
   const FIELD_MAPPING = {
     1: "business_name",
     2: "business_type",
@@ -237,144 +255,200 @@ const BusinessDetailsForm = () => {
       router.push(next.path);
     } catch (err) {
       console.error("Error submitting:", err.message || err);
+      toast.error(err.message || "Failed to save business details");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading || !stepData?.questions) return <ContentLoader />;
-  if (error) return <div>Error: {error}</div>;
+  const isReady = Boolean(stepData?.questions) && !error;
 
   return (
-    <Card className="pb-2.5 w-full h-full justify-center">
-      <Form {...form}>
-        <div className="text-center mb-[32px] text-xl font-medium leading-none">
-          {stepData?.name}
-        </div>
-        <div className="grid gap-5 lg:gap-7.5 xl:w-[38.75rem] w-full mx-auto">
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="grid gap-5">
-              {stepData?.questions?.map((q) => {
-                const fieldName = `question_${q.id}`;
+    <Page>
+      <PageHeader
+        title={stepData?.name || "Business Details"}
+        description="Tell us about your business so we can tailor your storefront."
+        actions={
+          <>
+            <Button variant="ghost" size="md" type="button">
+              Save Draft
+            </Button>
+            <Button
+              size="md"
+              type="submit"
+              form="business-details-form"
+              disabled={!isReady || loading}
+            >
+              {loading ? "Submitting..." : "Next"}
+            </Button>
+          </>
+        }
+      />
 
-                return (
-                  <div
-                    key={q.id}
-                    className="flex flex-col items-baseline flex-wrap lg:flex-nowrap gap-2.5"
-                  >
-                    {q.answer_type === "text" && (
-                      <FormField
-                        control={form.control}
-                        name={fieldName}
-                        render={({ field }) => (
-                          <FormItem className="w-full">
-                            <FormLabel>{q.question_text}</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder={q.question_label}
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
+      {error ? (
+        <Alert variant="destructive" appearance="light" close={false}>
+          <AlertIcon>
+            <AlertCircle />
+          </AlertIcon>
+          <AlertContent>
+            <AlertTitle>Could not load this step</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </AlertContent>
+        </Alert>
+      ) : (
+        <Form {...form}>
+          <Card>
+            <form
+              id="business-details-form"
+              onSubmit={form.handleSubmit(onSubmit)}
+            >
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Business information
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Answer the questions below — they are used to set up your store
+                  profile.
+                </CardDescription>
+              </CardHeader>
 
-                    {q.answer_type === "dropdown" && (
-                      <FormField
-                        control={form.control}
-                        name={fieldName}
-                        render={({ field }) => (
-                          <FormItem className="w-full">
-                            <FormLabel>{q.question_text}</FormLabel>
-                            <FormControl>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value || ""}
-                                name={field.name}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder={q.question_label} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectGroup>
-                                    {q.options?.length === 0 ? (
-                                      <div className="text-center text-gray-500 dark:text-muted-foreground">
-                                        No options available
-                                      </div>
-                                    ) : (
-                                      q.options?.map((option) => (
-                                        <SelectItem
-                                          key={option.id}
-                                          value={String(option.value)}
-                                        >
-                                          {option.value}
-                                        </SelectItem>
-                                      ))
-                                    )}
-                                  </SelectGroup>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
+              <CardContent>
+                {isReady ? (
+                  <div className="grid gap-5">
+                    {stepData?.questions?.map((q) => {
+                      const fieldName = `question_${q.id}`;
 
-                    {q.answer_type === "textarea" && (
-                      <FormField
-                        control={form.control}
-                        name={fieldName}
-                        render={({ field }) => (
-                          <FormItem className="w-full">
-                            <FormLabel>{q.question_text}</FormLabel>
-                            <FormControl>
-                              <Textarea
-                                size="md"
-                                className="min-h-[80px]"
-                                placeholder={q.question_label}
-                                value={field.value || ""}
-                                onChange={field.onChange}
-                                onBlur={field.onBlur}
-                                name={field.name}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    )}
+                      return (
+                        <div key={q.id} className="grid gap-2.5">
+                          {q.answer_type === "text" && (
+                            <FormField
+                              control={form.control}
+                              name={fieldName}
+                              render={({ field }) => (
+                                <FormItem className="w-full">
+                                  <FormLabel>{q.question_text}</FormLabel>
+                                  <FormControl>
+                                    <Input
+                                      placeholder={q.question_label}
+                                      value={field.value || ""}
+                                      onChange={field.onChange}
+                                      onBlur={field.onBlur}
+                                      name={field.name}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+
+                          {q.answer_type === "dropdown" && (
+                            <FormField
+                              control={form.control}
+                              name={fieldName}
+                              render={({ field }) => (
+                                <FormItem className="w-full">
+                                  <FormLabel>{q.question_text}</FormLabel>
+                                  <FormControl>
+                                    <Select
+                                      onValueChange={field.onChange}
+                                      value={field.value || ""}
+                                      name={field.name}
+                                    >
+                                      <SelectTrigger>
+                                        <SelectValue
+                                          placeholder={q.question_label}
+                                        />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectGroup>
+                                          {q.options?.length === 0 ? (
+                                            <div className="p-2 text-center text-xs text-muted-foreground">
+                                              No options available
+                                            </div>
+                                          ) : (
+                                            q.options?.map((option) => (
+                                              <SelectItem
+                                                key={option.id}
+                                                value={String(option.value)}
+                                              >
+                                                {option.value}
+                                              </SelectItem>
+                                            ))
+                                          )}
+                                        </SelectGroup>
+                                      </SelectContent>
+                                    </Select>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+
+                          {q.answer_type === "textarea" && (
+                            <FormField
+                              control={form.control}
+                              name={fieldName}
+                              render={({ field }) => (
+                                <FormItem className="w-full">
+                                  <FormLabel>{q.question_text}</FormLabel>
+                                  <FormControl>
+                                    <Textarea
+                                      size="md"
+                                      className="min-h-[80px]"
+                                      placeholder={q.question_label}
+                                      value={field.value || ""}
+                                      onChange={field.onChange}
+                                      onBlur={field.onBlur}
+                                      name={field.name}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
+                ) : (
+                  <div className="space-y-3">
+                    {Array.from({ length: 4 }).map((_, index) => (
+                      <Skeleton key={index} className="h-9 w-full" />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
 
-              <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 mt-10">
-                <Button variant="ghost" type="button">
+              <CardFooter className="flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+                <Button variant="ghost" size="md" type="button">
                   Save Draft
                 </Button>
                 {previous?.path && (
                   <Button
                     variant="outline"
+                    size="md"
                     type="button"
                     onClick={() => router.push(previous.path)}
                   >
                     Previous
                   </Button>
                 )}
-                <Button type="submit" disabled={loading}>
+                <Button
+                  size="md"
+                  type="submit"
+                  disabled={!isReady || loading}
+                >
                   {loading ? "Submitting..." : "Next"}
                 </Button>
-              </div>
-            </CardContent>
-          </form>
-        </div>
-      </Form>
-    </Card>
+              </CardFooter>
+            </form>
+          </Card>
+        </Form>
+      )}
+    </Page>
   );
 };
 

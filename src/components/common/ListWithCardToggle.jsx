@@ -97,6 +97,10 @@ export const ListWithCardToggle = ({
   onLoadMore,
   hasMore = false,
   loadingMore = false,
+  // Columns hidden on a first visit, e.g. { gender: false }. A column the user
+  // has toggled in the Columns menu always wins — the stored visibility is
+  // merged over this default.
+  defaultHiddenColumns = {},
   // Generic bulk-action bar shown when rows are selected, regardless of view
   // mode: [{key, label, variant?, confirmMessage?, onRun: (selectedRowObjects) => Promise<void>}]
   bulkActions = [],
@@ -244,12 +248,18 @@ export const ListWithCardToggle = ({
   const COLUMN_VISIBILITY_KEY = `${title}-column-visibility`;
 
   const [columnVisibility, setColumnVisibility] = useState(() => {
-    if (typeof window === "undefined") return {};
+    if (typeof window === "undefined") return { ...defaultHiddenColumns };
     try {
-      return JSON.parse(localStorage.getItem(COLUMN_VISIBILITY_KEY)) || {};
+      const stored = JSON.parse(localStorage.getItem(COLUMN_VISIBILITY_KEY));
+      // The stored choices win; the defaults only fill in columns the user
+      // has never touched.
+      if (stored && typeof stored === "object") {
+        return { ...defaultHiddenColumns, ...stored };
+      }
     } catch {
-      return {};
+      // Fall through to the defaults when the stored value is unusable.
     }
+    return { ...defaultHiddenColumns };
   });
 
   useEffect(() => {

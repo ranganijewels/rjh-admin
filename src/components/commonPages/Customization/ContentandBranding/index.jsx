@@ -4,19 +4,30 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useForm, FormProvider } from "react-hook-form";
-import { Card } from "@/components/common/ui/cards/card";
-import {
-  FormControl,
-  FormItem,
-  FormField,
-  FormMessage,
-} from "@/components/common/ui/form";
-import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
-import { Textarea } from "@/components/common/ui/textarea";
-import { Label } from "@/components/common/ui/label";
-import { Button } from "@/components/common/ui/button";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
+import { Button } from "@/components/common/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/common/ui/cards/card";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/common/ui/form";
+import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
+import { Textarea } from "@/components/common/ui/textarea";
 
 export const ContentandBranding = () => {
   const form = useForm();
@@ -24,9 +35,8 @@ export const ContentandBranding = () => {
   const [logoPreview, setLogoPreview] = useState(null);
   const isSubmitting = form.formState.isSubmitting;
 
-  const onSubmit = async (data) => {
+  const onSubmit = async () => {
     try {
-      console.log("Submitted data:", data);
       toast.success("Content & branding saved.");
       router.push("/policies");
     } catch (error) {
@@ -37,191 +47,265 @@ export const ContentandBranding = () => {
   };
 
   return (
-    <Card className={"w-full"}>
-      <h2 className="text-center text-2xl font-semibold mb-6 mt-2">
-        Content & Branding
-      </h2>
+    <Page>
+      <PageHeader
+        title="Content & Branding"
+        description="Tell customers who you are — your brand story, the craft behind it, your logo and your typography."
+        actions={
+          <Button
+            type="submit"
+            form="content-branding-form"
+            disabled={isSubmitting}
+            aria-busy={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2
+                  className="size-4 animate-spin"
+                  aria-hidden="true"
+                />
+                Saving...
+              </>
+            ) : (
+              "Next"
+            )}
+          </Button>
+        }
+      />
+
       <FormProvider {...form}>
         <form
+          id="content-branding-form"
           onSubmit={form.handleSubmit(onSubmit)}
-          className="p-6 space-y-6"
+          className="flex flex-col gap-5 lg:gap-6"
           aria-busy={isSubmitting}
         >
-          <FormField
-            control={form.control}
-            name="brandStory"
-            rules={{ required: "Brand story is required" }}
-            render={({ field }) => (
-              <FormItem>
-                <span className="text-base font-medium text-foreground ps-0">
-                  Brand Story
-                </span>
-                <FormControl>
-                  <Textarea
-                    rows={3}
-                    placeholder="Share your unique journey and vision..."
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="craftmanshipDetails"
-            rules={{ required: "Craftmanship details are required" }}
-            render={({ field }) => (
-              <FormItem>
-                <span className="text-base font-medium text-foreground">
-                  Craftmanship Details
-                </span>
-                <FormControl>
-                  <Textarea
-                    rows={3}
-                    placeholder="Describe your techniques and materials..."
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="flex flex-col gap-3.5">
-            <span className="text-base font-medium text-foreground">
-              Testimonials
-            </span>
-            <RadioGroup defaultValue="no" className="flex gap-4">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="testimonials-yes" />
-                <Label htmlFor="testimonials-yes">Yes</Label>
+          {/* Brand story */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Brand Story &amp; Craftsmanship
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Share your journey, your vision and the techniques behind every
+                  piece you make.
+                </CardDescription>
               </div>
-            </RadioGroup>
-          </div>
-          <div className="flex flex-col gap-3.5">
-            <span className="text-base font-medium text-foreground">
-              Blog Integration
-            </span>
-            <RadioGroup defaultValue="no" className="flex gap-4">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="blog-yes" />
-                <Label htmlFor="blog-yes">Yes</Label>
-              </div>
-            </RadioGroup>
-          </div>
-          <div className="flex flex-col gap-3.5 mb-7">
-            <span className="text-base font-medium text-foreground">Logo Upload</span>
-            <RadioGroup defaultValue="no" className="flex gap-4">
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="yes" id="blog-yes" />
-                <Label htmlFor="blog-yes">Yes (Upload)</Label>
-              </div>
-            </RadioGroup>
-            <div className="w-full">
-              <div className="flex bg-center lg:p-7 bg-no-repeat bg-[length:550px] border border-input rounded-xl border-dashed branding-bg">
-                <div className="flex flex-col place-items-center place-content-center text-center rounded-xl w-full">
-                  <div className="flex items-center mb-2.5">
-                    <div className="relative size-11 shrink-0">
-                      <img
-                        src="/images/customization/upload.svg"
-                        alt="Upload Icon"
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <FormField
+                control={form.control}
+                name="brandStory"
+                rules={{ required: "Brand story is required" }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Brand Story</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={3}
+                        placeholder="Share your unique journey and vision..."
+                        {...field}
                       />
-                    </div>
-                  </div>
-                  <label
-                    htmlFor="logo-upload"
-                    className="text-foreground text-xs font-medium cursor-pointer"
-                  >
-                    Drag and drop your logo here, or click to select
-                  </label>
-                  <input
-                    id="logo-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const previewUrl = URL.createObjectURL(file);
-                        setLogoPreview(previewUrl);
-                      }
-                    }}
-                  />
-                  {logoPreview && (
-                    <img
-                      src={logoPreview}
-                      alt="Logo Preview"
-                      className="mt-4 h-24 object-contain rounded"
-                    />
-                  )}
-                </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="craftmanshipDetails"
+                rules={{ required: "Craftmanship details are required" }}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Craftmanship Details</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        rows={3}
+                        placeholder="Describe your techniques and materials..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Content features */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Content Features
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Choose which customer content to publish on your storefront.
+                </CardDescription>
               </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-3.5 mb-7">
-            <span className="text-base font-medium text-foreground pb-0.5">
-              Font and Style Preferences
-            </span>
-            <div className="w-full max-w-[800px]">
-              <RadioGroup defaultValue="no" className="grid grid-cols-2 gap-4">
-                <div className="col-span-1">
-                  <div className="flex items-center space-x-3">
-                    <RadioGroupItem value="yes" id="option-yes" />
-                    <Label htmlFor="option-yes">
-                      Yes (Specify or upload brand guideline)
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Testimonials
+                </Label>
+                <RadioGroup defaultValue="no" className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="yes" id="testimonials-yes" />
+                    <Label htmlFor="testimonials-yes" variant="secondary">
+                      Yes
                     </Label>
                   </div>
-                </div>
-                <div className="col-span-1">
-                  <div className="flex items-center space-x-3">
-                    <RadioGroupItem value="no" id="option-no" />
-                    <Label htmlFor="option-no">No</Label>
+                </RadioGroup>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Blog Integration
+                </Label>
+                <RadioGroup defaultValue="no" className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="yes" id="blog-yes" />
+                    <Label htmlFor="blog-yes" variant="secondary">
+                      Yes
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Logo upload */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Logo Upload
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Upload the logo that represents your brand on the storefront.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-2.5">
+                <Label className="text-sm font-medium text-foreground">
+                  Use a custom logo
+                </Label>
+                <RadioGroup defaultValue="no" className="flex gap-4">
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="yes" id="logo-upload-yes" />
+                    <Label htmlFor="logo-upload-yes" variant="secondary">
+                      Yes (Upload)
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="w-full">
+                <div className="flex w-full items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 p-6 lg:p-7">
+                  <div className="flex w-full flex-col place-items-center place-content-center rounded-xl text-center">
+                    <div className="mb-2.5 flex items-center">
+                      <div className="relative size-11 shrink-0">
+                        <img
+                          src="/images/customization/upload.svg"
+                          alt="Upload Icon"
+                        />
+                      </div>
+                    </div>
+                    <Label
+                      htmlFor="logo-upload"
+                      className="cursor-pointer text-xs font-medium text-foreground"
+                    >
+                      Drag and drop your logo here, or click to select
+                    </Label>
+                    <Input
+                      id="logo-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const previewUrl = URL.createObjectURL(file);
+                          setLogoPreview(previewUrl);
+                        }
+                      }}
+                    />
+                    {logoPreview && (
+                      <img
+                        src={logoPreview}
+                        alt="Logo Preview"
+                        className="mt-4 h-24 rounded object-contain"
+                      />
+                    )}
                   </div>
                 </div>
-              </RadioGroup>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-2 md:gap-3 mb-5 mr-3 mt-5">
-            <Link href="#" className="w-full sm:w-auto">
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Font and style preferences */}
+          <Card>
+            <CardHeader>
+              <div className="space-y-1">
+                <CardTitle className="text-sm font-semibold text-foreground">
+                  Font and Style Preferences
+                </CardTitle>
+                <CardDescription className="text-xs text-muted-foreground">
+                  Point us at your brand guidelines, or let us pick for you.
+                </CardDescription>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="w-full max-w-[800px]">
+                <RadioGroup defaultValue="no" className="grid grid-cols-2 gap-4">
+                  <div className="col-span-1">
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem value="yes" id="option-yes" />
+                      <Label htmlFor="option-yes">
+                        Yes (Specify or upload brand guideline)
+                      </Label>
+                    </div>
+                  </div>
+                  <div className="col-span-1">
+                    <div className="flex items-center gap-3">
+                      <RadioGroupItem value="no" id="option-no" />
+                      <Label htmlFor="option-no">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            </CardContent>
+            <CardFooter className="flex flex-wrap items-center justify-end gap-2">
               <Button
+                type="button"
                 variant="outline"
-                className="w-full sm:w-auto"
                 disabled={isSubmitting}
+                title="Save Draft is not available yet"
               >
                 Save Draft
               </Button>
-            </Link>
-            <Link href="/theme-customization" className="w-full sm:w-auto">
               <Button
+                asChild
                 variant="outline"
-                className="w-full sm:w-auto bg-[#F1F1F2]"
-                disabled={isSubmitting}
+                className={
+                  isSubmitting ? "pointer-events-none opacity-50" : undefined
+                }
               >
-                Previous
+                <Link
+                  href="/theme-customization"
+                  aria-disabled={isSubmitting || undefined}
+                >
+                  Previous
+                </Link>
               </Button>
-            </Link>
-            <Button
-              type="submit"
-              className="w-full sm:w-auto"
-              disabled={isSubmitting}
-              aria-busy={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2
-                    className="mr-2 h-4 w-4 animate-spin"
-                    aria-hidden="true"
-                  />
-                  Saving...
-                </>
-              ) : (
-                "Next"
-              )}
-            </Button>
-          </div>
+            </CardFooter>
+          </Card>
         </form>
       </FormProvider>
-    </Card>
+    </Page>
   );
 };
 

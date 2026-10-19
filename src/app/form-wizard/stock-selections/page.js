@@ -4,13 +4,11 @@ import React from "react";
 import { STOCK_PRODUCT_DETAIL } from "@/components/commonPages/StockSelections/constant";
 import StockSelections from "@/components/commonPages/StockSelections";
 
+// The wizard shell already provides the page padding and the step screens
+// render their own <PageHeader>, so this route must not add its own padding
+// or a duplicate title.
 const Page = () => {
-  return (
-    <div className="p-6">
-      <h1 className="text-xl font-semibold mb-4 text-center">Stock Selection</h1>
-      <StockSelections product={STOCK_PRODUCT_DETAIL} />
-    </div>
-  );
+  return <StockSelections product={STOCK_PRODUCT_DETAIL} />;
 };
 
 export default Page;

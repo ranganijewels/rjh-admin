@@ -147,12 +147,12 @@ export function getModuleForPath(pathname) {
   return match ? match[1] : "dashboard";
 }
 
-export function hasPermission(role, module, action = "view") {
+export function hasPermission(role, moduleName, action = "view") {
   const key = normalizeRole(role);
-  return Boolean(ROLE_PERMISSIONS[key]?.[module]?.[action]);
+  return Boolean(ROLE_PERMISSIONS[key]?.[moduleName]?.[action]);
 }
 
 export function canAccessPath(role, pathname) {
-  const module = getModuleForPath(pathname);
-  return hasPermission(role, module, "view");
+  const moduleName = getModuleForPath(pathname);
+  return hasPermission(role, moduleName, "view");
 }

@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { StatusBadge } from "@/components/common/ui/badge";
+import { Card, CardContent } from "@/components/common/ui/cards/card";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import { TruncatedText } from "@/components/common/ui/short-id";
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import {
   Select,
   SelectContent,
@@ -51,23 +56,147 @@ export default function AppointmentsPage() {
     load();
   }, [load]);
 
-  const setStatus = async (id, status) => {
-    try {
-      const res = await fetch(`/api/appointments/${id}`, {
-        method: "PUT",
-        headers: authHeaders(),
-        body: JSON.stringify({ status }),
-      });
-      if (!res.ok) throw new Error();
-      toast.success(`Marked ${status}`);
-      load();
-    } catch {
-      toast.error("Update failed");
-    }
-  };
+  const setStatus = useCallback(
+    async (id, status) => {
+      try {
+        const res = await fetch(`/api/appointments/${id}`, {
+          method: "PUT",
+          headers: authHeaders(),
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) throw new Error();
+        toast.success(`Marked ${status}`);
+        load();
+      } catch {
+        toast.error("Update failed");
+      }
+    },
+    [load]
+  );
+
+  const columns = useMemo(
+    () => [
+      {
+        id: "when",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="When (US Eastern)" column={column} />
+        ),
+        accessorFn: (row) =>
+          row.preferredDate
+            ? `${String(row.preferredDate).slice(0, 10)} ${String(
+                row.preferredTime || ""
+              ).slice(0, 5)}`
+            : "",
+        cell: ({ row }) => {
+          const r = row.original;
+          const date = r.preferredDate
+            ? String(r.preferredDate).slice(0, 10)
+            : "—";
+          const time = r.preferredTime
+            ? String(r.preferredTime).slice(0, 5)
+            : "";
+          return (
+            <span className="whitespace-nowrap font-medium text-foreground">
+              {date}
+              {time ? ` · ${time}` : ""}
+            </span>
+          );
+        },
+        size: 170,
+        meta: { headerTitle: "When (US Eastern)", identity: true },
+      },
+      {
+        id: "name",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Customer" column={column} />
+        ),
+        accessorFn: (row) => row.name,
+        cell: ({ row }) => <TruncatedText value={row.original.name} />,
+        size: 160,
+        meta: { headerTitle: "Customer", truncate: true },
+      },
+      {
+        id: "contact",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Contact" column={column} />
+        ),
+        accessorFn: (row) => row.email,
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <div className="min-w-0">
+              <TruncatedText value={r.email} />
+              {r.phone ? (
+                <div className="text-xs text-muted-foreground">{r.phone}</div>
+              ) : null}
+            </div>
+          );
+        },
+        size: 190,
+        meta: { headerTitle: "Contact", truncate: true },
+      },
+      {
+        id: "notes",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Regarding" column={column} />
+        ),
+        accessorFn: (row) => row.notes,
+        cell: ({ row }) => <TruncatedText value={row.original.notes || "—"} />,
+        size: 260,
+        meta: { headerTitle: "Regarding", truncate: true },
+      },
+      {
+        id: "status",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
+        accessorFn: (row) => row.status,
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        size: 120,
+        meta: { headerTitle: "Status" },
+      },
+      {
+        id: "action",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
+        cell: ({ row }) => {
+          const r = row.original;
+          return (
+            <Select
+              value={r.status || STATUSES[0]}
+              onValueChange={(value) => setStatus(r.id, value)}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-32"
+                aria-label={`Change status for ${
+                  r.name || "appointment"
+                }`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        },
+        enableSorting: false,
+        enableHiding: false,
+        size: 150,
+        meta: { headerTitle: "Actions" },
+      },
+    ],
+    [setStatus]
+  );
 
   return (
-    <div className="space-y-4">
+    <Page>
       <PageHeader
         title="Appointments"
         description="30-min expert consultations booked from product pages · slots Mon–Fri 9:00–18:00 US Eastern"
@@ -88,55 +217,34 @@ export default function AppointmentsPage() {
         }
       />
 
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/60 text-foreground text-left">
-              {["When (US Eastern)", "Customer", "Contact", "Regarding", "Status", "Actions"].map((h) => (
-                <th key={h} className="px-4 py-2.5 font-medium whitespace-nowrap">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Loading…</td></tr>
-            ) : rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No appointments yet.</td></tr>
-            ) : (
-              rows.map((r, i) => (
-                <tr key={r.id} className={i % 2 ? "bg-gray-50 dark:bg-muted" : "bg-white dark:bg-card"}>
-                  <td className="px-4 py-2.5 whitespace-nowrap font-medium">
-                    {r.preferredDate ? String(r.preferredDate).slice(0, 10) : "—"}
-                    {r.preferredTime ? ` · ${String(r.preferredTime).slice(0, 5)}` : ""}
-                  </td>
-                  <td className="px-4 py-2.5">{r.name}</td>
-                  <td className="px-4 py-2.5 text-muted-foreground">
-                    {r.email}
-                    {r.phone ? <div>{r.phone}</div> : null}
-                  </td>
-                  <td className="px-4 py-2.5 text-muted-foreground max-w-[280px]">
-                    <span className="line-clamp-2 whitespace-pre-line">{r.notes || "—"}</span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <StatusBadge status={r.status} />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <select
-                      value={r.status}
-                      onChange={(e) => setStatus(r.id, e.target.value)}
-                      className="h-8 rounded-md border border-input bg-background px-2 text-xs"
-                    >
-                      {STATUSES.map((s) => (
-                        <option key={s} value={s}>{s}</option>
-                      ))}
-                    </select>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      {loading ? (
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-9 w-full" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : rows.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
+          <p className="text-sm font-medium text-foreground">
+            No appointments yet
+          </p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Bookings made from the storefront &quot;Speak to an Expert&quot;
+            modal will appear here.
+          </p>
+        </div>
+      ) : (
+        <ListWithCardToggle
+          title="Appointments"
+          titleAs="none"
+          data={rows}
+          columns={columns}
+          paginationResetKey={filter}
+          resizableColumns
+        />
+      )}
+    </Page>
   );
 }

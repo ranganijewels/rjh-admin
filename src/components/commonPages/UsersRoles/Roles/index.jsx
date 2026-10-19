@@ -6,7 +6,7 @@ import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { useCrudList } from "@/hooks/useCrudList";
 import PermissionDialog from "../PermissionDialog";
-import { userRolesData } from "./hooks/userRolesData";
+import { useUserRolesData } from "./hooks/useUserRolesData";
 
 const Roles = () => {
   const { list, loading, error } = useCrudList("/api/users-roles");
@@ -14,7 +14,7 @@ const Roles = () => {
   const [permissionOpen, setPermissionOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState(null);
 
-  const columns = userRolesData({
+  const columns = useUserRolesData({
     onViewPermissions: (role) => {
       setSelectedRole(role.id || role.name);
       setPermissionOpen(true);

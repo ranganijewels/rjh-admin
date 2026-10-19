@@ -5,7 +5,7 @@ import { Button } from "@/components/common/ui/button";
 import { Eye } from "lucide-react";
 import { TruncatedText } from "@/components/common/ui/short-id";
 
-export const userRolesData = ({ onViewPermissions } = {}) => {
+export const useUserRolesData = ({ onViewPermissions } = {}) => {
   return useMemo(
     () => [
       {

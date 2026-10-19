@@ -2,14 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Folder, ChevronRight } from "lucide-react";
-import { Card } from "@/components/common/ui/cards/card";
-import {
-  Toolbar,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from "@/components/common/ui/toolbar";
+import { ChevronRight, Folder } from "lucide-react";
+import { toast } from "sonner";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,10 +13,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/common/ui/breadcrumb";
+import { Card, CardContent } from "@/components/common/ui/cards/card";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import { Skeleton } from "@/components/common/ui/skeleton";
 import { useCrudApi } from "@/hooks/useCrudApi";
-import { Skeleton } from "@/components/common/ui/skeleton"; // optional for loading shimmer
 import { toTitleCase } from "@/lib/utils";
-import { toast } from "sonner";
 
 export const ProductsCategories = () => {
   const router = useRouter();
@@ -50,8 +46,7 @@ export const ProductsCategories = () => {
         } else {
           toast.error(res?.message || "Failed to fetch categories");
         }
-      } catch (error) {
-        console.error("Error fetching categories:", error);
+      } catch {
         toast.error("Something went wrong while loading categories");
       } finally {
         setLoading(false);
@@ -66,41 +61,29 @@ export const ProductsCategories = () => {
   };
 
   return (
-    <>
+    <Page>
       {/* Breadcrumb */}
-      <div className="ml-5">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard/product-management">
-                Product Management
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Product Categories</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/dashboard/product-management">
+              Product Management
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Product Categories</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-      {/* Header */}
-      <div className="mt-6 ml-5">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle
-              text="Product Categories"
-              className="font-semibold !text-foreground text-lg"
-            />
-            <ToolbarDescription className="mt-1 text-sm">
-              Select a category to manage products
-            </ToolbarDescription>
-          </ToolbarHeading>
-        </Toolbar>
-      </div>
+      <PageHeader
+        title="Product Categories"
+        description="Select a category to manage the products inside it."
+      />
 
       {/* Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => (
             <Skeleton key={i} className="h-24 rounded-xl" />
@@ -109,37 +92,52 @@ export const ProductsCategories = () => {
           categories.map((category) => (
             <Card
               key={category.id}
+              role="button"
+              tabIndex={0}
               onClick={() => handleCategoryClick(category.slug, category?.id)}
-              className="p-6 rounded-xl border border-gray-200 dark:border-border transition-all cursor-pointer group bg-white dark:bg-card hover:border-primary hover:shadow-md"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleCategoryClick(category.slug, category?.id);
+                }
+              }}
+              className="group cursor-pointer transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <div className="flex items-center gap-4">
-                {/* Icon */}
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center transition-all">
-                  <Folder className="w-8 h-8 text-primary" />
+              <CardContent className="flex items-center gap-4 p-5">
+                <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                  <Folder className="size-6 text-primary" aria-hidden="true" />
                 </div>
 
-                {/* Info */}
-                <div className="flex-1">
-                  <h3 className="text-gray-900 dark:text-foreground mb-1 font-medium group-hover:text-primary">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground group-hover:text-primary">
                     {toTitleCase(category.custom_title || category.name)}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {category.total_products_count || category.product_count}{" "}
                     Products
                   </p>
                 </div>
 
-                <ChevronRight className="w-5 h-5 text-gray-400 dark:text-muted-foreground group-hover:text-primary transition-colors" />
-              </div>
+                <ChevronRight
+                  className="size-5 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
+                  aria-hidden="true"
+                />
+              </CardContent>
             </Card>
           ))
         ) : (
-          <p className="col-span-full text-center text-gray-500 dark:text-muted-foreground">
-            No categories found.
-          </p>
+          <div className="col-span-full flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
+            <Folder className="size-10 text-muted-foreground" aria-hidden="true" />
+            <p className="text-sm font-medium text-foreground">
+              No categories found
+            </p>
+            <p className="max-w-sm text-sm text-muted-foreground">
+              Categories appear here once products are grouped.
+            </p>
+          </div>
         )}
       </div>
-    </>
+    </Page>
   );
 };
 
