@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  StatusFilter,
+  buildStatusOptions,
+} from "@/components/common/ui/status-filter";
 import useCustomRequestColumn from "../useCustomRequestColumn";
 import { useCrudList } from "@/hooks/useCrudList";
 import RequestDetailsSheet from "./RequestDetailsModel";
@@ -21,6 +26,27 @@ const AllCustomRequest = () => {
   const columns = useCustomRequestColumn({ onView: handleView });
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const statusLabel = (request) => request?.status || "Unknown";
+
+  const statusOptions = useMemo(
+    () =>
+      buildStatusOptions(list, statusLabel, {
+        allLabel: "All requests",
+      }),
+    [list]
+  );
+
+  const scopedList = useMemo(
+    () =>
+      statusFilter === "all"
+        ? list
+        : (list || []).filter(
+            (request) => statusLabel(request) === statusFilter
+          ),
+    [list, statusFilter]
+  );
 
   if (loading) return <ContentLoader />;
   if (error) return <div className="text-destructive">Error: {error}</div>;
@@ -34,11 +60,23 @@ const AllCustomRequest = () => {
     );
 
   return (
-    <>
+    <Page>
+      <PageHeader
+        title="Custom Requests"
+        description="Bespoke jewellery requests from the storefront, with the type of design each customer asked for."
+      />
+
+      <StatusFilter
+        options={statusOptions}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        ariaLabel="Request status"
+      />
+
       <ListWithCardToggle
         resizableColumns
-        title="All Custom Requests"
-        data={list}
+        titleAs="none"
+        data={scopedList}
         columns={columns}
         infiniteScroll
         searchQuery={searchQuery}
@@ -60,7 +98,7 @@ const AllCustomRequest = () => {
         onClose={() => setSheetOpen(false)}
         requestDetails={selectedRequest}
       />
-    </>
+    </Page>
   );
 };
 

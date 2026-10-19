@@ -6,16 +6,10 @@ import {
   AccordionTrigger,
 } from "@/components/common/ui/accordion";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
-import { Badge } from "@/components/common/ui/badge";
+import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
 import { Card } from "@/components/common/ui/cards/card";
-import {
-  Toolbar,
-  ToolbarActions,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from "@/components/common/ui/toolbar";
+import { PageHeader } from "@/components/common/ui/page";
 import { useCrudList } from "@/hooks/useCrudList";
 import { Edit2Icon, Plus, Trash2Icon } from "lucide-react";
 import React from "react";
@@ -24,7 +18,10 @@ import { useCrudApi } from "@/hooks/useCrudApi";
 import FAQModel from "./FAQModel";
 
 const FAQs = () => {
-  const storeId = localStorage.getItem("storeId");
+  // Fall back to "default" (same as the Blog manager) so the FAQ endpoints
+  // are never called with a literal "null" segment — that returns 401, which
+  // the API client treats as an expired session and bounces to /login.
+  const storeId = localStorage.getItem("storeId") || "default";
 
   const {
     list,
@@ -60,25 +57,17 @@ const FAQs = () => {
 
   return (
     <>
-      <div className="mt-10">
-        <Toolbar>
-          <ToolbarHeading>
-            <ToolbarPageTitle
-              text="FAQ Questions"
-              className="font-semibold !text-foreground !text-lg"
-            />
-            <ToolbarDescription className="mt-1 font-semibold">
-              Manage frequently asked questions for RJ House store
-            </ToolbarDescription>
-          </ToolbarHeading>
-          <ToolbarActions>
-            <Button onClick={() => setDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add FAQ
-            </Button>
-          </ToolbarActions>
-        </Toolbar>
-      </div>
+      <PageHeader
+        titleAs="h2"
+        title="FAQ Questions"
+        description="Manage frequently asked questions for RJ House store."
+        actions={
+          <Button onClick={() => setDialogOpen(true)}>
+            <Plus className="size-4" />
+            Add FAQ
+          </Button>
+        }
+      />
       <Accordion type="single" collapsible>
         {loading ? (
           <p>Loading...</p>
@@ -96,15 +85,9 @@ const FAQs = () => {
                       <span className="text-sm">{items?.headtitle}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge
-                        variant={`${
-                          items.is_active === 1 ? "success" : "primary"
-                        }`}
-                        size="sm"
-                        appearance="outline"
-                      >
-                        {items.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                      <StatusBadge
+                        status={items.is_active ? "active" : "inactive"}
+                      />
                     </div>
                   </div>
                 </AccordionTrigger>
@@ -133,6 +116,8 @@ const FAQs = () => {
                               <Button
                                 variant="outline"
                                 mode="icon"
+                                aria-label={`Edit FAQ: ${faq.question || "question"}`}
+                                title="Edit FAQ"
                                 onClick={() => {
                                   handleEditClick(faq.id);
                                 }}
@@ -142,6 +127,8 @@ const FAQs = () => {
                               <Button
                                 variant="outline"
                                 mode="icon"
+                                aria-label={`Delete FAQ: ${faq.question || "question"}`}
+                                title="Delete FAQ"
                                 onClick={() => handleDeleteClick(faq.id)}
                               >
                                 <Trash2Icon className="h-4 w-4" />

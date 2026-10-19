@@ -9,11 +9,12 @@ import {
   DataGridTableRowSelect,
   DataGridTableRowSelectAll,
 } from "@/components/common/ui/data-grid-table";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 // import { useCrudApi } from "@/hooks/useCrudApi";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import { useCrudApi } from "@/hooks/useCrudApi";
 
-const useCouponsList = ({ onEdit, onDelete }) => {
+const useCouponsList = ({ onEdit, onDelete, canEdit = true, canDelete = true }) => {
   const { toggleStatus } = useCrudApi("/api/coupon-management");
 
   return useMemo(() => {
@@ -27,6 +28,7 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         enableSorting: false,
         enableHiding: false,
         size: 48,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "coupon_id",
@@ -34,8 +36,9 @@ const useCouponsList = ({ onEdit, onDelete }) => {
           <DataGridColumnHeader title="Coupon ID" column={column} />
         ),
         accessorFn: (row) => row.id,
-        cell: ({ row }) => row.original.id,
-        size: 135,
+        cell: ({ row }) => <ShortId value={row.original.id} label="Coupon ID" />,
+        size: 140,
+        meta: { headerTitle: "Coupon ID" },
       },
       {
         id: "code",
@@ -44,11 +47,13 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         ),
         accessorFn: (row) => row.code,
         cell: ({ row }) => (
-          <span title={row.original.code} className="block truncate">
-            {row.original.code}
-          </span>
+          <TruncatedText
+            value={row.original.code}
+            className="font-medium text-foreground"
+          />
         ),
-        size: 135,
+        size: 140,
+        meta: { headerTitle: "Code", identity: true, truncate: true },
       },
       {
         id: "discount",
@@ -57,7 +62,8 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         ),
         accessorFn: (row) => row.discount_value,
         cell: ({ row }) => row.original.discount_value,
-        size: 135,
+        size: 120,
+        meta: { headerTitle: "Discount" },
       },
       {
         id: "min_order_amount",
@@ -66,7 +72,8 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         ),
         accessorFn: (row) => row.min_order_amount,
         cell: ({ row }) => row.original.min_order_amount,
-        size: 135,
+        size: 150,
+        meta: { headerTitle: "Min Order Amount" },
       },
       {
         id: "max_discount_amount",
@@ -75,7 +82,8 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         ),
         accessorFn: (row) => row.max_discount_amount,
         cell: ({ row }) => row.original.max_discount_amount,
-        size: 135,
+        size: 170,
+        meta: { headerTitle: "Max Discount Amount" },
       },
       {
         id: "validity",
@@ -115,7 +123,8 @@ const useCouponsList = ({ onEdit, onDelete }) => {
               : "—"}
           </span>
         ),
-        size: 150,
+        size: 170,
+        meta: { headerTitle: "Validity" },
       },
       {
         id: "uses_limit",
@@ -124,7 +133,8 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         ),
         accessorFn: (row) => row.usage_limit,
         cell: ({ row }) => row.original.usage_limit,
-        size: 135,
+        size: 120,
+        meta: { headerTitle: "Uses Limit" },
       },
       {
         id: "is_active",
@@ -139,7 +149,9 @@ const useCouponsList = ({ onEdit, onDelete }) => {
             toggleStatus={toggleStatus}
           />
         ),
-        size: 135,
+        enableHiding: false,
+        size: 120,
+        meta: { headerTitle: "Status" },
       },
       {
         id: "action",
@@ -148,29 +160,44 @@ const useCouponsList = ({ onEdit, onDelete }) => {
         ),
         cell: ({ row }) => (
           <div className="flex gap-2.5">
-            <Button
-              mode="icon"
-              variant="outline"
-              onClick={() => onEdit(row.original)}
-            >
-              <Edit2Icon />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              className="!cursor-pointer"
-              onClick={() => onDelete(row.original.id)}
-            >
-              <RiDeleteBin5Line />
-            </Button>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label="Edit coupon"
+                title="Edit coupon"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit(row.original);
+                }}
+              >
+                <Edit2Icon />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="outline"
+                className="!cursor-pointer"
+                aria-label="Delete coupon"
+                title="Delete coupon"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(row.original.id);
+                }}
+              >
+                <RiDeleteBin5Line />
+              </Button>
+            )}
           </div>
         ),
         enableSorting: false,
         enableHiding: false,
-        size: 135,
+        size: 110,
+        meta: { headerTitle: "Action" },
       },
     ];
-  }, [onEdit, onDelete, toggleStatus]);
+  }, [onEdit, onDelete, toggleStatus, canEdit, canDelete]);
 };
 
 export default useCouponsList;

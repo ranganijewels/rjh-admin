@@ -1,10 +1,11 @@
 "use client";
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 
 import { MENU_SIDEBAR } from "@/config/menu.config";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { usePermissions } from "@/provider/permission-provider";
 import {
   AccordionMenu,
   AccordionMenuGroup,
@@ -14,66 +15,125 @@ import {
   AccordionMenuSubContent,
   AccordionMenuSubTrigger,
 } from "../common/ui/accordion-menu";
-import { LogOutIcon } from "lucide-react";
-import { logoutUser } from "@/store/authThunks";
-import { useDispatch, useSelector } from "react-redux";
-import { toast } from "sonner";
 
 const SidebarMenu = () => {
   const pathname = usePathname();
-  const router = useRouter();
-  const dispatch = useDispatch();
-  const { user, expires_at } = useSelector((state) => state.auth);
-  const handleLogout = () => {
-    dispatch(logoutUser())
-      .unwrap()
-      .then(() => {
-        toast.success("Logout Successfull");
-        router.push("/login");
-      })
-      .catch((err) => {
-        toast.error("Logout failed ", err);
-      });
-  };
+  const { can } = usePermissions();
+
+  const filterMenu = useCallback(
+    (items, inheritedModule) =>
+      items.flatMap((item) => {
+        const moduleKey = item.module || inheritedModule;
+
+        // Hide the branch when the role cannot view its module.
+        if (moduleKey && !can(moduleKey, "view")) return [];
+
+        const children = item.children
+          ? filterMenu(item.children, moduleKey)
+          : undefined;
+
+        // A parent with no visible children is noise — hide it too.
+        if (item.children && children.length === 0) return [];
+
+        return [{ ...item, ...(children ? { children } : {}) }];
+      }),
+    [can]
+  );
+
+  const visibleMenu = useMemo(() => {
+    const filtered = filterMenu(MENU_SIDEBAR);
+    // Drop orphan headings left behind when role filtering removes the items
+    // that sat beneath them, and collapse consecutive headings.
+    return filtered.reduce((acc, item) => {
+      if (item.heading) {
+        if (acc.length && acc[acc.length - 1]?.heading) return acc;
+        acc.push(item);
+        return acc;
+      }
+      acc.push(item);
+      return acc;
+    }, []).filter((item, index, all) => {
+      if (!item.heading) return true;
+      // Keep a heading only when a real item follows before the next heading.
+      for (let next = index + 1; next < all.length; next += 1) {
+        if (all[next].heading) return false;
+        return true;
+      }
+      return false;
+    });
+  }, [filterMenu]);
 
   const matchPath = useCallback(
     (path) => {
+      if (!path) return false;
+      // `/dashboard` is both a page and the prefix of every admin route, so it
+      // must only match the dashboard routes — otherwise the Dashboard item
+      // would look active on every single page.
+      if (path === "/dashboard") {
+        return (
+          pathname === path ||
+          pathname === "/dashboard/overview" ||
+          pathname === "/dashboard/dashboard"
+        );
+      }
       return pathname === path || pathname.startsWith(`${path}/`);
     },
     [pathname]
   );
 
+  // A parent should look active whenever one of its descendants is the
+  // current page. Used for the trigger's data-active styling.
+  const hasActiveChild = (item) =>
+    Boolean(item.path && matchPath(item.path)) ||
+    Boolean(item.children?.some(hasActiveChild));
+
   const classNames = {
-    root: "lg:ps-1 space-y-3",
-    group: "gap-px",
-    label: "uppercase text-xs font-medium text-muted-foreground/70 pt-2.5 pb-1",
-    item: "h-8 hover:bg-transparent text-accent-foreground hover:text-primary data-[selected=true]:text-primary data-[selected=true]:bg-muted data-[selected=true]:font-medium",
-    subTrigger:
-      "h-8 hover:bg-transparent text-accent-foreground hover:text-primary data-[selected=true]:text-primary data-[selected=true]:bg-muted data-[selected=true]:font-medium",
-    subContent: "py-0 transition-all duration-300 ease-in-out overflow-hidden",
+    root: "space-y-1",
+    group: "space-y-0.5",
+    label:
+      "uppercase text-[11px] font-semibold tracking-wider text-muted-foreground/70 pt-4 pb-1.5 first:pt-0",
+    item: [
+      "h-10 rounded-lg px-3 gap-2.5 text-sm font-medium text-muted-foreground",
+      "[&_svg]:opacity-100 [&_svg]:size-[18px]",
+      "hover:bg-muted/70 hover:text-foreground",
+      "data-[selected=true]:bg-emerald-50 data-[selected=true]:text-emerald-700 data-[selected=true]:font-semibold",
+      "dark:data-[selected=true]:bg-emerald-950/40 dark:data-[selected=true]:text-emerald-400",
+    ].join(" "),
+    subTrigger: [
+      "h-10 rounded-lg px-3 gap-2.5 text-sm font-medium text-muted-foreground",
+      "[&_svg]:opacity-100 [&_svg]:size-[18px]",
+      "hover:bg-muted/70 hover:text-foreground",
+      "data-[state=open]:text-foreground",
+      "data-[active=true]:text-emerald-700 data-[active=true]:font-semibold",
+      "dark:data-[active=true]:text-emerald-400",
+      "data-[active=true]:hover:bg-emerald-50 dark:data-[active=true]:hover:bg-emerald-950/30",
+    ].join(" "),
+    subContent: "overflow-hidden transition-all duration-300 ease-in-out",
   };
 
   const renderMenu = (items, level = 0) =>
-    items.map((item) => {
+    items.map((item, index) => {
       const key = item.path || `${item.title}-${level}`;
 
       if (item.heading) {
+        // Headings carry neither a path nor a title, so the key above would
+        // be "undefined-0" for every heading — React then sees duplicate
+        // keys. Key off the heading text plus its position instead.
         return (
-          <AccordionMenuLabel key={`heading-${key}`}>
+          <AccordionMenuLabel key={`heading-${item.heading}-${level}-${index}`}>
             {item.heading}
           </AccordionMenuLabel>
         );
       }
 
       if (item.children) {
+        const active = hasActiveChild(item);
+
         return (
           <AccordionMenuSub key={key} value={item.path || key}>
             <AccordionMenuSubTrigger
-              className={
-                level === 0
-                  ? "text-[15px] text-secondary-foreground font-semibold"
-                  : "text-sm"
-              }
+              data-active={active ? "true" : undefined}
+              className={cn(level > 0 && "h-9")}
             >
               {item.icon && <item.icon data-slot="accordion-menu-icon" />}
               <span data-slot="accordion-menu-title">{item.title}</span>
@@ -82,7 +142,10 @@ const SidebarMenu = () => {
               type="single"
               collapsible
               parentValue={item.path || key}
-              className={cn(level === 0 ? "ps-6" : "ps-4")}
+              className={cn(
+                level === 0 ? "ps-7" : "ps-4",
+                "pt-0.5 pb-1"
+              )}
             >
               <AccordionMenuGroup>
                 {renderMenu(item.children, level + 1)}
@@ -92,59 +155,43 @@ const SidebarMenu = () => {
         );
       }
 
+      const active = matchPath(item.path);
+
       return (
         <AccordionMenuItem
           key={key}
           value={item.path || ""}
-          className={level === 0 ? "text-sm font-medium" : "text-sm"}
+          className={cn(
+            level === 0 && "h-10 text-muted-foreground",
+            level > 0 && "h-9 ps-3 text-sm"
+          )}
         >
-          <Link href={item.path || "#"} className="flex items-center gap-2">
+          <Link
+            href={item.path || "#"}
+            aria-current={active ? "page" : undefined}
+            className="flex min-w-0 items-center gap-2.5"
+          >
             {item.icon && <item.icon data-slot="accordion-menu-icon" />}
-            <span data-slot="accordion-menu-title">{item.title}</span>
+            <span data-slot="accordion-menu-title" className="truncate">
+              {item.title}
+            </span>
           </Link>
         </AccordionMenuItem>
       );
     });
 
   return (
-    <>
-      <div className="overflow-y-auto py-5 px-5 max-h-[calc(100vh-5.5rem)] custom-scrollbar">
-        <AccordionMenu
-          selectedValue={pathname}
-          matchPath={matchPath}
-          type="single"
-          collapsible
-          classNames={classNames}
-        >
-          {renderMenu(MENU_SIDEBAR)}
-        </AccordionMenu>
-      </div>
-
-      <div className="p-5 w-full sticky bottom-0 mt-auto bg-background">
-        <div className="flex items-center gap-3">
-          <img
-            className="size-10 rounded-full border-2 border-success shrink-0"
-            src="/images/avatars/300-2.png"
-            alt="User Avatar"
-            width={40}
-            height={40}
-          />
-          <div className="flex flex-col">
-            <span className="font-semibold">{user?.name}</span>
-            <span className="text-sm">Admin Manager</span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="flex items-center gap-2 mt-4 cursor-pointer hover:text-primary group"
-          onClick={handleLogout}
-        >
-          <LogOutIcon className="h-5 w-5 group-hover:text-primary" />
-          <span className="group-hover:text-primary">Logout</span>
-        </button>
-      </div>
-    </>
+    <nav aria-label="Main navigation" className="px-3 py-3">
+      <AccordionMenu
+        selectedValue={pathname}
+        matchPath={matchPath}
+        type="single"
+        collapsible
+        classNames={classNames}
+      >
+        {renderMenu(visibleMenu)}
+      </AccordionMenu>
+    </nav>
   );
 };
 

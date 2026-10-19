@@ -9,6 +9,7 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
+import { TruncatedText } from "@/components/common/ui/short-id";
 import { Edit2Icon } from "lucide-react";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import { RiDeleteBin5Line } from "@remixicon/react";
@@ -17,12 +18,13 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
   return useMemo(() => {
     return [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
         size: 48,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "title",
@@ -36,11 +38,11 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
             : "";
 
           return (
-            <div className="flex flex-col">
-              <span className="font-medium text-sm text-gray-900 dark:text-foreground">
+            <div className="flex min-w-0 flex-col">
+              <span className="truncate text-sm font-medium text-foreground" title={row?.original?.title || "Untitled"}>
                 {row?.original?.title || "Untitled"}
               </span>
-              <span className="text-sm text-muted-foreground truncate max-w-[250px]">
+              <span className="truncate text-sm text-muted-foreground">
                 {plainTextDescription || "No description"}
               </span>
             </div>
@@ -49,6 +51,9 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
         enableSorting: true,
         size: 350,
         meta: {
+          headerTitle: "Title",
+          identity: true,
+          truncate: true,
           skeleton: (
             <div className="flex flex-col gap-1">
               <Skeleton className="h-4 w-[125px]" />
@@ -63,8 +68,9 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
           <DataGridColumnHeader title="Category" column={column} />
         ),
         accessorFn: (row) => row.category,
-        cell: ({ row }) => row.original.category,
-        size: 120,
+        cell: ({ row }) => <TruncatedText value={row.original.category || "-"} />,
+        size: 140,
+        meta: { headerTitle: "Category", truncate: true },
       },
       {
         id: "is_active",
@@ -78,7 +84,9 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
             isActive={row?.original?.is_active ?? false}
           />
         ),
+        enableHiding: false,
         size: 100,
+        meta: { headerTitle: "Active" },
       },
       {
         id: "actions",
@@ -90,7 +98,12 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
             <Button
               mode="icon"
               variant="outline"
-              onClick={() => onEdit?.(row?.original)}
+              aria-label="Edit FAQ"
+              title="Edit FAQ"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit?.(row?.original);
+              }}
             >
               <Edit2Icon />
             </Button>
@@ -98,13 +111,20 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
               mode="icon"
               variant="outline"
               className="!cursor-pointer"
-              onClick={() => onDelete?.(row?.original?.id)}
+              aria-label="Delete FAQ"
+              title="Delete FAQ"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete?.(row?.original?.id);
+              }}
             >
               <RiDeleteBin5Line />
             </Button>
           </div>
         ),
-        size: 180,
+        enableHiding: false,
+        size: 110,
+        meta: { headerTitle: "Actions" },
       },
     ];
   }, [onEdit, onDelete]);

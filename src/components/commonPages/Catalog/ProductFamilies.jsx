@@ -12,6 +12,7 @@ import {
   Button,
   authHeaders,
 } from "@/components/commonPages/Catalog/_ui";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import StatusBadge from "@/components/commonPages/Catalog/StatusBadge";
 
 const CATEGORIES = [
@@ -282,29 +283,24 @@ export default function ProductFamilies() {
   };
 
   return (
-    <div className="p-4 sm:p-6">
+    <div>
       {/* Header */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-[#162640]">
-            Product Families
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Designs + their configurable axes. Variants resolve on demand —
-            never pre-materialized.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            options={STATUS_FILTERS}
-          />
-          <Button type="button" variant="primary" size="md" onClick={openNew}>
-            New Family
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Product Families"
+        description="Designs + their configurable axes. Variants resolve on demand — never pre-materialized."
+        actions={
+          <>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={STATUS_FILTERS}
+            />
+            <Button type="button" variant="primary" size="md" onClick={openNew}>
+              New Family
+            </Button>
+          </>
+        }
+      />
 
       {/* Editor */}
       {editorOpen && (
@@ -314,7 +310,7 @@ export default function ProductFamilies() {
             <button
               type="button"
               onClick={closeEditor}
-              className="text-xs font-medium text-muted-foreground hover:text-[#162640] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
+              className="text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded"
             >
               Close
             </button>
@@ -397,7 +393,7 @@ export default function ProductFamilies() {
           <div className="mt-6">
             <div className="mb-2 flex items-center justify-between">
               <div>
-                <h4 className="text-sm font-semibold text-[#162640]">
+                <h4 className="text-sm font-semibold text-foreground">
                   Configurable Axes
                 </h4>
                 <p className="text-[11px] text-muted-foreground">
@@ -552,7 +548,7 @@ export default function ProductFamilies() {
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
-              <tr className="bg-[#162640] text-left text-white">
+              <tr className="bg-muted/60 text-left text-foreground">
                 <th scope="col" className="px-4 py-3 font-semibold">Family Code</th>
                 <th scope="col" className="px-4 py-3 font-semibold">Name</th>
                 <th scope="col" className="px-4 py-3 font-semibold">Category</th>
@@ -602,7 +598,7 @@ export default function ProductFamilies() {
                     key={fam.id ?? fam.familyCode ?? i}
                     className={i % 2 === 0 ? "bg-white dark:bg-card" : "bg-gray-50 dark:bg-muted"}
                   >
-                    <td className="px-4 py-3 font-medium text-[#162640]">
+                    <td className="px-4 py-3 font-medium text-foreground">
                       {fam.familyCode || "—"}
                     </td>
                     <td className="px-4 py-3">{fam.name || "—"}</td>
@@ -619,7 +615,7 @@ export default function ProductFamilies() {
                           type="button"
                           onClick={() => openEdit(fam)}
                           aria-label={`Edit family ${fam.familyCode || fam.name || ""}`}
-                          className="rounded-md border border-[#162640] px-3 py-1.5 text-xs font-medium text-[#162640] transition-colors hover:bg-[#162640] hover:text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          className="rounded-md border border-primary px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         >
                           Edit
                         </button>
@@ -669,7 +665,7 @@ export default function ProductFamilies() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-sm font-semibold text-[#162640]">
+                  <div className="text-sm font-semibold text-foreground">
                     {fam.familyCode || "—"}
                   </div>
                   <div className="text-sm">{fam.name || "—"}</div>
@@ -691,7 +687,7 @@ export default function ProductFamilies() {
                   type="button"
                   onClick={() => openEdit(fam)}
                   aria-label={`Edit family ${fam.familyCode || fam.name || ""}`}
-                  className="rounded-md border border-[#162640] px-3 py-1.5 text-xs font-medium text-[#162640] transition-colors hover:bg-[#162640] hover:text-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  className="rounded-md border border-primary px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary hover:text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 >
                   Edit
                 </button>

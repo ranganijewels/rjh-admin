@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
+import { ROLES } from "@/config/rbac";
 
-const SYSTEM_ROLES = [
-  { id: "super_admin", name: "Super Admin" },
-  { id: "admin", name: "Admin" },
-  { id: "manager", name: "Manager" },
-  { id: "staff", name: "Staff" },
-  { id: "viewer", name: "Viewer" },
-];
-
+// The backend only supports a fixed role enum, so the Roles page lists the
+// supported system roles (single source of truth: src/config/rbac.js).
 export async function GET() {
-  return NextResponse.json({ data: SYSTEM_ROLES });
-}
-
-export async function POST(req) {
-  const body = await req.json().catch(() => ({}));
-  const id = (body.name || "new_role").toLowerCase().replace(/\s+/g, "_");
-  return NextResponse.json({ data: { id, name: body.name || "New Role" } });
+  return NextResponse.json({
+    data: ROLES.map((role) => ({
+      id: role.key,
+      name: role.name,
+      description: role.description,
+    })),
+  });
 }

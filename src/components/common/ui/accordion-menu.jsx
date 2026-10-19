@@ -243,7 +243,7 @@ function AccordionMenuSub({ className, children, ...props }) {
   );
 }
 
-function AccordionMenuSubTrigger({ className, children }) {
+function AccordionMenuSubTrigger({ className, children, ...props }) {
   const { classNames } = React.useContext(AccordionMenuContext);
   return (
     <AccordionPrimitive.Header className="flex">
@@ -254,6 +254,7 @@ function AccordionMenuSubTrigger({ className, children }) {
           classNames?.subTrigger,
           className,
         )}
+        {...props}
       >
         <>
           {children}

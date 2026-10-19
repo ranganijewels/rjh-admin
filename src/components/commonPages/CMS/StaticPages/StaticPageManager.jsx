@@ -1,18 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
+import {
+  StatusFilter,
+  buildStatusOptions,
+} from "@/components/common/ui/status-filter";
 import { Button } from "@/components/common/ui/button";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Plus } from "lucide-react";
 import StaticPageModel from "./StaticPageModel";
 import { useStaticPageColumns } from "./hooks/useStaticPageColumns";
 import { useCrudListWithPagination } from "@/hooks/useCrudListWithPagination";
+import { usePermissions } from "@/provider/permission-provider";
 
 const StaticPageManager = () => {
+  const { can } = usePermissions();
   const [previewData, setPreviewData] = useState(null);
   const [pageInfo, setPageInfo] = useState({ pageIndex: 0, pageSize: 10 });
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [openDialog, setDialogOpen] = useState(false);
   const [editRow, setEditRow] = useState(null);
 
@@ -28,6 +35,8 @@ const StaticPageManager = () => {
   } = useCrudListWithPagination("/api/cms/page-manager");
 
   const columns = useStaticPageColumns({
+    canEdit: can("cms", "edit"),
+    canDelete: can("cms", "delete"),
     onFile: (row) => setPreviewData(row),
     onEdit: (row) => {
       setEditRow(row);
@@ -48,13 +57,41 @@ const StaticPageManager = () => {
     );
   };
 
+  const statusOptions = useMemo(
+    () =>
+      buildStatusOptions(
+        list,
+        (page) => (page?.is_active ? "Active" : "Inactive"),
+        { allLabel: "All pages", order: ["Active", "Inactive"] }
+      ),
+    [list]
+  );
+
+  const scopedList = useMemo(
+    () =>
+      statusFilter === "all"
+        ? list
+        : (list || []).filter(
+            (page) => (page?.is_active ? "Active" : "Inactive") === statusFilter
+          ),
+    [list, statusFilter]
+  );
+
   return (
-    <div>
+    <div className="space-y-4">
+      <StatusFilter
+        options={statusOptions}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        ariaLabel="Page status"
+      />
+
       <ListWithCardToggle
         resizableColumns
         title="Static Page List"
+        titleAs="h2"
         description="Manage your static pages here"
-        data={list}
+        data={scopedList}
         columns={columns}
         filterFunction={filterFunction}
         pagination={pageInfo}
@@ -64,7 +101,7 @@ const StaticPageManager = () => {
         paginationLinks={pagination?.links}
         serverSidePagination={false}
         infiniteScroll
-        bulkActions={[
+        bulkActions={can("cms", "delete") ? [
           {
             key: "delete",
             label: "Delete",
@@ -76,18 +113,20 @@ const StaticPageManager = () => {
               fetchData({ page: 1, pageSize: pageInfo.pageSize });
             },
           },
-        ]}
+        ] : []}
         searchQuery={searchQuery}
         onSearchChange={(query) => setSearchQuery(query)}
         createBtn={
-          <Button
-            onClick={() => {
-              setEditRow(null);
-              setDialogOpen(true);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add Page
-          </Button>
+          can("cms", "create") ? (
+            <Button
+              onClick={() => {
+                setEditRow(null);
+                setDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Page
+            </Button>
+          ) : null
         }
       />
 

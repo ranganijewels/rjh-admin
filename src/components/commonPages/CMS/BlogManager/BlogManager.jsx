@@ -12,16 +12,16 @@ import BlogCategories from "./BlogCategories/BlogCategories";
 
 const BlogManager = () => {
   return (
-    <div className="min-h-screen">
+    <div>
       <header>
-        <h1 className="font-semibold">Blog Manager</h1>
-        <p className="text-muted-foreground">
+        <h2 className="text-lg font-semibold text-foreground">Blog Manager</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Create and manage your blog posts and categories here.
         </p>
       </header>
 
-      <Tabs defaultValue="blog" className="w-full mt-6">
-        <TabsList className="grid grid-cols-2">
+      <Tabs defaultValue="blog" className="w-full mt-5">
+        <TabsList className="w-full max-w-full overflow-x-auto">
           <TabsTrigger value="blog">Posts</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>

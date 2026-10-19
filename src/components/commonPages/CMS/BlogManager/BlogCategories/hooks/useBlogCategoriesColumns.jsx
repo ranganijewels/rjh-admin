@@ -9,12 +9,13 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
+import { TruncatedText } from "@/components/common/ui/short-id";
 import { Edit2Icon } from "lucide-react";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import { RiDeleteBin5Line } from "@remixicon/react";
 import { useCrudApi } from "@/hooks/useCrudApi";
 
-export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
+export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId, canEdit = true, canDelete = true }) => {
   const { toggleStatus } = useCrudApi(`/api/cms/blog/${storeId}/categories`);
 
   return useMemo(() => {
@@ -26,6 +27,7 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
         enableSorting: false,
         enableHiding: false,
         size: 48,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "category",
@@ -33,15 +35,11 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
           <DataGridColumnHeader title="Category" column={column} />
         ),
         accessorFn: (row) => row.valueLabel,
-        cell: ({ row }) => {
-          const t = row.original.valueLabel;
-          return (
-            <span title={t} className="block truncate">
-              {t}
-            </span>
-          );
-        },
+        cell: ({ row }) => (
+          <TruncatedText value={row.original.valueLabel} className="font-medium text-foreground" />
+        ),
         size: 230,
+        meta: { headerTitle: "Category", identity: true, truncate: true },
       },
       {
         id: "description",
@@ -49,8 +47,9 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
           <DataGridColumnHeader title="Description" column={column} />
         ),
         accessorFn: (row) => row.description || "-",
-        cell: ({ row }) => row.original.description || "-",
+        cell: ({ row }) => <TruncatedText value={row.original.description || "-"} />,
         size: 280,
+        meta: { headerTitle: "Description", truncate: true },
       },
       {
         id: "is_active",
@@ -65,7 +64,9 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
             toggleStatus={toggleStatus}
           />
         ),
+        enableHiding: false,
         size: 100,
+        meta: { headerTitle: "Active" },
       },
       {
         id: "actions",
@@ -74,25 +75,41 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
         ),
         cell: ({ row }) => (
           <div className="flex gap-2.5">
-            <Button
-              mode="icon"
-              variant="outline"
-              onClick={() => onEdit?.(row?.original)}
-            >
-              <Edit2Icon />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              className="!cursor-pointer"
-              onClick={() => onDelete?.(row?.original?.id)}
-            >
-              <RiDeleteBin5Line />
-            </Button>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label="Edit category"
+                title="Edit category"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit?.(row?.original);
+                }}
+              >
+                <Edit2Icon />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="outline"
+                className="!cursor-pointer"
+                aria-label="Delete category"
+                title="Delete category"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete?.(row?.original?.id);
+                }}
+              >
+                <RiDeleteBin5Line />
+              </Button>
+            )}
           </div>
         ),
-        size: 180,
+        enableHiding: false,
+        size: 110,
+        meta: { headerTitle: "Actions" },
       },
     ];
-  }, [onEdit, onDelete]);
+  }, [onEdit, onDelete, canEdit, canDelete, toggleStatus]);
 };

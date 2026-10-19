@@ -6,17 +6,19 @@ import {
 } from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
+import { TruncatedText } from "@/components/common/ui/short-id";
 
 export const useBrowseColumns = ({ onClick, onView }) => {
   return useMemo(
     () => [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
-        size: 48,
+        size: 44,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "image",
@@ -28,16 +30,24 @@ export const useBrowseColumns = ({ onClick, onView }) => {
           />
         ),
         accessorFn: (row) => row.image,
-        cell: ({ row }) => (
-          <img
-            src={row.original.data ? row.original.data.product[0].image : ""} // this now comes from variant
-            // alt={row.original.designno}
-            className="w-[50px] h-[50px] object-cover rounded"
-          />
-        ),
+        cell: ({ row }) => {
+          const src = row.original.data
+            ? row.original.data.product[0]?.image
+            : row.original.image;
+          return src ? (
+            <img
+              src={src}
+              alt={row.original.category || "Variant image"}
+              className="h-[50px] w-[50px] rounded object-cover"
+            />
+          ) : (
+            <span className="text-muted-foreground">N/A</span>
+          );
+        },
         enableSorting: true,
-        size: 100,
+        size: 110,
         meta: {
+          headerTitle: "Variant Image",
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -47,9 +57,15 @@ export const useBrowseColumns = ({ onClick, onView }) => {
           <DataGridColumnHeader title="Variant Name" column={column} />
         ),
         accessorFn: (row) => row.category,
-        cell: ({ row }) => <p>{row.original.category}</p>,
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.original.category}
+            className="font-medium text-foreground"
+          />
+        ),
         enableSorting: true,
-        size: 135,
+        size: 200,
+        meta: { headerTitle: "Variant Name", identity: true, truncate: true },
       },
       {
         id: "base_price",
@@ -57,8 +73,9 @@ export const useBrowseColumns = ({ onClick, onView }) => {
           <DataGridColumnHeader title="Base Price" column={column} />
         ),
         accessorFn: (row) => row.baseprice,
-        cell: ({ row }) => <span>{row.original.baseprice}</span>,
-        size: 135,
+        cell: ({ row }) => <span>{row.original.baseprice ?? "—"}</span>,
+        size: 130,
+        meta: { headerTitle: "Base Price" },
       },
       {
         id: "selling_price",
@@ -66,8 +83,9 @@ export const useBrowseColumns = ({ onClick, onView }) => {
           <DataGridColumnHeader title="Selling Price" column={column} />
         ),
         accessorFn: (row) => row.selling_price,
-        cell: ({ row }) => <span>{row.original.selling_price}</span>,
-        size: 135,
+        cell: ({ row }) => <span>{row.original.selling_price ?? "—"}</span>,
+        size: 130,
+        meta: { headerTitle: "Selling Price" },
       },
       {
         id: "metal",
@@ -122,7 +140,7 @@ export const useBrowseColumns = ({ onClick, onView }) => {
                   key={index}
                   title={color}
                   aria-label={`Metal color: ${color || "unknown"}`}
-                  className="flex items-center justify-center w-[18px] h-[18px] rounded-sm border border-gray-400 dark:border-border"
+                  className="flex h-[18px] w-[18px] items-center justify-center rounded-sm border border-gray-400 dark:border-border"
                   style={{
                     background: getBackground(color),
                   }}
@@ -136,23 +154,27 @@ export const useBrowseColumns = ({ onClick, onView }) => {
           );
         },
         size: 135,
+        meta: { headerTitle: "Metal" },
       },
       {
         id: "actions",
-        header: "Actions",
-        // pinning: "right",
-        cell: ({ row }) => (
-          <div className="flex gap-[10px]">
-            <Button
-              variant="outline"
-              mode="icon"
-              // onClick={() => setEditingCell(row.original)}
-            >
-              Add to Cart
-            </Button>
-          </div>
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
         ),
-        size: 100,
+        cell: ({ row }) => (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onView?.(row.original)}
+            aria-label={`Add ${row.original.category || "variant"} to cart`}
+          >
+            Add to Cart
+          </Button>
+        ),
+        enableSorting: false,
+        enableHiding: false,
+        size: 130,
+        meta: { headerTitle: "Actions" },
       },
     ],
     [onView, onClick]

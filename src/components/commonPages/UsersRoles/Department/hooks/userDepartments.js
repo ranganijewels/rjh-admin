@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { Edit2Icon } from "lucide-react";
 import { RiDeleteBin5Line } from "@remixicon/react";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 
 export const userDepartments = ({ onEdit, onDelete }) => {
   return useMemo(
@@ -18,7 +19,8 @@ export const userDepartments = ({ onEdit, onDelete }) => {
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
-        size: 48,
+        size: 44,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "id",
@@ -27,11 +29,13 @@ export const userDepartments = ({ onEdit, onDelete }) => {
         ),
         accessorFn: (row) => row.id,
         cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.getValue("id")}</span>
+          <ShortId value={row.getValue("id")} label="Department ID" />
         ),
-        size: 100,
+        size: 130,
         enableSorting: false,
         meta: {
+          identity: true,
+          headerTitle: "ID",
           skeleton: <Skeleton className="h-4 w-[60px]" />,
         },
       },
@@ -41,20 +45,17 @@ export const userDepartments = ({ onEdit, onDelete }) => {
           <DataGridColumnHeader title="Department Name" column={column} />
         ),
         accessorFn: (row) => row.name,
-        cell: ({ row }) => {
-          const t = row.getValue("name");
-          return (
-            <span
-              title={t}
-              className="block truncate text-sm font-medium"
-            >
-              {t}
-            </span>
-          );
-        },
-        size: 230,
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.getValue("name")}
+            className="font-medium text-foreground"
+          />
+        ),
+        size: 260,
         enableSorting: false,
         meta: {
+          headerTitle: "Department Name",
+          truncate: true,
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -68,7 +69,12 @@ export const userDepartments = ({ onEdit, onDelete }) => {
             <Button
               mode="icon"
               variant="outline"
-              onClick={() => onEdit && onEdit(row.original)}
+              aria-label={`Edit ${row.original.name || "department"}`}
+              title="Edit department"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit && onEdit(row.original);
+              }}
             >
               <Edit2Icon />
             </Button>
@@ -76,14 +82,21 @@ export const userDepartments = ({ onEdit, onDelete }) => {
               mode="icon"
               variant="outline"
               className="!cursor-pointer"
-              onClick={() => onDelete && onDelete(row.original.id)}
+              aria-label={`Delete ${row.original.name || "department"}`}
+              title="Delete department"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete && onDelete(row.original.id);
+              }}
             >
               <RiDeleteBin5Line />
             </Button>
           </div>
         ),
-        size: 120,
         enableSorting: false,
+        enableHiding: false,
+        size: 100,
+        meta: { headerTitle: "Action" },
       },
     ],
     [onEdit, onDelete]

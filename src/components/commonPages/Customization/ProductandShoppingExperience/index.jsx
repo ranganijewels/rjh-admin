@@ -21,7 +21,7 @@ export const ProductandShoppingExperience = () => {
         <FormProvider {...form}>
           <form>
             <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Custom Order Option
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -34,7 +34,7 @@ export const ProductandShoppingExperience = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono">
+              <span className="text-base font-medium text-foreground">
                 Product Filtering Options
               </span>
               <div className="flex items-center space-x-2">
@@ -69,7 +69,7 @@ export const ProductandShoppingExperience = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Related Products Display
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -82,7 +82,7 @@ export const ProductandShoppingExperience = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Out-of-Stock Handling
               </span>
               <RadioGroup
@@ -110,7 +110,7 @@ export const ProductandShoppingExperience = () => {
               </RadioGroup>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Currency Preferences
               </span>
               <div className="flex items-center space-x-2">
@@ -121,7 +121,7 @@ export const ProductandShoppingExperience = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Payment Methods
               </span>
               <div className="flex items-center space-x-2">

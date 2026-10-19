@@ -3,14 +3,45 @@ import { Slot } from '@radix-ui/react-slot';
 import { cva } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
-// Status-to-variant mapping
+// Status-to-variant mapping. Covers the storefront/admin order lifecycle so
+// every status pill comes from one place instead of ad-hoc per-page colors.
 const statusToVariant = {
-  active: 'primary',
+  active: 'success',
   inactive: 'secondary',
+  enabled: 'success',
+  disabled: 'secondary',
   success: 'success',
+  completed: 'success',
+  complete: 'success',
+  delivered: 'success',
+  shipped: 'success',
+  fulfilled: 'success',
+  paid: 'success',
+  processing: 'warning',
+  'in production': 'warning',
+  picking: 'warning',
+  packing: 'warning',
+  pending: 'warning',
+  'partially fulfilled': 'warning',
+  'partially shipped': 'warning',
+  unfulfilled: 'warning',
+  unpaid: 'warning',
+  draft: 'secondary',
+  published: 'success',
+  finished: 'success',
   warning: 'warning',
-  pending: 'info',
+  info: 'info',
+  confirmed: 'info',
+  'order placed': 'warning',
+  authorized: 'info',
+  new: 'info',
+  returned: 'destructive',
+  refunded: 'destructive',
+  cancelled: 'destructive',
+  canceled: 'destructive',
+  failed: 'destructive',
   error: 'destructive',
+  voided: 'destructive',
 };
 
 const badgeVariants = cva(
@@ -20,9 +51,9 @@ const badgeVariants = cva(
       variant: {
         primary: 'bg-primary text-primary-foreground',
         secondary: 'bg-secondary text-secondary-foreground',
-        success: 'bg-green-500 text-white',
-        warning: 'bg-yellow-500 text-white',
-        info: 'bg-violet-500 text-white',
+        success: 'bg-success text-success-foreground',
+        warning: 'bg-warning text-warning-foreground',
+        info: 'bg-info text-info-foreground',
         mono: 'bg-mono text-mono-foreground',
         destructive: 'bg-destructive text-destructive-foreground',
       },
@@ -48,27 +79,27 @@ const badgeVariants = cva(
       },
     },
     compoundVariants: [
-      { variant: 'primary', appearance: 'outline', className: 'bg-primary/10 border-primary/10 text-primary' },
+      { variant: 'primary', appearance: 'outline', className: 'bg-primary/5 border-primary/10 text-primary' },
       { variant: 'secondary', appearance: 'outline', className: 'bg-secondary dark:bg-secondary/50 border-border text-secondary-foreground' },
-      { variant: 'success', appearance: 'outline', className: 'border bg-green-100 text-green-700 border-green-200 dark:text-green-600 dark:bg-green-950/50 dark:border-green-950' },
-      { variant: 'warning', appearance: 'outline', className: 'border bg-yellow-100 text-yellow-700 border-yellow-200 dark:text-yellow-600 dark:bg-yellow-950/50 dark:border-yellow-950' },
-      { variant: 'info', appearance: 'outline', className: 'border bg-violet-100 text-violet-700 border-violet-200 dark:text-violet-600 dark:bg-violet-950/50 dark:border-violet-950' },
-      { variant: 'mono', appearance: 'outline', className: 'bg-mono/10 border-mono/10 text-mono' },
-      { variant: 'destructive', appearance: 'outline', className: 'bg-destructive/10 border-destructive/10 text-destructive' },
+      { variant: 'success', appearance: 'outline', className: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/40 dark:border-emerald-900' },
+      { variant: 'warning', appearance: 'outline', className: 'bg-amber-50 text-amber-700 border-amber-200 dark:text-amber-400 dark:bg-amber-950/40 dark:border-amber-900' },
+      { variant: 'info', appearance: 'outline', className: 'bg-blue-50 text-blue-700 border-blue-200 dark:text-blue-400 dark:bg-blue-950/40 dark:border-blue-900' },
+      { variant: 'mono', appearance: 'outline', className: 'bg-mono/5 border-mono/10 text-mono' },
+      { variant: 'destructive', appearance: 'outline', className: 'bg-red-50 text-red-700 border-red-200 dark:text-red-400 dark:bg-red-950/40 dark:border-red-900' },
 
-      { variant: 'primary', appearance: 'light', className: 'bg-primary/10 text-primary' },
+      { variant: 'primary', appearance: 'light', className: 'bg-primary/5 text-primary' },
       { variant: 'secondary', appearance: 'light', className: 'bg-secondary dark:bg-secondary/50 text-secondary-foreground' },
-      { variant: 'success', appearance: 'light', className: 'border bg-green-100 text-green-700 dark:text-green-600 dark:bg-green-950/50' },
-      { variant: 'warning', appearance: 'light', className: 'border bg-yellow-100 text-yellow-700 dark:text-yellow-600 dark:bg-yellow-950/50' },
-      { variant: 'info', appearance: 'light', className: 'border bg-violet-100 text-violet-700 dark:text-violet-600 dark:bg-violet-950/50' },
-      { variant: 'mono', appearance: 'light', className: 'bg-mono/10 text-mono' },
-      { variant: 'destructive', appearance: 'light', className: 'bg-destructive/10 text-destructive' },
+      { variant: 'success', appearance: 'light', className: 'bg-emerald-50 text-emerald-700 dark:text-emerald-400 dark:bg-emerald-950/40' },
+      { variant: 'warning', appearance: 'light', className: 'bg-amber-50 text-amber-700 dark:text-amber-400 dark:bg-amber-950/40' },
+      { variant: 'info', appearance: 'light', className: 'bg-blue-50 text-blue-700 dark:text-blue-400 dark:bg-blue-950/40' },
+      { variant: 'mono', appearance: 'light', className: 'bg-mono/5 text-mono' },
+      { variant: 'destructive', appearance: 'light', className: 'bg-red-50 text-red-700 dark:text-red-400 dark:bg-red-950/40' },
 
       { variant: 'primary', appearance: 'ghost', className: 'text-primary' },
       { variant: 'secondary', appearance: 'ghost', className: 'text-secondary-foreground' },
-      { variant: 'success', appearance: 'ghost', className: 'text-green-500' },
-      { variant: 'warning', appearance: 'ghost', className: 'text-yellow-500' },
-      { variant: 'info', appearance: 'ghost', className: 'text-violet-500' },
+      { variant: 'success', appearance: 'ghost', className: 'text-emerald-600' },
+      { variant: 'warning', appearance: 'ghost', className: 'text-amber-600' },
+      { variant: 'info', appearance: 'ghost', className: 'text-blue-600' },
       { variant: 'mono', appearance: 'ghost', className: 'text-mono' },
       { variant: 'destructive', appearance: 'ghost', className: 'text-destructive' },
 
@@ -160,13 +191,13 @@ function BadgeDot({ className, ...props }) {
 // New reusable badge for status values
 function StatusBadge({
   status,
-  appearance = 'solid',
+  appearance = 'outline',
   size = 'md',
-  shape = 'default',
+  shape = 'circle',
   className,
   ...props
 }) {
-  const variant = statusToVariant[status?.toLowerCase()] || 'secondary';
+  const variant = statusToVariant[String(status || '').toLowerCase()] || 'secondary';
 
   return (
     <Badge

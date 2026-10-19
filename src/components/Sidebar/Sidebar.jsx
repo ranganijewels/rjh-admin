@@ -4,18 +4,17 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ScrollspyMenu } from "./ScrollspyMenu";
-import { cn } from "@/lib/utils";
 import SidebarMenu from "./SidebarMenu";
 import SidebarHeader from "./SidebarHeader";
+import SidebarFooter from "./SidebarFooter";
 import ThemeToggle from "./ThemeToggle";
 
-// Layout notes (scroll bug fix):
-// - The <aside> itself must NOT be the scroll container: the collapse chevron
-//   in SidebarHeader hangs outside its edge (start-full), and an overflowing
-//   aside clips it / spawns a phantom horizontal scrollbar.
-// - Instead the aside is a plain flex column (header pinned, no overflow) and
-//   the MENU AREA is its own scroll region: flex-1 + min-h-0 + overflow-y-auto.
-//   min-h-0 is what actually allows a flex child to shrink and scroll.
+// Layout notes:
+// - The <aside> is a plain flex column and never scrolls itself; the MENU AREA
+//   is the only scroll region (flex-1 + min-h-0 + overflow-y-auto). Keeping a
+//   single scroll container avoids nested scrollbars and lets the account
+//   footer + theme toggle stay pinned to the bottom.
+// - min-h-0 is what actually allows a flex child to shrink and scroll.
 export function Sidebar({ sideBarMenus, dashboardSidebar }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,29 +39,28 @@ export function Sidebar({ sideBarMenus, dashboardSidebar }) {
     }));
 
   return (
-    <aside
-      className={cn(
-        "bg-background border-e border-border flex flex-col w-sidebar-mobile h-full min-h-0"
-      )}
-    >
+    <aside className="flex h-full min-h-0 w-full flex-col border-e border-border bg-card">
       {dashboardSidebar ? (
         <>
           <SidebarHeader />
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-6">
-            <div className="w-(--sidebar-default-width)">
-              <SidebarMenu />
-            </div>
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
+            <SidebarMenu />
           </div>
+          <SidebarFooter />
           <ThemeToggle />
         </>
       ) : (
         <>
-          <div className="p-5 border-b border-muted-foreground shrink-0">
-            <Link href="/">
-              <img src="/app/rj-house.svg" alt="Logo" className="w-[160px]" />
+          <div className="shrink-0 border-b border-border p-5">
+            <Link href="/" aria-label="Rangani Jewelry House home">
+              <img
+                src="/app/rj-house.svg"
+                alt="Rangani Jewelry House"
+                className="w-[150px] dark:brightness-0 dark:invert"
+              />
             </Link>
           </div>
-          <div className="p-6 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+          <div className="min-h-0 flex-1 overflow-y-auto p-5 overscroll-contain">
             <ScrollspyMenu
               items={items}
               onClick={handleClick}

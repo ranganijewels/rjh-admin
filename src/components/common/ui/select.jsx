@@ -149,13 +149,22 @@ function SelectLabel({ className, ...props }) {
   );
 }
 
-function SelectItem({ className, children, ...props }) {
+function SelectItem({ className, children, value, ...props }) {
   const { indicatorPosition, indicatorVisibility, indicator } =
     React.useContext(SelectContext);
+
+  // Radix mirrors every item into a hidden native <option> and renders
+  // those options as a list, keyed by the item's `value`. An item without a
+  // value therefore produces an unkeyed <option>, which React reports as
+  // "Each child in a list should have a unique key prop". Fall back to a
+  // stable per-instance id so every item stays keyed.
+  const fallbackValue = React.useId();
+  const itemValue = value ?? `__select-item-${fallbackValue}`;
 
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
+      value={itemValue}
       className={cn(
         'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 text-sm outline-hidden text-foreground hover:bg-accent focus:bg-accent data-disabled:pointer-events-none data-disabled:opacity-50',
         indicatorPosition === 'left' ? 'ps-8 pe-2' : 'pe-8 ps-2',

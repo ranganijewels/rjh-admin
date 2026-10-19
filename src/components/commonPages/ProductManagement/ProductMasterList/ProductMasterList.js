@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useProductListColumns } from "./hooks/useProductListColumns";
 import ProductCard from "./ProductCard";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Button } from "@/components/common/ui/button";
@@ -13,6 +14,7 @@ import { useCrudApi } from "@/hooks/useCrudApi";
 import { toast } from "sonner";
 import { toTitleCase } from "@/lib/utils";
 import { PRODUCT_CSV_HEADERS } from "@/lib/csvSubTables";
+import { usePermissions } from "@/provider/permission-provider";
 
 /* ── Example CSV template ──────────────────────────────────────── */
 // Column order is PRODUCT_CSV_HEADERS itself (see src/lib/csvSubTables.js) —
@@ -578,22 +580,6 @@ const BulkAiGenerateModal = ({ open, onClose, rows, onDone }) => {
   );
 };
 
-// Compact server-driven filter dropdown.
-const FilterSelect = ({ label, value, options, onChange }) => (
-  <select
-    value={value || "all"}
-    onChange={(e) => onChange(e.target.value)}
-    className="h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-  >
-    <option value="all">All {label}</option>
-    {options.map((o) => (
-      <option key={o} value={o}>
-        {toTitleCase(o)}
-      </option>
-    ))}
-  </select>
-);
-
 // sessionStorage key the list stashes its "where was I" state under right
 // before navigating to Add/Edit, and consumes (then deletes) on the way back.
 const RESTORE_KEY = "product_master_list_restore";
@@ -610,6 +596,7 @@ const authHeaders = () => {
 
 const ProductMasterList = () => {
   const router = useRouter();
+  const { can } = usePermissions();
   const [pageInfo, setPageInfo] = useState({ pageIndex: 0, pageSize: 10 });
   const [searchQuery, setSearchQuery] = useState("");
   const [priceMap, setPriceMap] = useState({});
@@ -662,13 +649,11 @@ const ProductMasterList = () => {
   );
 
   // Edit/Add navigate to a separate route, which unmounts this whole page —
-  // losing the accumulated infinite-scroll pages and scroll position, so
-  // returning from a save always dumped the shopper back at page 1, top of
-  // list. handleEdit/handleAdd stash how much was loaded + where before
-  // leaving; this replays those same pages (not a giant single fetch, so
-  // `pagination`/`hasMore` end up exactly as if the shopper had clicked
-  // "Load More" that many times — Load More afterward continues normally)
-  // and scrolls the edited row back into view once the data is in.
+  // losing the current page, filters and scroll position, so returning from a
+  // save always dumped the shopper back at page 1, top of list. handleEdit and
+  // handleAdd stash that state before leaving; this restores it (same page,
+  // same filters, same search) and scrolls the edited row back into view once
+  // the data is in.
   const didInitialFetch = useRef(false);
   useEffect(() => {
     if (didInitialFetch.current) return;
@@ -691,25 +676,25 @@ const ProductMasterList = () => {
       sessionStorage.removeItem(RESTORE_KEY);
       const restoredFilters = restore.filters || filters;
       const restoredSearch = restore.searchQuery || "";
+      const restoredPageSize = restore.pageSize || pageInfo.pageSize;
+      const restoredPageIndex = restore.pageIndex || 0;
       setFilters(restoredFilters);
       setSearchQuery(restoredSearch);
+      setPageInfo((p) => ({
+        ...p,
+        pageIndex: restoredPageIndex,
+        pageSize: restoredPageSize,
+      }));
 
       const activeRestoreFilters = Object.fromEntries(
         Object.entries(restoredFilters).filter(([, v]) => v)
       );
-      const pagesToLoad = Math.max(
-        1,
-        Math.ceil((restore.itemsLoaded || pageInfo.pageSize) / pageInfo.pageSize)
-      );
-      for (let page = 1; page <= pagesToLoad; page++) {
-        await fetchData({
-          page,
-          pageSize: pageInfo.pageSize,
-          append: page > 1,
-          search: restoredSearch,
-          ...activeRestoreFilters,
-        });
-      }
+      await fetchData({
+        page: restoredPageIndex + 1,
+        pageSize: restoredPageSize,
+        search: restoredSearch,
+        ...activeRestoreFilters,
+      });
 
       if (restore.focusId) {
         requestAnimationFrame(() => {
@@ -725,9 +710,8 @@ const ProductMasterList = () => {
   }, []);
 
   // Products store no price — fetch the live engine price for the visible page.
-  // Infinite scroll keeps appending to `list`, so only request prices for ids
-  // we haven't already priced — otherwise every scroll-triggered page would
-  // re-fetch pricing for the entire accumulated list.
+  // Only request prices for ids we haven't already priced, so paging through
+  // the list never re-fetches pricing for rows that are already priced.
   useEffect(() => {
     const ids = (list || []).map((i) => i.id).filter(Boolean);
     const missingIds = ids.filter((id) => !(id in priceMap));
@@ -768,6 +752,52 @@ const ProductMasterList = () => {
 
   const clearFilters = () => applyFilters({ category: "", metal_color: "", shape: "", status: "" });
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
+
+  // The filters live in the list card's toolbar (next to Search and the
+  // Columns menu) so the whole list header is one row.
+  const filterDropdowns = useMemo(
+    () => ({
+      category: {
+        value: filters.category || "all",
+        onChange: (v) => setFilter("category", v),
+        placeholder: "All categories",
+        options: [
+          { value: "all", label: "All categories" },
+          ...CATEGORIES.map((c) => ({ value: c, label: toTitleCase(c) })),
+        ],
+      },
+      metal_color: {
+        value: filters.metal_color || "all",
+        onChange: (v) => setFilter("metal_color", v),
+        placeholder: "All metal colours",
+        options: [
+          { value: "all", label: "All metal colours" },
+          ...METAL_COLORS.map((c) => ({ value: c, label: toTitleCase(c) })),
+        ],
+      },
+      shape: {
+        value: filters.shape || "all",
+        onChange: (v) => setFilter("shape", v),
+        placeholder: "All shapes",
+        options: [
+          { value: "all", label: "All shapes" },
+          ...SHAPES.map((c) => ({ value: c, label: toTitleCase(c) })),
+        ],
+      },
+      status: {
+        value: filters.status || "all",
+        onChange: (v) => setFilter("status", v),
+        placeholder: "All statuses",
+        options: [
+          { value: "all", label: "All statuses" },
+          { value: "active", label: "Active" },
+          { value: "inactive", label: "Inactive" },
+        ],
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filters.category, filters.metal_color, filters.shape, filters.status]
+  );
 
   const rows =
     list?.map((item) => ({
@@ -819,7 +849,8 @@ const ProductMasterList = () => {
         sessionStorage.setItem(
           RESTORE_KEY,
           JSON.stringify({
-            itemsLoaded: Math.max(list.length, pageInfo.pageSize),
+            pageIndex: pageInfo.pageIndex,
+            pageSize: pageInfo.pageSize,
             filters,
             searchQuery,
             focusId: focusId ?? null,
@@ -829,7 +860,7 @@ const ProductMasterList = () => {
         /* ignore blocked/unavailable sessionStorage — worst case, no restore */
       }
     },
-    [list.length, pageInfo.pageSize, filters, searchQuery]
+    [pageInfo.pageIndex, pageInfo.pageSize, filters, searchQuery]
   );
 
   const handleAdd = () => {
@@ -887,9 +918,9 @@ const ProductMasterList = () => {
 
   const { columns } = useProductListColumns({
     onView: handleView,
-    onEdit: handleEdit,
-    onDelete: handleAskDelete,
-    toggleStatus: toggleProductStatus,
+    onEdit: can("products", "edit") ? handleEdit : undefined,
+    onDelete: can("products", "delete") ? handleAskDelete : undefined,
+    toggleStatus: can("products", "edit") ? toggleProductStatus : undefined,
   });
 
   const renderStoreCardsView = (item) => (
@@ -897,23 +928,13 @@ const ProductMasterList = () => {
       key={item.id}
       {...item}
       onClick={() => handleView(item)}
-      onEdit={() => handleEdit(item)}
-      onDelete={() => handleAskDelete(item.id)}
-      toggleStatus={toggleProductStatus}
+      onEdit={can("products", "edit") ? () => handleEdit(item) : undefined}
+      onDelete={
+        can("products", "delete") ? () => handleAskDelete(item.id) : undefined
+      }
+      toggleStatus={can("products", "edit") ? toggleProductStatus : undefined}
     />
   );
-
-  const hasMore = (pagination?.currentPage || 1) < (pagination?.totalPages || 1);
-  const handleLoadMore = () => {
-    if (loading || !hasMore) return;
-    fetchData({
-      page: (pagination?.currentPage || 1) + 1,
-      pageSize: pageInfo.pageSize,
-      search: searchQuery,
-      append: true,
-      ...activeFilters(),
-    });
-  };
 
   // Only show the full-page loader on the FIRST load. On pagination/filter
   // fetches keep the list mounted so the view toggle (grid/table) persists.
@@ -925,51 +946,69 @@ const ProductMasterList = () => {
 
   return (
     <>
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <FilterSelect label="Category" value={filters.category} options={CATEGORIES} onChange={(v) => setFilter("category", v)} />
-        <FilterSelect label="Metal Color" value={filters.metal_color} options={METAL_COLORS} onChange={(v) => setFilter("metal_color", v)} />
-        <FilterSelect label="Diamond Shape" value={filters.shape} options={SHAPES} onChange={(v) => setFilter("shape", v)} />
-        <FilterSelect label="Status" value={filters.status} options={["active", "inactive"]} onChange={(v) => setFilter("status", v)} />
-        {activeFilterCount > 0 && (
-          <Button variant="outline" size="sm" onClick={clearFilters}>
-            <X className="h-3.5 w-3.5 mr-1" /> Clear ({activeFilterCount})
-          </Button>
-        )}
-      </div>
-
-      <ListWithCardToggle
+      <PageHeader
         title="Product Master List"
         description={`All products available in the store · ${pagination?.total ?? list.length} total`}
+      />
+
+      <ListWithCardToggle
+        title="Products"
+        titleAs="h2"
+        responsiveCards
         data={filteredRows}
         columns={columns}
+        filterDropdownProps={filterDropdowns}
+        filterActions={
+          activeFilterCount > 0 ? (
+            <Button variant="outline" size="sm" onClick={clearFilters}>
+              <X className="size-3.5" /> Clear ({activeFilterCount})
+            </Button>
+          ) : null
+        }
         resizableColumns
         renderCardView={renderStoreCardsView}
         createBtn={
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
-              <Upload className="mr-1.5 h-4 w-4" /> Import CSV
-            </Button>
+            {can("products", "create") && (
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+                <Upload className="mr-1.5 h-4 w-4" /> Import CSV
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
               {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
               Export CSV
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setBulkImagesOpen(true)}>
-              <Images className="mr-1.5 h-4 w-4" /> Bulk Upload Images
-            </Button>
-            <Button onClick={handleAdd}>
-              <Plus className="mr-2 h-4 w-4" /> Add Product
-            </Button>
+            {can("products", "edit") && (
+              <Button variant="outline" size="sm" onClick={() => setBulkImagesOpen(true)}>
+                <Images className="mr-1.5 h-4 w-4" /> Bulk Upload Images
+              </Button>
+            )}
+            {can("products", "create") && (
+              <Button onClick={handleAdd}>
+                <Plus className="mr-2 h-4 w-4" /> Add Product
+              </Button>
+            )}
           </div>
         }
         pagination={pageInfo}
         onPaginationChange={(updater) => {
-          const newPageInfo =
+          const next =
             typeof updater === "function" ? updater(pageInfo) : updater;
-          setPageInfo(newPageInfo);
+          if (!next) return;
+
+          const pageSize = next.pageSize || pageInfo.pageSize;
+          // Changing the rows-per-page can leave the current page past the
+          // last one (e.g. 10/page on page 5 → 50/page), so clamp it.
+          const totalPages = Math.max(
+            1,
+            Math.ceil((pagination?.total || 0) / pageSize)
+          );
+          const pageIndex = Math.min(next.pageIndex, totalPages - 1);
+
+          setPageInfo({ pageIndex, pageSize });
           fetchData({
-            page: newPageInfo.pageIndex + 1,
-            pageSize: newPageInfo.pageSize,
+            page: pageIndex + 1,
+            pageSize,
             search: searchQuery,
             ...activeFilters(),
           });
@@ -978,73 +1017,77 @@ const ProductMasterList = () => {
         totalCount={pagination?.total || 0}
         paginationLinks={pagination?.links}
         serverSidePagination
-        infiniteScroll
-        onLoadMore={handleLoadMore}
-        hasMore={hasMore}
-        loadingMore={loading && list.length > 0}
         bulkActions={[
-          {
-            key: "ai-generate",
-            label: "Generate AI Listing",
-            onRun: async (rows) => {
-              setAiGenerateRows(rows);
-              setAiGenerateOpen(true);
-            },
-          },
-          {
-            key: "activate",
-            label: "Activate",
-            onRun: async (rows) => {
-              const results = await Promise.allSettled(
-                rows.map((r) => toggleProductStatus(r.id, true))
-              );
-              const failedCount = results.filter((r) => r.status === "rejected").length;
-              if (failedCount > 0) {
-                toast.error(`${failedCount} of ${rows.length} product(s) could not be activated`);
-              } else {
-                toast.success(`${rows.length} product(s) activated`);
-              }
-            },
-          },
-          {
-            key: "deactivate",
-            label: "Deactivate",
-            onRun: async (rows) => {
-              const results = await Promise.allSettled(
-                rows.map((r) => toggleProductStatus(r.id, false))
-              );
-              const failedCount = results.filter((r) => r.status === "rejected").length;
-              if (failedCount > 0) {
-                toast.error(`${failedCount} of ${rows.length} product(s) could not be deactivated`);
-              } else {
-                toast.success(`${rows.length} product(s) deactivated`);
-              }
-            },
-          },
-          {
-            key: "delete",
-            label: "Delete",
-            variant: "destructive",
-            confirmMessage:
-              "Delete the selected product(s)? This cannot be undone.",
-            onRun: async (rows) => {
-              const results = await Promise.allSettled(
-                rows.map((r) => remove(r.id).then(() => r.id))
-              );
-              const deletedIds = new Set(
-                results.filter((r) => r.status === "fulfilled").map((r) => r.value)
-              );
-              const failedCount = results.length - deletedIds.size;
-              setList((prev) => prev.filter((item) => !deletedIds.has(item.id)));
-              if (failedCount > 0) {
-                const firstError = results.find((r) => r.status === "rejected")?.reason;
-                toast.error(
-                  `${failedCount} of ${rows.length} product(s) could not be deleted` +
-                    (firstError?.message ? `: ${firstError.message}` : "")
-                );
-              }
-            },
-          },
+          ...(can("products", "edit")
+            ? [
+                {
+                  key: "ai-generate",
+                  label: "Generate AI Listing",
+                  onRun: async (rows) => {
+                    setAiGenerateRows(rows);
+                    setAiGenerateOpen(true);
+                  },
+                },
+                {
+                  key: "activate",
+                  label: "Activate",
+                  onRun: async (rows) => {
+                    const results = await Promise.allSettled(
+                      rows.map((r) => toggleProductStatus(r.id, true))
+                    );
+                    const failedCount = results.filter((r) => r.status === "rejected").length;
+                    if (failedCount > 0) {
+                      toast.error(`${failedCount} of ${rows.length} product(s) could not be activated`);
+                    } else {
+                      toast.success(`${rows.length} product(s) activated`);
+                    }
+                  },
+                },
+                {
+                  key: "deactivate",
+                  label: "Deactivate",
+                  onRun: async (rows) => {
+                    const results = await Promise.allSettled(
+                      rows.map((r) => toggleProductStatus(r.id, false))
+                    );
+                    const failedCount = results.filter((r) => r.status === "rejected").length;
+                    if (failedCount > 0) {
+                      toast.error(`${failedCount} of ${rows.length} product(s) could not be deactivated`);
+                    } else {
+                      toast.success(`${rows.length} product(s) deactivated`);
+                    }
+                  },
+                },
+              ]
+            : []),
+          ...(can("products", "delete")
+            ? [
+                {
+                  key: "delete",
+                  label: "Delete",
+                  variant: "destructive",
+                  confirmMessage:
+                    "Delete the selected product(s)? This cannot be undone.",
+                  onRun: async (rows) => {
+                    const results = await Promise.allSettled(
+                      rows.map((r) => remove(r.id).then(() => r.id))
+                    );
+                    const deletedIds = new Set(
+                      results.filter((r) => r.status === "fulfilled").map((r) => r.value)
+                    );
+                    const failedCount = results.length - deletedIds.size;
+                    setList((prev) => prev.filter((item) => !deletedIds.has(item.id)));
+                    if (failedCount > 0) {
+                      const firstError = results.find((r) => r.status === "rejected")?.reason;
+                      toast.error(
+                        `${failedCount} of ${rows.length} product(s) could not be deleted` +
+                          (firstError?.message ? `: ${firstError.message}` : "")
+                      );
+                    }
+                  },
+                },
+              ]
+            : []),
         ]}
         searchQuery={searchQuery}
         onSearchChange={(query) => {

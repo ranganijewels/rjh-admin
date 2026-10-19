@@ -258,7 +258,7 @@ export default function BomManager() {
     curve && typeof curve === "object" ? Object.keys(curve).length : 0;
 
   return (
-    <div className="p-4 sm:p-6 max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>

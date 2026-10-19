@@ -8,7 +8,13 @@ import {
 } from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
-import { Edit2Icon, ExternalLinkIcon, EyeIcon, Trash2Icon, ImageOff } from "lucide-react";
+import {
+  Edit2Icon,
+  ExternalLinkIcon,
+  EyeIcon,
+  Trash2Icon,
+  ImageOff,
+} from "lucide-react";
 import { toTitleCase } from "@/lib/utils";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import {
@@ -16,6 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/common/ui/tooltip";
+import { TruncatedText } from "@/components/common/ui/short-id";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
@@ -48,7 +55,30 @@ export const useProductListColumns = ({
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
-        size: 48,
+        size: 44,
+        meta: { headerTitle: "Select" },
+      },
+      {
+        // The design number is what identifies a product on the storefront
+        // (titles are often empty), so it is the pinned identity column.
+        id: "design_no",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Design No" column={column} />
+        ),
+        accessorFn: (row) => row.design_no,
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.original.design_no || "—"}
+            className="font-medium text-foreground"
+          />
+        ),
+        size: 140,
+        meta: {
+          identity: true,
+          headerTitle: "Design No",
+          truncate: true,
+          skeleton: <Skeleton className="h-4 w-[90px]" />,
+        },
       },
       {
         id: "product_image",
@@ -65,7 +95,7 @@ export const useProductListColumns = ({
 
           if (!productImage) {
             return (
-              <div className="w-[55px] h-[70px] flex items-center justify-center bg-muted rounded">
+              <div className="flex h-[70px] w-[55px] items-center justify-center rounded bg-muted">
                 <ImageOff className="h-4 w-4 text-muted-foreground" />
               </div>
             );
@@ -74,7 +104,7 @@ export const useProductListColumns = ({
           return (
             <img
               src={productImage}
-              className="w-[55px] h-[70px] object-cover"
+              className="h-[70px] w-[55px] object-cover"
               alt={
                 row.original.title ||
                 row.original.design_no ||
@@ -86,6 +116,7 @@ export const useProductListColumns = ({
         enableSorting: true,
         size: 100,
         meta: {
+          headerTitle: "Image",
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -98,22 +129,10 @@ export const useProductListColumns = ({
         cell: ({ row }) => {
           const t = toTitleCase(row.original.title) || "-";
           // Truncate to a single line; full name on hover. Drag the column edge to widen.
-          return (
-            <span title={t} className="block truncate">
-              {t}
-            </span>
-          );
+          return <TruncatedText value={t} />;
         },
-        size: 240,
-      },
-      {
-        id: "design_no",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Design No" column={column} />
-        ),
-        accessorFn: (row) => row.design_no,
-        cell: ({ row }) => row.original.design_no,
-        size: 120,
+        size: 200,
+        meta: { headerTitle: "Title", truncate: true },
       },
       {
         id: "category",
@@ -121,8 +140,9 @@ export const useProductListColumns = ({
           <DataGridColumnHeader title="Category" column={column} />
         ),
         accessorFn: (row) => row.category,
-        cell: ({ row }) => toTitleCase(row.original.category),
-        size: 120,
+        cell: ({ row }) => toTitleCase(row.original.category) || "—",
+        size: 130,
+        meta: { headerTitle: "Category" },
       },
       {
         id: "style",
@@ -130,8 +150,9 @@ export const useProductListColumns = ({
           <DataGridColumnHeader title="Style" column={column} />
         ),
         accessorFn: (row) => row.style,
-        cell: ({ row }) => toTitleCase(row.original.style),
+        cell: ({ row }) => toTitleCase(row.original.style) || "—",
         size: 120,
+        meta: { headerTitle: "Style" },
       },
       {
         id: "shape",
@@ -139,8 +160,9 @@ export const useProductListColumns = ({
           <DataGridColumnHeader title="Shape" column={column} />
         ),
         accessorFn: (row) => row.shape,
-        cell: ({ row }) => row.original.shape || "-",
+        cell: ({ row }) => row.original.shape || "—",
         size: 110,
+        meta: { headerTitle: "Shape" },
       },
       {
         id: "metal_color",
@@ -148,8 +170,9 @@ export const useProductListColumns = ({
           <DataGridColumnHeader title="Metal Color" column={column} />
         ),
         accessorFn: (row) => row.metal_color,
-        cell: ({ row }) => toTitleCase(row.original.metal_color) || "-",
-        size: 110,
+        cell: ({ row }) => toTitleCase(row.original.metal_color) || "—",
+        size: 120,
+        meta: { headerTitle: "Metal Color" },
       },
       {
         id: "live_price",
@@ -164,6 +187,7 @@ export const useProductListColumns = ({
             : "—";
         },
         size: 120,
+        meta: { headerTitle: "Price (live)" },
       },
       {
         id: "collection",
@@ -171,8 +195,9 @@ export const useProductListColumns = ({
           <DataGridColumnHeader title="Collection" column={column} />
         ),
         accessorFn: (row) => row.collection,
-        cell: ({ row }) => toTitleCase(row.original.collection),
+        cell: ({ row }) => toTitleCase(row.original.collection) || "—",
         size: 140,
+        meta: { headerTitle: "Collection" },
       },
       {
         id: "createdAt",
@@ -181,7 +206,8 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.created_at,
         cell: ({ row }) => formatDate(row.original.created_at),
-        size: 160,
+        size: 140,
+        meta: { headerTitle: "Created At" },
       },
       {
         id: "lastUpdatedDate",
@@ -190,7 +216,8 @@ export const useProductListColumns = ({
         ),
         accessorFn: (row) => row.updated_at,
         cell: ({ row }) => formatDate(row.original.updated_at),
-        size: 160,
+        size: 140,
+        meta: { headerTitle: "Last Updated" },
       },
       {
         id: "gender",
@@ -198,8 +225,9 @@ export const useProductListColumns = ({
           <DataGridColumnHeader title="Gender" column={column} />
         ),
         accessorFn: (row) => row.gender,
-        cell: ({ row }) => toTitleCase(row.original.gender),
+        cell: ({ row }) => toTitleCase(row.original.gender) || "—",
         size: 100,
+        meta: { headerTitle: "Gender" },
       },
       {
         id: "active",
@@ -217,7 +245,7 @@ export const useProductListColumns = ({
             {!row?.original?.has_media && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <ImageOff className="h-4 w-4 text-amber-600 shrink-0" />
+                  <ImageOff className="h-4 w-4 shrink-0 text-amber-600" />
                 </TooltipTrigger>
                 <TooltipContent>
                   Hidden from the storefront until at least one photo is
@@ -227,26 +255,32 @@ export const useProductListColumns = ({
             )}
           </div>
         ),
-        size: 120,
+        size: 110,
+        meta: { headerTitle: "Active" },
       },
       {
         id: "actions",
-        header: "",
-        pinning: "right",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
         cell: ({ row }) => (
-          <div className="flex items-center justify-center gap-[10px] bg-white dark:bg-card opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-center gap-2">
             <Button
               variant="outline"
               mode="icon"
+              size="sm"
               onClick={() => onView(row.original)}
+              aria-label={`View ${row.original.design_no || "product"}`}
               title="View"
             >
-              <EyeIcon className="h-4 w-4" />
+              <EyeIcon className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="outline"
               mode="icon"
+              size="sm"
               asChild
+              aria-label={`View ${row.original.design_no || "product"} on storefront`}
               title="View on Storefront"
             >
               <a
@@ -254,32 +288,39 @@ export const useProductListColumns = ({
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                <ExternalLinkIcon className="h-4 w-4" />
+                <ExternalLinkIcon className="h-3.5 w-3.5" />
               </a>
             </Button>
             {onEdit && (
               <Button
                 variant="outline"
                 mode="icon"
+                size="sm"
                 onClick={() => onEdit(row.original)}
+                aria-label={`Edit ${row.original.design_no || "product"}`}
                 title="Edit"
               >
-                <Edit2Icon className="h-4 w-4" />
+                <Edit2Icon className="h-3.5 w-3.5" />
               </Button>
             )}
             {onDelete && (
               <Button
                 variant="outline"
                 mode="icon"
+                size="sm"
                 onClick={() => onDelete(row.original.id)}
+                aria-label={`Delete ${row.original.design_no || "product"}`}
                 title="Delete"
               >
-                <Trash2Icon className="h-4 w-4 text-red-500" />
+                <Trash2Icon className="h-3.5 w-3.5 text-red-500" />
               </Button>
             )}
           </div>
         ),
-        size: 180,
+        enableSorting: false,
+        enableHiding: false,
+        size: 172,
+        meta: { headerTitle: "Actions" },
       },
     ],
     [

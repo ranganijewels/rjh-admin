@@ -7,6 +7,8 @@ import {
 
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 import { Edit2Icon, Eye, Ban, CheckCircle2 } from "lucide-react";
 
 export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) => {
@@ -21,6 +23,7 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         enableSorting: false,
         enableHiding: false,
         size: 48,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "id",
@@ -28,12 +31,13 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
           <DataGridColumnHeader title="ID" column={column} />
         ),
         accessorFn: (row) => row.id,
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.getValue("id")}</span>
-        ),
-        size: 50,
+        cell: ({ row }) => <ShortId value={row.getValue("id")} label="User ID" />,
+        size: 130,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[60px]" /> },
+        meta: {
+          headerTitle: "User ID",
+          skeleton: <Skeleton className="h-4 w-[60px]" />,
+        },
       },
       {
         id: "name",
@@ -42,11 +46,16 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         ),
         accessorFn: (row) => row.name,
         cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.getValue("name")}</span>
+          <TruncatedText value={row.getValue("name")} className="font-medium text-foreground" />
         ),
         size: 230,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
+        meta: {
+          headerTitle: "Name",
+          identity: true,
+          truncate: true,
+          skeleton: <Skeleton className="h-4 w-[125px]" />,
+        },
       },
       {
         id: "email",
@@ -54,17 +63,16 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
           <DataGridColumnHeader title="Email" column={column} />
         ),
         accessorFn: (row) => row.email,
-        cell: ({ row }) => {
-          const email = row.getValue("email") || "-";
-          return (
-            <span title={email} className="block truncate text-sm font-medium">
-              {email}
-            </span>
-          );
-        },
+        cell: ({ row }) => (
+          <TruncatedText value={row.getValue("email")} className="font-medium text-foreground" />
+        ),
         size: 230,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
+        meta: {
+          headerTitle: "Email",
+          truncate: true,
+          skeleton: <Skeleton className="h-4 w-[125px]" />,
+        },
       },
       // {
       //   id: "password",
@@ -107,7 +115,10 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         },
         size: 130,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
+        meta: {
+          headerTitle: "Role",
+          skeleton: <Skeleton className="h-4 w-[125px]" />,
+        },
       },
       {
         id: "department",
@@ -122,7 +133,10 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         ),
         size: 130,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
+        meta: {
+          headerTitle: "Department",
+          skeleton: <Skeleton className="h-4 w-[125px]" />,
+        },
       },
       {
         id: "designation",
@@ -137,7 +151,10 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         ),
         size: 130,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
+        meta: {
+          headerTitle: "Designation",
+          skeleton: <Skeleton className="h-4 w-[125px]" />,
+        },
       },
       {
         id: "is_manager",
@@ -152,7 +169,10 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         ),
         size: 120,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[125px]" /> },
+        meta: {
+          headerTitle: "Manager",
+          skeleton: <Skeleton className="h-4 w-[125px]" />,
+        },
       },
       {
         // "Delete" on a user is actually a soft-delete (users.service.ts sets
@@ -167,21 +187,15 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
         accessorFn: (row) => (row?.isActive === false ? "Inactive" : "Active"),
         cell: ({ row }) => {
           const active = row.original?.isActive !== false;
-          return (
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                active
-                  ? "bg-green-100 text-green-700"
-                  : "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground"
-              }`}
-            >
-              {active ? "Active" : "Inactive"}
-            </span>
-          );
+          return <StatusBadge status={active ? "active" : "inactive"} />;
         },
-        size: 100,
+        size: 110,
         enableSorting: false,
-        meta: { skeleton: <Skeleton className="h-4 w-[70px]" /> },
+        enableHiding: false,
+        meta: {
+          headerTitle: "Status",
+          skeleton: <Skeleton className="h-4 w-[70px]" />,
+        },
       },
       {
         id: "action",
@@ -193,8 +207,12 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
             <Button
               variant="outline"
               className="!cursor-pointer"
-              aria-label="View Permissions"
-              onClick={() => onViewPermission && onViewPermission(row.original)}
+              aria-label="View permissions"
+              title="View permissions"
+              onClick={(event) => {
+                event.stopPropagation();
+                onViewPermission && onViewPermission(row.original);
+              }}
             >
               <Eye size={16} />
               <span className="hidden md:inline">View Permissions</span>
@@ -204,7 +222,11 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
               mode="icon"
               variant="outline"
               aria-label="Edit user"
-              onClick={() => onEdit && onEdit(row.original)}
+              title="Edit user"
+              onClick={(event) => {
+                event.stopPropagation();
+                onEdit && onEdit(row.original);
+              }}
             >
               <Edit2Icon size={16} />
             </Button>
@@ -214,7 +236,11 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
               variant="outline"
               className="!cursor-pointer"
               aria-label={row.original?.isActive === false ? "Activate user" : "Deactivate user"}
-              onClick={() => onToggleStatus && onToggleStatus(row.original)}
+              title={row.original?.isActive === false ? "Activate user" : "Deactivate user"}
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleStatus && onToggleStatus(row.original);
+              }}
             >
               {row.original?.isActive === false ? (
                 <CheckCircle2 size={16} />
@@ -224,8 +250,10 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
             </Button>
           </div>
         ),
-        size: 130,
+        size: 180,
         enableSorting: false,
+        enableHiding: false,
+        meta: { headerTitle: "Action" },
       },
     ],
     [onEdit, onToggleStatus, onViewPermission]

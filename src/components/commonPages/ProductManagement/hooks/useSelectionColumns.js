@@ -1,94 +1,3 @@
-// "use client";
-
-// import { useMemo } from "react";
-// import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
-// import { Button } from "@/components/common/ui/button";
-// import { PlusIcon, Trash2Icon } from "lucide-react";
-// import { StatusBadge } from "@/components/common/ui/badge";
-
-// export const useSelectionColumns = (bestSellerIds = [], onView) => {
-//   const columns = useMemo(
-//     () => [
-//       {
-//         id: "category",
-//         header: ({ column }) => (
-//           <DataGridColumnHeader title="Collection ID" column={column} />
-//         ),
-//         accessorFn: (row) => row.category,
-//         cell: ({ row }) => row.original.category || "-",
-//         size: 100,
-//       },
-//       {
-//         id: "storeId",
-//         header: ({ column }) => (
-//           <DataGridColumnHeader title="Store ID" column={column} />
-//         ),
-//         accessorFn: (row) => row.storeId,
-//         cell: ({ row }) => row.original.storeId || "-",
-//         size: 100,
-//       },
-//       {
-//         id: "productIds",
-//         header: ({ column }) => (
-//           <DataGridColumnHeader title="Product IDs" column={column} />
-//         ),
-//         accessorFn: (row) => row.productIds.join(", "),
-//         cell: ({ row }) => {
-//           const ids = row.original.productIds || [];
-//           return (
-//             <div className="flex flex-wrap gap-1">
-//               {ids.map((id) => (
-//                 <StatusBadge
-//                   key={id}
-//                   size="sm"
-//                   appearance={bestSellerIds.includes(id) ? "solid" : "outline"}
-//                   status={`#${id}`}
-//                 />
-//               ))}
-//             </div>
-//           );
-//         },
-//         size: 200,
-//       },
-//       {
-//         id: "sortOrder",
-//         header: ({ column }) => (
-//           <DataGridColumnHeader title="Sort Order" column={column} />
-//         ),
-//         accessorFn: (row) => row.sortOrder,
-//         cell: ({ row }) => row.original.sortOrder ?? "-",
-//         size: 80,
-//       },
-//       {
-//         id: "actions",
-//         header: "Actions",
-//         cell: ({ row }) => (
-//           <div className="flex gap-2">
-//             <Button
-//               variant="outline"
-//               mode="icon"
-//               onClick={() => onView?.(row.original)}
-//             >
-//               <PlusIcon className="h-4 w-4" />
-//             </Button>
-//             <Button
-//               variant="outline"
-//               mode="icon"
-//               onClick={() => console.log("Delete", row.original.collectionId)}
-//             >
-//               <Trash2Icon className="h-4 w-4" />
-//             </Button>
-//           </div>
-//         ),
-//         size: 100,
-//       },
-//     ],
-//     [bestSellerIds, onView]
-//   );
-
-//   return columns;
-// };
-
 "use client";
 
 import { useMemo } from "react";
@@ -98,9 +7,8 @@ import {
   DataGridTableRowSelectAll,
 } from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
-import { Button } from "@/components/common/ui/button";
-import { Edit2Icon, EyeIcon } from "lucide-react";
 import { toTitleCase } from "@/lib/utils";
+import { TruncatedText } from "@/components/common/ui/short-id";
 
 export const useSelectionColumns = ({
   editingCell,
@@ -118,16 +26,18 @@ export const useSelectionColumns = ({
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
-        size: 48,
+        size: 44,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "id",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Id" column={column} />
+          <DataGridColumnHeader title="ID" column={column} />
         ),
         accessorFn: (row) => row.id,
-        cell: ({ row }) => row.original.id || "-",
-        size: 60,
+        cell: ({ row }) => <TruncatedText value={row.original.id || "—"} />,
+        size: 130,
+        meta: { headerTitle: "ID" },
       },
       {
         id: "product_image",
@@ -145,8 +55,8 @@ export const useSelectionColumns = ({
           return (
             <img
               src={productImage || "/images/products/1.png"}
-              className="w-[50px] h-[50px] object-cover rounded"
-              alt="product"
+              className="h-[50px] w-[50px] rounded object-cover"
+              alt={row.original.title || "Product image"}
               onError={(e) => {
                 e.currentTarget.src = "/images/products/1.png";
               }}
@@ -156,6 +66,7 @@ export const useSelectionColumns = ({
         enableSorting: true,
         size: 100,
         meta: {
+          headerTitle: "Image",
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -167,13 +78,10 @@ export const useSelectionColumns = ({
         accessorFn: (row) => row.title,
         cell: ({ row }) => {
           const t = toTitleCase(row.original.title) || "-";
-          return (
-            <span title={t} className="block truncate">
-              {t}
-            </span>
-          );
+          return <TruncatedText value={t} />;
         },
         size: 230,
+        meta: { headerTitle: "Title", identity: true, truncate: true },
       },
       {
         id: "design_no",
@@ -181,8 +89,9 @@ export const useSelectionColumns = ({
           <DataGridColumnHeader title="Design No" column={column} />
         ),
         accessorFn: (row) => row.design_no,
-        cell: ({ row }) => row.original.design_no || "-",
-        size: 120,
+        cell: ({ row }) => <TruncatedText value={row.original.design_no || "—"} />,
+        size: 130,
+        meta: { headerTitle: "Design No", truncate: true },
       },
       {
         id: "category",
@@ -190,8 +99,9 @@ export const useSelectionColumns = ({
           <DataGridColumnHeader title="Category" column={column} />
         ),
         accessorFn: (row) => row.category,
-        cell: ({ row }) => toTitleCase(row.original.category),
-        size: 120,
+        cell: ({ row }) => toTitleCase(row.original.category) || "—",
+        size: 130,
+        meta: { headerTitle: "Category" },
       },
       {
         id: "style",
@@ -199,8 +109,9 @@ export const useSelectionColumns = ({
           <DataGridColumnHeader title="Style" column={column} />
         ),
         accessorFn: (row) => row.style,
-        cell: ({ row }) => toTitleCase(row.original.style),
+        cell: ({ row }) => toTitleCase(row.original.style) || "—",
         size: 120,
+        meta: { headerTitle: "Style" },
       },
       {
         id: "shape",
@@ -208,8 +119,9 @@ export const useSelectionColumns = ({
           <DataGridColumnHeader title="Shape" column={column} />
         ),
         accessorFn: (row) => row.shape,
-        cell: ({ row }) => row.original.shape,
+        cell: ({ row }) => row.original.shape || "—",
         size: 120,
+        meta: { headerTitle: "Shape" },
       },
       {
         id: "base_price",
@@ -221,6 +133,7 @@ export const useSelectionColumns = ({
           return `$${row?.original?.base_price || 0}`;
         },
         size: 120,
+        meta: { headerTitle: "Base Price" },
       },
       {
         id: "salesPrice",
@@ -230,6 +143,7 @@ export const useSelectionColumns = ({
         accessorFn: (row) => row.sales_price,
         cell: ({ row }) => `$${row.original.sales_price || 0}`,
         size: 120,
+        meta: { headerTitle: "Sales Price" },
       },
       {
         id: "collection",
@@ -237,8 +151,9 @@ export const useSelectionColumns = ({
           <DataGridColumnHeader title="Collection" column={column} />
         ),
         accessorFn: (row) => row.collection,
-        cell: ({ row }) => toTitleCase(row.original.collection),
+        cell: ({ row }) => toTitleCase(row.original.collection) || "—",
         size: 140,
+        meta: { headerTitle: "Collection" },
       },
       {
         id: "createdAt",
@@ -248,9 +163,14 @@ export const useSelectionColumns = ({
         accessorFn: (row) => row.created_at,
         cell: ({ row }) =>
           row.original.created_at
-            ? new Date(row.original.created_at).toLocaleDateString()
-            : "-",
-        size: 160,
+            ? new Date(row.original.created_at).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
+            : "—",
+        size: 140,
+        meta: { headerTitle: "Created At" },
       },
       {
         id: "lastUpdatedDate",
@@ -260,9 +180,14 @@ export const useSelectionColumns = ({
         accessorFn: (row) => row.updated_at,
         cell: ({ row }) =>
           row.original.updated_at
-            ? new Date(row.original.updated_at).toLocaleDateString()
-            : "-",
-        size: 160,
+            ? new Date(row.original.updated_at).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
+            : "—",
+        size: 140,
+        meta: { headerTitle: "Last Updated" },
       },
       {
         id: "gender",
@@ -270,33 +195,10 @@ export const useSelectionColumns = ({
           <DataGridColumnHeader title="Gender" column={column} />
         ),
         accessorFn: (row) => row.gender,
-        cell: ({ row }) => toTitleCase(row.original.gender),
+        cell: ({ row }) => toTitleCase(row.original.gender) || "—",
         size: 100,
+        meta: { headerTitle: "Gender" },
       },
-      // {
-      //   id: "actions",
-      //   header: "Actions",
-      //   pinning: "right",
-      //   cell: ({ row }) => (
-      //     <div className="flex gap-[10px]">
-      //       <Button
-      //         variant="outline"
-      //         mode="icon"
-      //         onClick={() => onView(row.original)}
-      //       >
-      //         <EyeIcon className="h-4 w-4" />
-      //       </Button>
-      //       <Button
-      //         variant="outline"
-      //         mode="icon"
-      //         onClick={() => setEditingCell(row.original)}
-      //       >
-      //         <Edit2Icon className="h-4 w-4" />
-      //       </Button>
-      //     </div>
-      //   ),
-      //   size: 100,
-      // },
     ],
     [editingCell, setEditingCell, editedValue, handleSaveEdit, onView, onClick]
   );

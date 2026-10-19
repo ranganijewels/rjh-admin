@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/common/ui/button";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { Plus, Eye, Pencil, Layers } from "lucide-react";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { toTitleCase } from "@/lib/utils";
 
 const authHeaders = () => {
@@ -44,21 +45,15 @@ export default function ProductGroups() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <Layers className="h-5 w-5" /> Product Groups
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            A group is one design sold in several diamond shapes. Each shape is its
-            own product; products with the same <b>Design Group</b> code are linked
-            on the storefront shape selector.
-          </p>
-        </div>
-        <Button onClick={() => router.push("/dashboard/product-management/add")}>
-          <Plus className="h-4 w-4 mr-1" /> Add Product
-        </Button>
-      </div>
+      <PageHeader
+        title="Product Groups"
+        description="A group is one design sold in several diamond shapes. Each shape is its own product; products with the same Design Group code are linked on the storefront shape selector."
+        actions={
+          <Button onClick={() => router.push("/dashboard/product-management/add")}>
+            <Plus className="h-4 w-4" /> Add Product
+          </Button>
+        }
+      />
 
       {groups.length === 0 ? (
         <div className="border border-dashed border-border rounded-lg p-10 text-center text-muted-foreground">

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Users } from "lucide-react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { DataGridEmpty } from "@/components/common/ui/data-grid";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { useCustomerData } from "./hooks/userCustomerData";
 import { DataGridToolbar } from "@/components/common/DataGridToolBar";
 import { useCrudApi } from "@/hooks/useCrudApi";
@@ -61,15 +62,22 @@ const AllCustomer = () => {
   }
 
   return (
-    <ListWithCardToggle
-      title="All Customers"
-      data={filteredData}
-      columns={columns}
-      useFilteredData={null}
-      loading={loading}
-      resizableColumns
-      infiniteScroll
-    />
+    <Page>
+      <PageHeader
+        title="Customers"
+        description="Everyone who has an account on the storefront, with the contact details the team uses to follow up."
+      />
+
+      <ListWithCardToggle
+        titleAs="none"
+        data={filteredData}
+        columns={columns}
+        useFilteredData={null}
+        loading={loading}
+        resizableColumns
+        infiniteScroll
+      />
+    </Page>
   );
 };
 

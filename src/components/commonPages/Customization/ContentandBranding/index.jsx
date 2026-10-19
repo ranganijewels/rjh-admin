@@ -53,7 +53,7 @@ export const ContentandBranding = () => {
             rules={{ required: "Brand story is required" }}
             render={({ field }) => (
               <FormItem>
-                <span className="text-base font-medium text-mono ps-0">
+                <span className="text-base font-medium text-foreground ps-0">
                   Brand Story
                 </span>
                 <FormControl>
@@ -73,7 +73,7 @@ export const ContentandBranding = () => {
             rules={{ required: "Craftmanship details are required" }}
             render={({ field }) => (
               <FormItem>
-                <span className="text-base font-medium text-mono">
+                <span className="text-base font-medium text-foreground">
                   Craftmanship Details
                 </span>
                 <FormControl>
@@ -88,7 +88,7 @@ export const ContentandBranding = () => {
             )}
           />
           <div className="flex flex-col gap-3.5">
-            <span className="text-base font-medium text-mono">
+            <span className="text-base font-medium text-foreground">
               Testimonials
             </span>
             <RadioGroup defaultValue="no" className="flex gap-4">
@@ -99,7 +99,7 @@ export const ContentandBranding = () => {
             </RadioGroup>
           </div>
           <div className="flex flex-col gap-3.5">
-            <span className="text-base font-medium text-mono">
+            <span className="text-base font-medium text-foreground">
               Blog Integration
             </span>
             <RadioGroup defaultValue="no" className="flex gap-4">
@@ -110,7 +110,7 @@ export const ContentandBranding = () => {
             </RadioGroup>
           </div>
           <div className="flex flex-col gap-3.5 mb-7">
-            <span className="text-base font-medium text-mono">Logo Upload</span>
+            <span className="text-base font-medium text-foreground">Logo Upload</span>
             <RadioGroup defaultValue="no" className="flex gap-4">
               <div className="flex items-center space-x-2">
                 <RadioGroupItem value="yes" id="blog-yes" />
@@ -130,7 +130,7 @@ export const ContentandBranding = () => {
                   </div>
                   <label
                     htmlFor="logo-upload"
-                    className="text-mono text-xs font-medium cursor-pointer"
+                    className="text-foreground text-xs font-medium cursor-pointer"
                   >
                     Drag and drop your logo here, or click to select
                   </label>
@@ -159,7 +159,7 @@ export const ContentandBranding = () => {
             </div>
           </div>
           <div className="flex flex-col gap-3.5 mb-7">
-            <span className="text-base font-medium text-mono pb-0.5">
+            <span className="text-base font-medium text-foreground pb-0.5">
               Font and Style Preferences
             </span>
             <div className="w-full max-w-[800px]">

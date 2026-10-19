@@ -1,91 +1,78 @@
 import { useMemo } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
-import {
-  DataGridTableRowSelect,
-  DataGridTableRowSelectAll,
-} from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
-import { Edit2Icon } from "lucide-react";
-import { RiDeleteBin5Line } from "@remixicon/react";
+import { Eye } from "lucide-react";
+import { TruncatedText } from "@/components/common/ui/short-id";
 
-export const userRolesData = ({ onEdit, onDelete }) => {
+export const userRolesData = ({ onViewPermissions } = {}) => {
   return useMemo(
     () => [
       {
-        id: "select",
-        header: () => <DataGridTableRowSelectAll />,
-        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
-        enableSorting: false,
-        enableHiding: false,
-        size: 48,
-      },
-      {
-        id: "id",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="ID" column={column} />
-        ),
-        accessorFn: (row) => row.id,
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.getValue("id")}</span>
-        ),
-        size: 100,
-        enableSorting: false,
-        meta: {
-          skeleton: <Skeleton className="h-4 w-[60px]" />,
-        },
-      },
-      {
         id: "name",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Role Name" column={column} />
+          <DataGridColumnHeader title="Role" column={column} />
         ),
         accessorFn: (row) => row.name,
-        cell: ({ row }) => {
-          const name = row.getValue("name");
-          return (
-            <span
-              title={name}
-              className="block truncate text-sm font-medium"
-            >
-              {name}
-            </span>
-          );
-        },
-        size: 230,
+        cell: ({ row }) => (
+          <span className="text-sm font-semibold text-foreground">
+            {row.getValue("name")}
+          </span>
+        ),
+        size: 200,
         enableSorting: false,
         meta: {
-          skeleton: <Skeleton className="h-4 w-[125px]" />,
+          identity: true,
+          headerTitle: "Role",
+          skeleton: <Skeleton className="h-4 w-[90px]" />,
+        },
+      },
+      {
+        id: "description",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Description" column={column} />
+        ),
+        accessorFn: (row) => row.description || "—",
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.getValue("description")}
+            className="text-muted-foreground"
+          />
+        ),
+        size: 420,
+        enableSorting: false,
+        meta: {
+          headerTitle: "Description",
+          truncate: true,
+          skeleton: <Skeleton className="h-4 w-[260px]" />,
         },
       },
       {
         id: "action",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Action" column={column} />
+          <DataGridColumnHeader title="Permissions" column={column} />
         ),
         cell: ({ row }) => (
-          <div className="flex gap-2.5">
-            <Button
-              mode="icon"
-              variant="outline"
-              onClick={() => onEdit && onEdit(row.original)}
-            >
-              <Edit2Icon />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              className="!cursor-pointer"
-              onClick={() => onDelete && onDelete(row.original.id)}
-            >
-              <RiDeleteBin5Line />
-            </Button>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="!cursor-pointer"
+            aria-label={`View permissions for ${row.original.name || "role"}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              onViewPermissions?.(row.original);
+            }}
+          >
+            <Eye className="size-3.5" />
+            View Permissions
+          </Button>
         ),
-        size: 120,
+        size: 180,
         enableSorting: false,
+        enableHiding: false,
+        meta: { headerTitle: "Permissions" },
       },
     ],
-    [onEdit, onDelete]
+    [onViewPermissions]
   );
 };

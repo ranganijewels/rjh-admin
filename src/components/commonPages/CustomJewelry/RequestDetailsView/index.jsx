@@ -69,7 +69,7 @@ const RequestDetailsView = () => {
     <Fragment>
       {/* <PageNavbar /> */}
       {/* {settings?.layout === "demo1" && ( */}
-      <Container>
+      <Container className="px-0 lg:px-0">
         <Toolbar>
           <ToolbarHeading>
             <div className="flex items-center gap-2.5">

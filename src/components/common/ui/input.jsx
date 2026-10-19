@@ -26,8 +26,8 @@ import { cn } from '@/lib/utils';
 // Define input size variants
 const inputVariants = cva(
   `
-    flex w-full bg-background border border-input shadow-xs shadow-black/5 transition-[color,box-shadow] text-foreground placeholder:text-muted-foreground/80
-    focus-visible:ring-ring/30  focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px]
+    flex w-full bg-card border border-border shadow-none transition-[color,box-shadow] text-foreground placeholder:text-muted-foreground/80
+    focus-visible:ring-primary/10 focus-visible:border-primary/30 focus-visible:outline-none focus-visible:ring-[3px]
     disabled:cursor-not-allowed disabled:opacity-50 [&[readonly]]:opacity-70
     file:h-full [&[type=file]]:py-0 file:border-solid file:border-input file:bg-transparent
     file:font-medium file:not-italic file:text-foreground file:p-0 file:border-0 file:border-e
@@ -37,9 +37,9 @@ const inputVariants = cva(
   {
     variants: {
       size: {
-        lg: 'h-10 px-4 text-sm rounded-md file:pe-4 file:me-4',
-        md: 'h-8.5 px-3 text-[0.8125rem] leading-(--text-sm--line-height) rounded-md file:pe-3 file:me-3',
-        sm: 'h-7 px-2.5 text-xs rounded-md file:pe-2.5 file:me-2.5',
+        lg: 'h-10 px-4 text-sm rounded-lg file:pe-4 file:me-4',
+        md: 'h-9 px-3 text-[0.8125rem] leading-(--text-sm--line-height) rounded-lg file:pe-3 file:me-3',
+        sm: 'h-8 px-2.5 text-xs rounded-lg file:pe-2.5 file:me-2.5',
       },
     },
     defaultVariants: {

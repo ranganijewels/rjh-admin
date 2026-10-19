@@ -1,42 +1,23 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button } from "@/components/common/ui/button";
-import { Plus } from "lucide-react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
-import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { useCrudList } from "@/hooks/useCrudList";
-import { useCrudApi } from "@/hooks/useCrudApi";
-import AddRoleModel from "./AddRoleModel";
+import PermissionDialog from "../PermissionDialog";
 import { userRolesData } from "./hooks/userRolesData";
 
 const Roles = () => {
-  const {
-    list,
-    loading,
-    error,
-    editData,
-    setEditData,
-    setDeleteId,
-    dialogOpen,
-    setDialogOpen,
-    confirmOpen,
-    setConfirmOpen,
-    fetchData,
-    handleDelete,
-  } = useCrudList("/api/users-roles");
-  const { remove } = useCrudApi("/api/users-roles");
+  const { list, loading, error } = useCrudList("/api/users-roles");
+
+  const [permissionOpen, setPermissionOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState(null);
 
   const columns = userRolesData({
-    onEdit: (item) => {
-      setEditData(item);
-      setDialogOpen(true);
-    },
-
-    onDelete: (id) => {
-      setDeleteId(id);
-      setConfirmOpen(true);
+    onViewPermissions: (role) => {
+      setSelectedRole(role.id || role.name);
+      setPermissionOpen(true);
     },
   });
 
@@ -51,53 +32,27 @@ const Roles = () => {
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
   return (
-    <div className="space-y-4">
+    <Page>
+      <PageHeader
+        title="System Roles"
+        description="Roles are fixed by the backend. Select a role to review what it can access."
+      />
+
       <ListWithCardToggle
-        title="All Roles"
+        titleAs="none"
         data={list}
         columns={columns}
         resizableColumns
         filterFunction={filterFunction}
         infiniteScroll
-        bulkActions={[
-          {
-            key: "delete",
-            label: "Delete",
-            variant: "destructive",
-            confirmMessage:
-              "Delete the selected role(s)? This cannot be undone.",
-            onRun: async (rows) => {
-              await Promise.all(rows.map((r) => remove(r.id)));
-              fetchData();
-            },
-          },
-        ]}
-        createBtn={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add User Role
-          </Button>
-        }
       />
 
-      <AddRoleModel
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-          setEditData(null);
-        }}
-        editData={editData}
-        onSuccess={fetchData}
+      <PermissionDialog
+        open={permissionOpen}
+        onOpenChange={setPermissionOpen}
+        role={selectedRole}
       />
-
-      <ConfirmDialog
-        open={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        onConfirm={handleDelete}
-        title="Delete Role"
-        message="Are you sure you want to delete this role? This action cannot be undone."
-      />
-    </div>
+    </Page>
   );
 };
 

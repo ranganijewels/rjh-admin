@@ -3,21 +3,122 @@ import React, { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/ui/button";
 import {
-  Toolbar,
-  ToolbarActions,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from "@/components/common/ui/toolbar";
-import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, ExternalLink } from "lucide-react";
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/common/ui/cards/card";
+import { Badge } from "@/components/common/ui/badge";
+import { PageHeader } from "@/components/common/ui/page";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  ExternalLink,
+} from "lucide-react";
 import { useCrudList } from "@/hooks/useCrudList";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import NavItemModel from "./NavItemModel";
+import { cn } from "@/lib/utils";
 
 const authHeaders = () => {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
+};
+
+// One numbered row in the menu card. Actions are always present in the DOM
+// (for keyboard + touch) but only fade in on hover/focus on pointer devices,
+// matching the reference layout.
+const MenuRow = ({ item, number, siblings, idx, sub, onMove, onEdit, onDelete }) => {
+  const isFirst = idx === 0;
+  const isLast = idx === siblings.length - 1;
+
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-4 py-3.5 transition-colors hover:bg-muted/40 focus-within:bg-muted/40",
+        sub ? "ps-14 pe-4" : "px-4"
+      )}
+    >
+      <span
+        className={cn(
+          "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+          sub ? "bg-muted text-muted-foreground" : "bg-secondary text-foreground"
+        )}
+        aria-hidden="true"
+      >
+        {number}
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={cn("truncate text-sm", sub ? "font-normal" : "font-medium")}>
+            {item.label}
+          </span>
+          {!item.isActive && (
+            <Badge appearance="outline" shape="circle" size="sm">
+              Inactive
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <span className="truncate" title={item.url}>
+            {item.url}
+          </span>
+          {item.target === "_blank" && (
+            <ExternalLink className="h-3 w-3 shrink-0" aria-label="Opens in a new tab" />
+          )}
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100">
+        <Button
+          variant="ghost"
+          mode="icon"
+          size="sm"
+          aria-label={`Move ${item.label} up`}
+          title="Move up"
+          onClick={() => onMove(item, siblings, "up")}
+          disabled={isFirst}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          mode="icon"
+          size="sm"
+          aria-label={`Move ${item.label} down`}
+          title="Move down"
+          onClick={() => onMove(item, siblings, "down")}
+          disabled={isLast}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          mode="icon"
+          size="sm"
+          aria-label={`Edit ${item.label}`}
+          title="Edit"
+          onClick={() => onEdit(item)}
+        >
+          <Pencil className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          mode="icon"
+          size="sm"
+          aria-label={`Delete ${item.label}`}
+          title="Delete"
+          onClick={() => onDelete(item.id)}
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+    </div>
+  );
 };
 
 const NavigationManager = () => {
@@ -89,79 +190,94 @@ const NavigationManager = () => {
     }
   };
 
-  const Row = ({ item, siblings, idx, sub }) => (
-    <div className={`flex items-center justify-between gap-3 ${sub ? "pl-4 py-1.5 border-l-2 border-border" : "px-4 py-3 bg-muted/30"}`}>
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          <span className={sub ? "text-sm" : "font-medium text-sm"}>{item.label}</span>
-          {!item.isActive && (
-            <span className="text-[10px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1.5 py-0.5">
-              Inactive
-            </span>
-          )}
-        </div>
-        <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
-          {item.url}
-          {item.target === "_blank" && <ExternalLink className="h-3 w-3 shrink-0" />}
-        </div>
-      </div>
-      <div className="flex items-center gap-1 shrink-0">
-        <Button variant="outline" mode="icon" size="sm" onClick={() => move(item, siblings, "up")} disabled={idx === 0}>
-          <ChevronUp className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="outline" mode="icon" size="sm" onClick={() => move(item, siblings, "down")} disabled={idx === siblings.length - 1}>
-          <ChevronDown className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="outline" mode="icon" size="sm" onClick={() => handleEdit(item)}>
-          <Pencil className="h-3.5 w-3.5" />
-        </Button>
-        <Button variant="outline" mode="icon" size="sm" onClick={() => handleAskDelete(item.id)}>
-          <Trash2 className="h-3.5 w-3.5 text-red-500" />
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
     <div>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle text="Navigation Menu" className="font-semibold !text-foreground text-lg" />
-          <ToolbarDescription className="mt-1 text-sm">
-            Build the storefront header menu — link to a Collection, Category, Style, static page, or any custom URL.
-          </ToolbarDescription>
-        </ToolbarHeading>
-        <ToolbarActions>
+      <PageHeader
+        titleAs="h2"
+        title="Navigation Menu"
+        description="Build the storefront header menu — link to a Collection, Category, Style, static page, or any custom URL."
+        actions={
           <Button onClick={handleAddTop}>
-            <Plus className="mr-2 h-4 w-4" /> Add Top-Level Item
+            <Plus className="size-4" aria-hidden="true" /> Add menu item
           </Button>
-        </ToolbarActions>
-      </Toolbar>
+        }
+      />
 
-      <div className="space-y-3 mt-4">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : topLevel.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No navigation items yet — add the first one above.</p>
-        ) : (
-          topLevel.map((item, idx) => {
-            const children = childrenByParent[item.id] || [];
-            return (
-              <div key={item.id} className="border border-border rounded-lg overflow-hidden">
-                <Row item={item} siblings={topLevel} idx={idx} />
-                <div className="px-4 py-2 space-y-1.5">
-                  {children.map((child, cIdx) => (
-                    <Row key={child.id} item={child} siblings={children} idx={cIdx} sub />
-                  ))}
-                  <Button variant="outline" size="sm" className="mt-1 gap-1.5" onClick={() => handleAddChild(item.id)}>
-                    <Plus className="h-3.5 w-3.5" /> Add Sub-Link
-                  </Button>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </div>
+      <Card className="mt-4">
+        <CardHeader className="py-4">
+          <div>
+            <p className="text-sm font-semibold text-foreground">Menu items</p>
+            <p className="text-xs text-muted-foreground">
+              {topLevel.length === 0
+                ? "No items yet"
+                : `${topLevel.length} top-level ${topLevel.length === 1 ? "item" : "items"}`}
+            </p>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground">Loading…</p>
+          ) : topLevel.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 px-4 py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                No navigation items yet — add the first one to get started.
+              </p>
+              <Button onClick={handleAddTop} variant="outline">
+                <Plus className="me-2 h-4 w-4" aria-hidden="true" /> Add menu item
+              </Button>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {topLevel.map((item, idx) => {
+                const children = childrenByParent[item.id] || [];
+                return (
+                  <li key={item.id}>
+                    <MenuRow
+                      item={item}
+                      number={idx + 1}
+                      siblings={topLevel}
+                      idx={idx}
+                      onMove={move}
+                      onEdit={handleEdit}
+                      onDelete={handleAskDelete}
+                    />
+
+                    {children.length > 0 && (
+                      <ul className="divide-y divide-border border-t border-border/60 bg-muted/20">
+                        {children.map((child, cIdx) => (
+                          <li key={child.id}>
+                            <MenuRow
+                              item={child}
+                              number={`${idx + 1}.${cIdx + 1}`}
+                              siblings={children}
+                              idx={cIdx}
+                              sub
+                              onMove={move}
+                              onEdit={handleEdit}
+                              onDelete={handleAskDelete}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    <div className="px-4 pb-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-muted-foreground"
+                        onClick={() => handleAddChild(item.id)}
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" /> Add sub-link
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       <NavItemModel
         open={dialogOpen}

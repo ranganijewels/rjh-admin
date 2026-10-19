@@ -10,16 +10,16 @@ import FAQCategories from "./FAQCategories/FAQCategories";
 
 const FaqManager = () => {
   return (
-    <div className="min-h-screen">
+    <div>
       <header>
-        <h1 className="font-semibold">FAQ Manager</h1>
-        <p className="text-muted-foreground">
+        <h2 className="text-lg font-semibold text-foreground">FAQ Manager</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Create and manage your FAQ entries here.
         </p>
       </header>
 
-      <Tabs defaultValue="faq" className="w-full mt-6">
-        <TabsList className="grid grid-cols-2">
+      <Tabs defaultValue="faq" className="w-full mt-5">
+        <TabsList className="w-full max-w-full overflow-x-auto">
           <TabsTrigger value="faq">FAQs</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>

@@ -7,16 +7,10 @@ import {
   DataGridTableRowSelectAll,
 } from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
-import { Badge, BadgeDot } from "@/components/common/ui/badge";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 
 export const useReturnRepairColumns = () => {
-  const STATUS_MAP = {
-    submitted: { label: "Submitted", variant: "info" },
-    in_progress: { label: "In Progress", variant: "warning" },
-    completed: { label: "Completed", variant: "success" },
-    rejected: { label: "Rejected", variant: "danger" },
-  };
-
   return useMemo(
     () => [
       {
@@ -25,7 +19,8 @@ export const useReturnRepairColumns = () => {
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
-        size: 48,
+        size: 44,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "orderId",
@@ -34,13 +29,13 @@ export const useReturnRepairColumns = () => {
         ),
         accessorFn: (row) => row.order_id,
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{row.original.order_id}</span>
-          </div>
+          <ShortId value={row.original.order_id} label="Order ID" />
         ),
         enableSorting: true,
-        size: 100,
+        size: 130,
         meta: {
+          identity: true,
+          headerTitle: "Order ID",
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -59,14 +54,15 @@ export const useReturnRepairColumns = () => {
               width="80"
               height="80"
               loading="lazy"
-              className="w-[80px] h-[80px] rounded-md object-cover"
+              className="h-[80px] w-[80px] rounded-md object-cover"
             />
           ) : (
             <span className="text-muted-foreground">N/A</span>
           );
         },
         enableSorting: false,
-        size: 135,
+        size: 120,
+        meta: { headerTitle: "Image" },
       },
       {
         id: "fullName",
@@ -75,17 +71,14 @@ export const useReturnRepairColumns = () => {
         ),
         accessorFn: (row) => row.full_name,
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <span
-              title={row.original.full_name}
-              className="block truncate text-sm font-medium"
-            >
-              {row.original.full_name}
-            </span>
-          </div>
+          <TruncatedText
+            value={row.original.full_name}
+            className="font-medium text-foreground"
+          />
         ),
         enableSorting: true,
-        size: 135,
+        size: 175,
+        meta: { headerTitle: "Full Name", truncate: true },
       },
       {
         id: "phoneNumber",
@@ -93,8 +86,9 @@ export const useReturnRepairColumns = () => {
           <DataGridColumnHeader title="Phone Number" column={column} />
         ),
         accessorFn: (row) => row.phone_number,
-        cell: ({ row }) => <span>{row.original.phone_number}</span>,
-        size: 120,
+        cell: ({ row }) => <span>{row.original.phone_number || "—"}</span>,
+        size: 140,
+        meta: { headerTitle: "Phone Number" },
       },
       {
         id: "email",
@@ -102,8 +96,11 @@ export const useReturnRepairColumns = () => {
           <DataGridColumnHeader title="Email" column={column} />
         ),
         accessorFn: (row) => row.email,
-        cell: ({ row }) => <span>{row.original.email}</span>,
-        size: 135,
+        cell: ({ row }) => (
+          <TruncatedText value={row.original.email} />
+        ),
+        size: 200,
+        meta: { headerTitle: "Email", truncate: true },
       },
       {
         id: "JewelryType",
@@ -111,8 +108,9 @@ export const useReturnRepairColumns = () => {
           <DataGridColumnHeader title="Jewelry Type" column={column} />
         ),
         accessorFn: (row) => row.jewellery_type,
-        cell: ({ row }) => row.original.jewellery_type,
-        size: 110,
+        cell: ({ row }) => <span>{row.original.jewellery_type || "—"}</span>,
+        size: 130,
+        meta: { headerTitle: "Jewelry Type" },
       },
       {
         id: "preferredAction",
@@ -120,57 +118,27 @@ export const useReturnRepairColumns = () => {
           <DataGridColumnHeader title="Preferred Action" column={column} />
         ),
         accessorFn: (row) => row.preferred_action,
-        cell: ({ row }) => <span>{row.original.preferred_action}</span>,
-        size: 135,
+        cell: ({ row }) => (
+          <TruncatedText value={row.original.preferred_action} />
+        ),
+        size: 150,
+        meta: { headerTitle: "Preferred Action", truncate: true },
       },
       {
         id: "status",
         header: ({ column }) => (
           <DataGridColumnHeader title="Return Status" column={column} />
         ),
-        accessorFn: (row) => {
-          const value = row.status;
-          return STATUS_MAP[value] || null;
-        },
-        cell: ({ row }) => {
-          const status = row.getValue("status");
-          return status ? (
-            <Badge
-              size="lg"
-              variant={status.variant}
-              appearance="outline"
-              shape="circle"
-            >
-              <BadgeDot /> {status.label}
-            </Badge>
+        accessorFn: (row) => row.status,
+        cell: ({ row }) =>
+          row.original.status ? (
+            <StatusBadge status={row.original.status} />
           ) : (
             <span className="text-muted-foreground">N/A</span>
-          );
-        },
-        size: 125,
+          ),
+        size: 140,
+        meta: { headerTitle: "Return Status" },
       },
-      // {
-      //   id: "action",
-      //   header: ({ column }) => (
-      //     <DataGridColumnHeader title="Action" column={column} />
-      //   ),
-      //   accessorFn: (row) => row.orderChannel,
-      //   cell: ({ row }) => (
-      //     <div className="flex gap-[10px]">
-      //       <Button mode="icon" variant="outline">
-      //         <Edit2Icon />
-      //       </Button>
-
-      //       <Button
-      //         mode="icon"
-      //         variant="outline"
-      //         onClick={() => handleView(row.original)}
-      //       >
-      //         <EyeIcon />
-      //       </Button>
-      //     </div>
-      //   ),
-      // },
     ],
     []
   );

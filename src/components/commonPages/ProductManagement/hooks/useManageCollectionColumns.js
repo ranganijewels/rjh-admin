@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation"; // ✅ for navigation
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
-import { Edit2Icon, EyeIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, Trash2Icon } from "lucide-react";
 import { toTitleCase } from "@/lib/utils";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import { StatusBadge } from "@/components/common/ui/badge";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 
 export const useManageCollectionColumns = ({
   editingCell,
@@ -25,11 +26,14 @@ export const useManageCollectionColumns = ({
       {
         id: "id",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Id" column={column} />
+          <DataGridColumnHeader title="ID" column={column} />
         ),
         accessorFn: (row) => row.id,
-        cell: ({ row }) => row.original.id || "-",
-        size: 60,
+        cell: ({ row }) => (
+          <ShortId value={row.original.id} label="Collection ID" />
+        ),
+        size: 130,
+        meta: { headerTitle: "ID" },
       },
       {
         id: "collection",
@@ -41,23 +45,18 @@ export const useManageCollectionColumns = ({
           />
         ),
         accessorFn: (row) => row.name,
-        cell: ({ row }) => {
-          const { name } = row.original;
-          const value = name || "-";
-          return (
-            <div className="flex items-center gap-3">
-              <span
-                title={value}
-                className="block truncate text-sm font-medium text-gray-800 dark:text-foreground"
-              >
-                {value}
-              </span>
-            </div>
-          );
-        },
+        cell: ({ row }) => (
+          <TruncatedText
+            value={row.original.name || "—"}
+            className="font-medium text-foreground"
+          />
+        ),
         enableSorting: true,
         size: 230,
         meta: {
+          identity: true,
+          headerTitle: "Collection",
+          truncate: true,
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -67,8 +66,11 @@ export const useManageCollectionColumns = ({
           <DataGridColumnHeader title="Description" column={column} />
         ),
         accessorFn: (row) => row.description,
-        cell: ({ row }) => toTitleCase(row.original.description) || "-",
+        cell: ({ row }) => (
+          <TruncatedText value={toTitleCase(row.original.description) || "—"} />
+        ),
         size: 280,
+        meta: { headerTitle: "Description", truncate: true },
       },
       {
         id: "createdAt",
@@ -78,9 +80,14 @@ export const useManageCollectionColumns = ({
         accessorFn: (row) => row.createdAt,
         cell: ({ row }) =>
           row.original.createdAt
-            ? new Date(row.original.createdAt).toLocaleDateString()
-            : "-",
-        size: 150,
+            ? new Date(row.original.createdAt).toLocaleDateString("en-GB", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })
+            : "—",
+        size: 140,
+        meta: { headerTitle: "Created At" },
       },
       {
         id: "is_active",
@@ -95,7 +102,8 @@ export const useManageCollectionColumns = ({
             toggleStatus={() => console.log("Toggle", row.original.id)}
           />
         ),
-        size: 120,
+        size: 110,
+        meta: { headerTitle: "Status" },
       },
       {
         id: "visibility",
@@ -107,44 +115,28 @@ export const useManageCollectionColumns = ({
         accessorFn: (row) => (row.status === "active" ? "published" : "draft"),
         cell: ({ row }) => {
           const isPublished = row.original.status === "active";
-          const statusText = isPublished ? "published" : "draft";
           return (
             <StatusBadge
-              size="lg"
-              appearance="solid"
-              className={
-                isPublished
-                  ? "bg-green-200 text-green-700"
-                  : "bg-muted text-mono"
-              }
-              status={statusText}
+              status={isPublished ? "published" : "draft"}
+              appearance="light"
             />
           );
         },
         size: 120,
+        meta: { headerTitle: "Visibility" },
       },
       {
         id: "actions",
-        header: "Actions",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
         cell: ({ row }) => (
           <div className="flex gap-[5px]">
-            {/* <Button
-              variant="outline"
-              mode="icon"
-              onClick={() => onView?.(row.original)}
-            >
-              <EyeIcon className="h-4 w-4" />
-            </Button>
             <Button
               variant="outline"
               mode="icon"
-              onClick={() => setEditingCell?.(row.original)}
-            >
-              <Edit2Icon className="h-4 w-4" />
-            </Button> */}
-            <Button
-              variant="outline"
-              mode="icon"
+              aria-label={`Add products to ${row.original.name || "collection"}`}
+              title="Add products"
               onClick={() =>
                 router.push(
                   `/dashboard/product-management/manage-collection/${row.original.id}`
@@ -156,13 +148,18 @@ export const useManageCollectionColumns = ({
             <Button
               variant="outline"
               mode="icon"
+              aria-label={`Delete ${row.original.name || "collection"}`}
+              title="Delete collection"
               onClick={() => console.log("Delete", row.original.id)}
             >
               <Trash2Icon className="h-4 w-4" />
             </Button>
           </div>
         ),
-        size: 115,
+        enableSorting: false,
+        enableHiding: false,
+        size: 110,
+        meta: { headerTitle: "Actions" },
       },
     ],
     [

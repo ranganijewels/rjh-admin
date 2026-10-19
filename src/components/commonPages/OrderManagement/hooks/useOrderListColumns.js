@@ -6,6 +6,8 @@ import {
 } from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 import { EyeIcon } from "lucide-react";
 
 // Test orders stay in the list for the audit trail but are excluded from
@@ -52,7 +54,8 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
         enableHiding: false,
-        size: 48,
+        size: 40,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "orderId",
@@ -62,21 +65,32 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
         accessorFn: (row) => row.orderNumber || row.order_number || row.id,
         cell: ({ row }) => {
           const o = row.original;
-          // Show the human order number (SF-…); fall back to a short id.
-          const label =
-            o.orderNumber ||
-            o.order_number ||
-            (o.id ? `${String(o.id).slice(0, 8)}…` : "—");
+          // Show the human order number (SF-…); fall back to the raw id in a
+          // short, copyable form rather than dumping a full UUID.
+          const orderNumber = o.orderNumber || o.order_number;
+          if (orderNumber) {
+            return (
+              <div className="flex items-center gap-2">
+                <span className="truncate text-sm font-medium" title={orderNumber}>
+                  {orderNumber}
+                </span>
+                <TestFlag order={o} />
+              </div>
+            );
+          }
           return (
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{label}</span>
+              <ShortId value={o.id} length={10} label="Order ID" />
               <TestFlag order={o} />
             </div>
           );
         },
         enableSorting: true,
-        size: 140,
+        size: 200,
         meta: {
+          identity: true,
+          headerTitle: "Order #",
+          truncate: true,
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -86,24 +100,43 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
           <DataGridColumnHeader title="Customer Name" column={column} />
         ),
         accessorFn: (row) => row.customer_name,
-        cell: ({ row }) => {
-          const name = row.original.customer_name;
-          return (
-            <span title={name} className="block truncate">
-              {name}
-            </span>
-          );
-        },
-        size: 230,
+        cell: ({ row }) => (
+          <TruncatedText value={row.original.customer_name} />
+        ),
+        size: 140,
+        meta: { headerTitle: "Customer Name", truncate: true },
       },
       {
-        id: "quantity",
+        // Order status comes before the money columns: it is the column the
+        // list is scanned for.
+        id: "fulfilmentStatus",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Quantity" column={column} />
+          <DataGridColumnHeader title="Order Status" column={column} />
         ),
-        accessorFn: (row) => row.total_quantity,
-        cell: ({ row }) => <span>{row.original.total_quantity}</span>,
-        size: 135,
+        accessorFn: (row) => row.order_status,
+        cell: ({ row }) =>
+          row.original.order_status ? (
+            <StatusBadge status={row.original.order_status} />
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+        size: 125,
+        meta: { headerTitle: "Order Status" },
+      },
+      {
+        id: "paymentStatus",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Payment Status" column={column} />
+        ),
+        accessorFn: (row) => row.payment_status,
+        cell: ({ row }) =>
+          row.original.payment_status ? (
+            <StatusBadge status={row.original.payment_status} />
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          ),
+        size: 115,
+        meta: { headerTitle: "Payment Status" },
       },
       {
         id: "totalValue",
@@ -119,7 +152,18 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
           }
           return <span>${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
         },
-        size: 135,
+        size: 110,
+        meta: { headerTitle: "Total Value" },
+      },
+      {
+        id: "quantity",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Quantity" column={column} />
+        ),
+        accessorFn: (row) => row.total_quantity,
+        cell: ({ row }) => <span>{row.original.total_quantity}</span>,
+        size: 80,
+        meta: { headerTitle: "Quantity" },
       },
       {
         id: "orderDate",
@@ -139,7 +183,8 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
 
           return formattedDate;
         },
-        size: 135,
+        size: 100,
+        meta: { headerTitle: "Order Date" },
       },
       {
         id: "orderChannel",
@@ -147,39 +192,26 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
           <DataGridColumnHeader title="Order Channel" column={column} />
         ),
         accessorFn: (row) => row.payment_method,
-        cell: ({ row }) => <span>{row.original.payment_method}</span>,
-        size: 130,
-      },
-      {
-        id: "paymentStatus",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Payment Status" column={column} />
+        cell: ({ row }) => (
+          <span className="capitalize">{row.original.payment_method || "—"}</span>
         ),
-        accessorFn: (row) => row.payment_status,
-        cell: ({ row }) => <span>{row.original.payment_status}</span>,
-        size: 135,
-      },
-      {
-        id: "fulfilmentStatus",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Order Status" column={column} />
-        ),
-        accessorFn: (row) => row.order_status,
-        cell: ({ row }) => <span>{row.original.order_status}</span>,
-        size: 135,
+        size: 90,
+        meta: { headerTitle: "Order Channel" },
       },
       {
         id: "action",
         header: ({ column }) => (
           <DataGridColumnHeader title="Action" column={column} />
         ),
-        accessorFn: (row) => row.orderChannel,
         cell: ({ row }) => (
-          <div className="flex gap-[10px]">
+          <div className="flex gap-2">
             <Button
               mode="icon"
               variant="outline"
-              onClick={() => {
+              aria-label={`View order ${row.original.orderNumber || row.original.id || ""}`}
+              title="View order"
+              onClick={(event) => {
+                event.stopPropagation();
                 onView(row.original);
               }}
             >
@@ -187,7 +219,10 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
             </Button>
           </div>
         ),
-        size: 130,
+        enableSorting: false,
+        enableHiding: false,
+        size: 64,
+        meta: { headerTitle: "Action" },
       },
     ],
     [onEdit, onView]

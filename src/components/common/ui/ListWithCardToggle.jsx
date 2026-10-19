@@ -33,7 +33,11 @@ export const ListWithCardToggle = ({
 }) => {
   const [currentMode, setCurrentMode] = useState("list");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
-  const [sorting, setSorting] = useState([{ id: "id", desc: true }]);
+  // Only sort by `id` when the table has such a column — TanStack throws
+  // when the sort state references a column that isn't part of the table.
+  const [sorting, setSorting] = useState(() =>
+    columns.some((column) => column.id === "id") ? [{ id: "id", desc: true }] : []
+  );
   const [rowSelection, setRowSelection] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
 

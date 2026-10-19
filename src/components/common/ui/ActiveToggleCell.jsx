@@ -7,6 +7,7 @@ const ActiveToggleCell = ({ id, isActive, toggleStatus }) => {
   const [localStatus, setLocalStatus] = useState(isActive);
 
   const handleToggle = async (checked) => {
+    if (!toggleStatus) return;
     try {
       await toggleStatus(id, checked);
       setLocalStatus(checked);
@@ -21,6 +22,7 @@ const ActiveToggleCell = ({ id, isActive, toggleStatus }) => {
       id={`active-${id}`}
       size="sm"
       checked={localStatus}
+      disabled={!toggleStatus}
       onCheckedChange={handleToggle}
     />
   );

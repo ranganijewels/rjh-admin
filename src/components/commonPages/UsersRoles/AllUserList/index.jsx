@@ -1,18 +1,24 @@
 "use client";
-import React, { useState } from "react";
 import { toast } from "sonner";
+import React, { useMemo, useState } from "react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { Button } from "@/components/common/ui/button";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  StatusFilter,
+  buildStatusOptions,
+} from "@/components/common/ui/status-filter";
 import { Plus } from "lucide-react";
 import AddUserModal from "./AddUsersModel";
 import { useUsersList } from "./hooks/useUsersList";
 import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
-import PermissionDialog from "./PermissionDialog";
+import PermissionDialog from "../PermissionDialog";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
-import { PERMISSION_MODULES } from "@/constants/permissions";
+import { usePermissions } from "@/provider/permission-provider";
 
 const AllUserList = () => {
+  const { can } = usePermissions();
   const {
     list,
     confirmOpen,
@@ -29,49 +35,24 @@ const AllUserList = () => {
   const [toggleTarget, setToggleTarget] = useState(null);
 
   const [permissionDialogOpen, setPermissionDialogOpen] = useState(false);
-  const [viewingRoleId, setViewingRoleId] = useState(null);
-
-  const permissions = PERMISSION_MODULES;
-
-  const [rolePermissions, setRolePermissions] = useState({});
-
-  const updatePermission = (roleId, index, type, value) => {
-    setRolePermissions((prev) => {
-      const arr = [...prev[roleId]];
-      arr[index].permissions[type] = value;
-      return { ...prev, [roleId]: arr };
-    });
-  };
+  const [viewingRole, setViewingRole] = useState(null);
 
   const [editData, setEditData] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
+
   const { columns, dialogOpen, setDialogOpen } = useUsersList({
     onEdit: (user) => {
       setEditData(user);
       setDialogOpen(true);
     },
     onViewPermission: (user) => {
-      const roleId = user.role_id ?? user.roleId ?? user.role;
-
-      setViewingRoleId(roleId);
-
-      setRolePermissions((prev) => {
-        if (!prev[roleId]) {
-          return {
-            ...prev,
-            [roleId]: permissions.map((p) => ({
-              module: p.module,
-              permissions: {
-                view: p.view,
-                modify: p.modify,
-                publish: p.publish,
-                configure: p.configure,
-              },
-            })),
-          };
-        }
-        return prev;
-      });
-
+      setViewingRole(
+        user.roles?.[0]?.id ??
+          user.roles?.[0]?.name ??
+          user.role_id ??
+          user.roleId ??
+          user.role
+      );
       setPermissionDialogOpen(true);
     },
     onToggleStatus: (user) => {
@@ -103,44 +84,77 @@ const AllUserList = () => {
     );
   };
 
+  const userStatus = (user) => (user?.isActive === false ? "Inactive" : "Active");
+
+  const statusOptions = useMemo(
+    () =>
+      buildStatusOptions(list, userStatus, {
+        allLabel: "All users",
+        order: ["Active", "Inactive"],
+      }),
+    [list]
+  );
+
+  const scopedList = useMemo(
+    () =>
+      statusFilter === "all"
+        ? list
+        : (list || []).filter((user) => userStatus(user) === statusFilter),
+    [list, statusFilter]
+  );
+
   return (
-    <div className="space-y-4">
-      <ListWithCardToggle
+    <Page>
+      <PageHeader
         title="All Users"
-        data={list}
+        description="Every account that can sign in to the admin panel, with the role and department it belongs to."
+        actions={
+          can("users_roles", "create") ? (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="size-4" /> Add User
+            </Button>
+          ) : null
+        }
+      />
+
+      <StatusFilter
+        options={statusOptions}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        ariaLabel="User status"
+      />
+
+      <ListWithCardToggle
+        titleAs="none"
+        data={scopedList}
         columns={columns}
         resizableColumns
         infiniteScroll
-        bulkActions={[
-          {
-            key: "deactivate",
-            label: "Deactivate",
-            variant: "destructive",
-            confirmMessage:
-              "Deactivate the selected user(s)? They won't be able to log in until reactivated.",
-            onRun: async (rows) => {
-              await Promise.all(
-                rows.map((r) => updateUser(r.id, { isActive: false }))
-              );
-              fetchData();
-            },
-          },
-        ]}
-        createBtn={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Add User
-          </Button>
+        bulkActions={
+          can("users_roles", "delete")
+            ? [
+                {
+                  key: "deactivate",
+                  label: "Deactivate",
+                  variant: "destructive",
+                  confirmMessage:
+                    "Deactivate the selected user(s)? They won't be able to log in until reactivated.",
+                  onRun: async (rows) => {
+                    await Promise.all(
+                      rows.map((r) => updateUser(r.id, { isActive: false }))
+                    );
+                    fetchData();
+                  },
+                },
+              ]
+            : []
         }
       />
 
       <PermissionDialog
-        permissionDialogOpen={permissionDialogOpen}
-        setPermissionDialogOpen={setPermissionDialogOpen}
-        roles={permissions}
-        viewingRoleId={viewingRoleId}
-        rolePermissions={rolePermissions}
-        setRolePermissions={setRolePermissions}
-        updatePermission={updatePermission}
+        open={permissionDialogOpen}
+        onOpenChange={setPermissionDialogOpen}
+        role={viewingRole}
       />
 
       <AddUserModal
@@ -166,7 +180,7 @@ const AllUserList = () => {
         confirmLabel={willActivate ? "Activate" : "Deactivate"}
         confirmVariant={willActivate ? "default" : "destructive"}
       />
-    </div>
+    </Page>
   );
 };
 

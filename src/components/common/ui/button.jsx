@@ -40,13 +40,13 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 data-[state=open]:bg-destructive/90",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/90 data-[state=open]:bg-secondary/90",
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80 data-[state=open]:bg-secondary/80",
         outline:
-          "bg-background text-accent-foreground border border-input hover:bg-accent data-[state=open]:bg-accent",
+          "bg-card text-accent-foreground border border-border hover:bg-accent data-[state=open]:bg-accent",
         dashed:
-          "text-accent-foreground border border-input border-dashed bg-background hover:bg-accent hover:text-accent-foreground data-[state=open]:text-accent-foreground",
+          "text-accent-foreground border border-border border-dashed bg-card hover:bg-accent hover:text-accent-foreground data-[state=open]:text-accent-foreground",
         ghost:
-          "text-accent-foreground hover:bg-accent hover:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
+          "text-accent-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground",
         dim: "text-muted-foreground hover:text-foreground data-[state=open]:text-foreground",
         foreground: "",
         inverse: "",
@@ -72,9 +72,9 @@ const buttonVariants = cva(
       // for AA) is unaffected. Do not silently bump these without a full
       // layout pass across the admin.
       size: {
-        lg: "h-10 rounded-md px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4",
-        md: "h-8.5 rounded-md px-3 gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) [&_svg:not([class*=size-])]:size-4",
-        sm: "h-7 rounded-md px-2.5 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5",
+        lg: "h-10 rounded-lg px-4 text-sm gap-1.5 [&_svg:not([class*=size-])]:size-4",
+        md: "h-9 rounded-lg px-3.5 gap-1.5 text-[0.8125rem] leading-(--text-sm--line-height) [&_svg:not([class*=size-])]:size-4",
+        sm: "h-8 rounded-lg px-3 gap-1.25 text-xs [&_svg:not([class*=size-])]:size-3.5",
       },
       autoHeight: {
         true: "",

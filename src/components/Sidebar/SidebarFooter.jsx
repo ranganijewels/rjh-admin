@@ -1,0 +1,69 @@
+"use client";
+
+import { LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useDispatch, useSelector } from "react-redux";
+import { toast } from "sonner";
+import { logoutUser } from "@/store/authThunks";
+import { usePermissions } from "@/provider/permission-provider";
+
+const roleLabel = (role) => {
+  if (!role) return "Admin Manager";
+  const raw =
+    typeof role === "string"
+      ? role
+      : role.name || role.slug || role.key || role.id || "";
+  return String(raw)
+    .replace(/[_-]+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
+export default function SidebarFooter() {
+  const dispatch = useDispatch();
+  const router = useRouter();
+  const { user } = useSelector((state) => state.auth);
+  const { roleMeta } = usePermissions();
+
+  const handleLogout = () => {
+    dispatch(logoutUser())
+      .unwrap()
+      .then(() => {
+        toast.success("Logged out successfully");
+        router.push("/login");
+      })
+      .catch((err) => {
+        toast.error(err?.message || "Logout failed");
+      });
+  };
+
+  return (
+    <div className="shrink-0 border-t border-border px-3 py-3">
+      <div className="flex items-center gap-3 rounded-lg px-2 py-1.5">
+        <img
+          className="size-9 shrink-0 rounded-full border border-border object-cover ring-2 ring-success/40"
+          src="/images/avatars/300-2.png"
+          alt=""
+          width={36}
+          height={36}
+        />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {user?.name || "Admin"}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">
+            {roleMeta?.name || roleLabel(user?.role)}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleLogout}
+          title="Log out"
+          aria-label="Log out"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
+        >
+          <LogOut className="size-4" />
+        </button>
+      </div>
+    </div>
+  );
+}

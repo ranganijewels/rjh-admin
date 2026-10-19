@@ -1,7 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "@/components/common/ui/button";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import {
+  StatusFilter,
+  buildStatusOptions,
+} from "@/components/common/ui/status-filter";
 import { Plus } from "lucide-react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import useCouponsList from "./useCouponsList";
@@ -11,8 +16,10 @@ import CouponAddDialog from "./CouponAddDialog";
 import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { usePermissions } from "@/provider/permission-provider";
 
 const CouponsManagement = () => {
+  const { can } = usePermissions();
   const {
     list,
     loading,
@@ -28,8 +35,11 @@ const CouponsManagement = () => {
     handleDelete,
   } = useCrudList("/api/coupon-management");
   const { remove } = useCrudApi("/api/coupon-management");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const columns = useCouponsList({
+    canEdit: can("coupons", "edit"),
+    canDelete: can("coupons", "delete"),
     onEdit: (item) => {
       setEditData(item);
       setDialogOpen(true);
@@ -48,19 +58,58 @@ const CouponsManagement = () => {
     });
   };
 
+
+  const couponStatus = (coupon) => (coupon?.is_active ? "Active" : "Inactive");
+
+  const statusOptions = useMemo(
+    () =>
+      buildStatusOptions(list, couponStatus, {
+        allLabel: "All coupons",
+        order: ["Active", "Inactive"],
+      }),
+    [list]
+  );
+
+  const scopedList = useMemo(
+    () =>
+      statusFilter === "all"
+        ? list
+        : (list || []).filter((coupon) => couponStatus(coupon) === statusFilter),
+    [list, statusFilter]
+  );
+
   if (loading) return <ContentLoader />;
   if (error) return <div>Error: {error}</div>;
 
   return (
-    <div className="space-y-4">
+    <Page>
+      <PageHeader
+        title="Coupons"
+        description="Discount codes, their limits and validity window — toggle one to put it live on the storefront."
+        actions={
+          can("coupons", "create") ? (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="size-4" /> Add Coupon
+            </Button>
+          ) : null
+        }
+      />
+
+      <StatusFilter
+        options={statusOptions}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        ariaLabel="Coupon status"
+      />
+
       <ListWithCardToggle
-        title="Coupons Management"
-        data={list}
+        titleAs="none"
+        data={scopedList}
         columns={columns}
         filterFunction={filterOptions}
         resizableColumns
         infiniteScroll
-        bulkActions={[
+        bulkActions={can("coupons", "delete") ? [
           {
             key: "delete",
             label: "Delete",
@@ -72,13 +121,7 @@ const CouponsManagement = () => {
               fetchData();
             },
           },
-        ]}
-        createBtn={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Coupons
-          </Button>
-        }
+        ] : []}
       />
 
       <CouponAddDialog
@@ -98,7 +141,7 @@ const CouponsManagement = () => {
         title="Delete Coupon"
         message="Are you sure you want to delete this coupon? This action cannot be undone."
       />
-    </div>
+    </Page>
   );
 };
 

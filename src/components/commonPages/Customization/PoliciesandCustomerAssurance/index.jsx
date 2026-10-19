@@ -60,7 +60,7 @@ export const PoliciesandCustomerAssurance = () => {
               name="returnpolicy"
               render={({ field }) => (
                 <FormItem>
-                  <span className="text-base font-medium text-mono">
+                  <span className="text-base font-medium text-foreground">
                     Return & Exchange Policy
                   </span>
                   <FormControl>
@@ -80,7 +80,7 @@ export const PoliciesandCustomerAssurance = () => {
               name="shippinginfo"
               render={({ field }) => (
                 <FormItem>
-                  <span className="text-base font-medium text-mono">
+                  <span className="text-base font-medium text-foreground">
                     Shipping Information
                   </span>
                   <FormControl>
@@ -96,7 +96,7 @@ export const PoliciesandCustomerAssurance = () => {
               )}
             />
             <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Warranty Details
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -107,7 +107,7 @@ export const PoliciesandCustomerAssurance = () => {
                   </div>
                 </RadioGroup>
               </div>
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Ethical Sourcing Statement
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -120,7 +120,7 @@ export const PoliciesandCustomerAssurance = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Privacy Policy & Terms
               </span>
               <RadioGroup
@@ -142,7 +142,7 @@ export const PoliciesandCustomerAssurance = () => {
               </RadioGroup>
             </div>
             <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Packaging Details
               </span>
               <div className="flex flex-col items-start gap-4">

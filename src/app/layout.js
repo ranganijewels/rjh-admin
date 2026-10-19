@@ -47,7 +47,12 @@ const THEME_INIT_SCRIPT = `
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    // `suppressHydrationWarning` is required here: the theme init script
+    // below (and the SettingsProvider) toggle the `dark` class on <html>
+    // before React hydrates, so the class in the DOM never matches the
+    // server-rendered markup. This is the standard way to opt out of that
+    // one attribute mismatch — it does not silence mismatches in children.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

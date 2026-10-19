@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
 import { Plus, Pencil, Trash2, Upload, Download, Loader2, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/common/ui/select";
+import { usePermissions } from "@/provider/permission-provider";
 
 const authHeaders = () => {
   const token =
@@ -140,6 +142,7 @@ const MultiSelectChips = ({ options, loading, value, onChange }) => {
 
 // Config-driven CRUD for any effective-dated pricing master.
 export default function RateMasterManager({ title, description, resource, columns, fields }) {
+  const { can } = usePermissions();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -401,31 +404,45 @@ export default function RateMasterManager({ title, description, resource, column
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">{title}</h1>
-          {description && <p className="text-sm text-muted-foreground">{description}</p>}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleExportCsv}>
-            <Download className="h-4 w-4 mr-1" /> Export CSV
-          </Button>
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-            {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
-            {importing ? "Importing…" : "Import CSV"}
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => handleImportFile(e.target.files?.[0])}
-          />
-          <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> Add Rate</Button>
-        </div>
-      </div>
+      <PageHeader
+        title={title}
+        description={description}
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handleExportCsv}>
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+            {can("pricing", "create") && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={importing}
+                >
+                  {importing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {importing ? "Importing…" : "Import CSV"}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={(e) => handleImportFile(e.target.files?.[0])}
+                />
+                <Button onClick={openAdd}>
+                  <Plus className="h-4 w-4" /> Add Rate
+                </Button>
+              </>
+            )}
+          </div>
+        }
+      />
 
-      {selectedIds.size > 0 && (
+      {can("pricing", "delete") && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           <Button
@@ -547,12 +564,16 @@ export default function RateMasterManager({ title, description, resource, column
                 </td>
                 <td className="p-3">
                   <div className="flex items-center justify-center gap-2">
-                    <Button variant="outline" mode="icon" size="sm" onClick={() => openEdit(row)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="outline" mode="icon" size="sm" onClick={() => { setDeleteId(row.id); setConfirmOpen(true); }}>
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    </Button>
+                    {can("pricing", "edit") && (
+                      <Button variant="outline" mode="icon" size="sm" onClick={() => openEdit(row)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {can("pricing", "delete") && (
+                      <Button variant="outline" mode="icon" size="sm" onClick={() => { setDeleteId(row.id); setConfirmOpen(true); }}>
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
+                    )}
                   </div>
                 </td>
               </tr>

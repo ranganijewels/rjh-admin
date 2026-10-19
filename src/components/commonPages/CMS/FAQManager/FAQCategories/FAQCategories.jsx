@@ -2,13 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/common/ui/button";
-import {
-  Toolbar,
-  ToolbarActions,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from "@/components/common/ui/toolbar";
+import { PageHeader } from "@/components/common/ui/page";
 import { Plus } from "lucide-react";
 import { CategoriesCard } from "./CategoriesCard";
 import FAQCategoriesModel from "./FAQCategoriesModel";
@@ -64,23 +58,17 @@ const FAQCategories = () => {
 
   return (
     <div>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle
-            text="FAQ Categories"
-            className="font-semibold !text-foreground text-lg"
-          />
-          <ToolbarDescription className="mt-1 text-sm">
-            Organize FAQs by category with page-specific assignments
-          </ToolbarDescription>
-        </ToolbarHeading>
-        <ToolbarActions>
+      <PageHeader
+        titleAs="h2"
+        title="FAQ Categories"
+        description="Organize FAQs by category with page-specific assignments"
+        actions={
           <Button onClick={handleAddClick}>
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="size-4" />
             Add Category
           </Button>
-        </ToolbarActions>
-      </Toolbar>
+        }
+      />
 
       {/* Category Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

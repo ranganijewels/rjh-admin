@@ -1,63 +1,128 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useSelector } from "react-redux";
 import {
-  TrendingUp,
-  TrendingDown,
   ShoppingBag,
   Users,
   Package,
   DollarSign,
-  Clock,
-  Truck,
+  AlertTriangle,
+  CheckCircle2,
   ArrowUpRight,
+  UserPlus,
+  Boxes,
 } from "lucide-react";
 
-import { NAVY, STEEL, STATUS_COLORS_MAP as STATUS_COLORS } from "@/lib/colorTokens";
+import { Card, CardContent, CardHeader } from "@/components/common/ui/cards/card";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { KpiCard } from "@/components/common/ui/kpi-card";
+import { Skeleton } from "@/components/common/ui/skeleton";
+import { Page, PageHeader } from "@/components/common/ui/page";
 
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const fmtMoney = (n) =>
   "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
 
+const fmtMoney2 = (n) =>
+  "$" +
+  Number(n || 0).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
 const fmtNum = (n) => Number(n || 0).toLocaleString("en-US");
 
-function KpiCard({ label, value, icon: Icon, accent, sub, trend }) {
+// Status colours mirror the badge tokens (warning / info / success /
+// destructive) so the chart and the status pills in the table agree.
+const STATUS_COLORS = {
+  pending: "#d97706",
+  "order placed": "#d97706",
+  confirmed: "#2563eb",
+  processing: "#d97706",
+  "in production": "#d97706",
+  picking: "#d97706",
+  packing: "#d97706",
+  shipped: "#16a34a",
+  shipping: "#16a34a",
+  delivered: "#16a34a",
+  completed: "#16a34a",
+  cancelled: "#dc2626",
+  canceled: "#dc2626",
+  refunded: "#dc2626",
+  returned: "#dc2626",
+};
+
+const statusColor = (status) =>
+  STATUS_COLORS[String(status || "").toLowerCase()] || "#64748b";
+
+// Charts can't use Tailwind classes, so read the same CSS variables the rest
+// of the UI uses and re-read them whenever the `.dark` class flips. This keeps
+// the dashboard on the shared token palette instead of hardcoded hex values.
+function useChartTokens() {
+  const [tokens, setTokens] = useState({
+    series: "#111827",
+    info: "#2563eb",
+    grid: "#e5e7eb",
+    label: "#64748b",
+    surface: "#ffffff",
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+
+    const read = () => {
+      const styles = getComputedStyle(document.documentElement);
+      const value = (name, fallback) =>
+        styles.getPropertyValue(name).trim() || fallback;
+      setTokens({
+        series: value("--primary", "#111827"),
+        info: value("--info", "#2563eb"),
+        grid: value("--border", "#e5e7eb"),
+        label: value("--muted-foreground", "#64748b"),
+        surface: value("--card", "#ffffff"),
+      });
+    };
+
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => observer.disconnect();
+  }, []);
+
+  return tokens;
+}
+
+function DashboardSkeleton() {
   return (
-    <div className="bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border p-5 shadow-sm flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-500 dark:text-muted-foreground">{label}</span>
-        <span
-          className="w-9 h-9 rounded-xl flex items-center justify-center"
-          style={{ background: `${accent}14`, color: accent }}
-        >
-          <Icon className="w-5 h-5" />
-        </span>
+    <div className="space-y-5 lg:space-y-6">
+      <div className="space-y-2">
+        <Skeleton className="h-7 w-56" />
+        <Skeleton className="h-4 w-72" />
       </div>
-      <div className="text-[28px] leading-none font-semibold text-[#091930] dark:text-foreground">
-        {value}
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Skeleton key={i} className="h-[124px] rounded-xl" />
+        ))}
       </div>
-      {sub && (
-        <div className="flex items-center gap-1.5 text-xs">
-          {trend != null && (
-            <span
-              className={`inline-flex items-center gap-0.5 font-semibold ${
-                trend >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"
-              }`}
-            >
-              {trend >= 0 ? (
-                <TrendingUp className="w-3.5 h-3.5" />
-              ) : (
-                <TrendingDown className="w-3.5 h-3.5" />
-              )}
-              {Math.abs(trend)}%
-            </span>
-          )}
-          <span className="text-gray-400 dark:text-muted-foreground">{sub}</span>
-        </div>
-      )}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+        <Skeleton className="h-80 rounded-xl lg:col-span-2" />
+        <Skeleton className="h-80 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+        <Skeleton className="h-72 rounded-xl lg:col-span-2" />
+        <Skeleton className="h-72 rounded-xl" />
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+        <Skeleton className="h-56 rounded-xl" />
+        <Skeleton className="h-56 rounded-xl" />
+      </div>
     </div>
   );
 }
@@ -66,12 +131,15 @@ const Overview = () => {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const { user } = useSelector((state) => state.auth);
+  const tokens = useChartTokens();
 
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
         const res = await fetch("/api/analytics/dashboard", { cache: "no-store" });
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
         const json = await res.json();
         if (alive) setD(json);
       } catch (e) {
@@ -85,303 +153,373 @@ const Overview = () => {
     };
   }, []);
 
-  if (loading) {
-    return (
-      <div className="p-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-28 rounded-2xl bg-gray-100 dark:bg-muted animate-pulse"
-          />
-        ))}
-      </div>
-    );
-  }
+  const revenue = d?.revenue || {};
+  const orders = d?.orders || {};
+  const trend = d?.salesTrend || [];
+  const topProducts = d?.topProducts || [];
+  const recentOrders = d?.recentOrders || [];
+  const statusBreakdown = d?.statusBreakdown || [];
+  const products = d?.products || {};
+  const customers = d?.customers || {};
+
+  const maxProductRevenue = useMemo(
+    () => Math.max(...topProducts.map((p) => Number(p.revenue) || 0), 1),
+    [topProducts]
+  );
+
+  const totalProducts = Number(products.total) || 0;
+  const liveProducts = Number(products.live) || 0;
+  const notLiveProducts = Math.max(totalProducts - liveProducts, 0);
+  const livePct = totalProducts
+    ? Math.round((liveProducts / totalProducts) * 100)
+    : 0;
+
+  const statusTotal = useMemo(
+    () => statusBreakdown.reduce((sum, s) => sum + (Number(s.count) || 0), 0),
+    [statusBreakdown]
+  );
+
+  const newCustomerPct = customers.total
+    ? Math.round(((customers.newThisMonth || 0) / customers.total) * 100)
+    : 0;
+
+  const kpis = useMemo(
+    () => [
+      {
+        label: "Total revenue",
+        value: fmtMoney(revenue.total),
+        icon: DollarSign,
+        sub: "vs last month",
+        trend: revenue.growthPct,
+      },
+      {
+        label: "Total orders",
+        value: fmtNum(orders.total),
+        icon: ShoppingBag,
+        sub: `${fmtNum(orders.today)} today`,
+      },
+      {
+        label: "Avg. order value",
+        value: fmtMoney(d?.aov),
+        icon: ArrowUpRight,
+        sub: "per order",
+      },
+      {
+        label: "Customers",
+        value: fmtNum(customers.total),
+        icon: Users,
+        sub: `+${fmtNum(customers.newThisMonth)} this month`,
+      },
+      {
+        label: "Live products",
+        value: fmtNum(liveProducts),
+        icon: Package,
+        sub: `of ${fmtNum(totalProducts)} in catalogue`,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [d, revenue, orders, customers, products, liveProducts, totalProducts]
+  );
+
+  if (loading) return <DashboardSkeleton />;
 
   if (err || !d) {
     return (
-      <div className="p-6">
-        <div className="rounded-xl border border-red-100 bg-red-50 text-red-600 p-4 text-sm">
-          Could not load dashboard data{err ? `: ${err}` : ""}.
-        </div>
+      <div
+        role="alert"
+        className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm text-destructive"
+      >
+        Could not load dashboard data{err ? `: ${err}` : ""}.
       </div>
     );
   }
 
-  const revenue = d.revenue || {};
-  const orders = d.orders || {};
-  const trend = d.salesTrend || [];
-  const statusBreakdown = d.statusBreakdown || [];
-  const topProducts = d.topProducts || [];
-  const recentOrders = d.recentOrders || [];
+  // --- charts ---------------------------------------------------------------
 
-  // Sales trend area chart
   const trendOptions = {
-    chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
-    dataLabels: { enabled: false },
-    stroke: { curve: "smooth", width: 3 },
-    colors: [NAVY],
-    fill: {
-      type: "gradient",
-      gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.02, stops: [0, 90] },
+    chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
+    plotOptions: {
+      bar: { borderRadius: 6, columnWidth: "45%", borderRadiusApplication: "end" },
     },
-    grid: { borderColor: "#f1f5f9", strokeDashArray: 4 },
+    colors: [tokens.series, tokens.info],
+    series: [
+      {
+        name: "Revenue",
+        type: "column",
+        data: trend.map((t) => Number(t.revenue) || 0),
+      },
+      {
+        name: "Orders",
+        type: "line",
+        data: trend.map((t) => Number(t.orders) || 0),
+      },
+    ],
+    stroke: { width: [0, 3], curve: "smooth" },
+    dataLabels: { enabled: false },
+    grid: { borderColor: tokens.grid, strokeDashArray: 4 },
     xaxis: {
       categories: trend.map((t) => t.month),
-      labels: { style: { colors: "#94a3b8", fontSize: "12px" } },
+      labels: { style: { colors: tokens.label, fontSize: "12px" } },
       axisBorder: { show: false },
       axisTicks: { show: false },
     },
-    yaxis: {
-      labels: {
-        style: { colors: "#94a3b8", fontSize: "12px" },
-        formatter: (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`),
+    yaxis: [
+      {
+        labels: {
+          style: { colors: tokens.label, fontSize: "12px" },
+          formatter: (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`),
+        },
       },
+      {
+        opposite: true,
+        labels: {
+          style: { colors: tokens.label, fontSize: "12px" },
+          formatter: (v) => Math.round(v),
+        },
+      },
+    ],
+    legend: {
+      position: "top",
+      horizontalAlign: "right",
+      labels: { colors: tokens.label },
+      markers: { size: 5 },
     },
-    tooltip: { y: { formatter: (v) => fmtMoney(v) } },
+    tooltip: {
+      shared: true,
+      intersect: false,
+      y: { formatter: (v) => fmtMoney(v) },
+    },
   };
-  const trendSeries = [{ name: "Revenue", data: trend.map((t) => t.revenue) }];
 
-  // Status donut
-  const donutLabels = statusBreakdown.map((s) => s.status);
-  const donutSeries = statusBreakdown.map((s) => s.count);
-  const donutColors = donutLabels.map((l) => STATUS_COLORS[l] || STEEL);
-  const donutOptions = {
+  const statusOptions = {
     chart: { type: "donut", fontFamily: "inherit" },
-    labels: donutLabels,
-    colors: donutColors,
-    legend: { show: false },
+    labels: statusBreakdown.map((s) => s.status),
+    series: statusBreakdown.map((s) => Number(s.count) || 0),
+    colors: statusBreakdown.map((s) => statusColor(s.status)),
+    stroke: { width: 2, colors: [tokens.surface] },
     dataLabels: { enabled: false },
-    stroke: { width: 2 },
+    legend: { show: false },
     plotOptions: {
       pie: {
         donut: {
           size: "72%",
           labels: {
             show: true,
+            name: { show: true, offsetY: 18, color: tokens.label, fontSize: "12px" },
+            value: {
+              show: true,
+              offsetY: -12,
+              color: tokens.series,
+              fontSize: "20px",
+              fontWeight: 600,
+              formatter: (v) => fmtNum(v),
+            },
             total: {
               show: true,
-              label: "Total Orders",
-              fontSize: "13px",
-              color: "#94a3b8",
-              formatter: () => fmtNum(orders.total),
+              label: "Total orders",
+              color: tokens.label,
+              fontSize: "12px",
+              formatter: () => fmtNum(statusTotal),
             },
           },
         },
       },
     },
+    tooltip: { y: { formatter: (v) => `${v} orders` } },
   };
 
   return (
-    <div className="p-5 space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-[28px] font-semibold text-[#091930] dark:text-foreground">
-            Command Center
-          </h1>
-          <p className="text-sm text-gray-700 dark:text-foreground">
-            Live performance across the house — updated in real time.
-          </p>
-        </div>
-        <span className="text-xs text-gray-500 dark:text-muted-foreground">
-          As of {new Date(d.generatedAt || Date.now()).toLocaleString()}
-        </span>
+    <Page>
+      <PageHeader
+        title={`Welcome back${user?.name ? `, ${user.name}` : ""}`}
+        description="Here's what's happening across your store today."
+      />
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+        {kpis.map((kpi) => (
+          <KpiCard
+            key={kpi.label}
+            label={kpi.label}
+            value={kpi.value}
+            icon={kpi.icon}
+            sub={kpi.sub}
+            trend={kpi.trend}
+          />
+        ))}
       </div>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <KpiCard
-          label="Total Revenue"
-          value={fmtMoney(revenue.total)}
-          icon={DollarSign}
-          accent={NAVY}
-          sub="vs last month"
-          trend={revenue.growthPct}
-        />
-        <KpiCard
-          label="Orders (This Month)"
-          value={fmtNum(orders.thisMonth)}
-          icon={ShoppingBag}
-          accent={STEEL}
-          sub={`${fmtNum(orders.today)} today`}
-        />
-        <KpiCard
-          label="Avg. Order Value"
-          value={fmtMoney(d.aov)}
-          icon={ArrowUpRight}
-          accent="#0ea5e9"
-          sub="per won order"
-        />
-        <KpiCard
-          label="Customers"
-          value={fmtNum(d.customers?.total)}
-          icon={Users}
-          accent="#8b5cf6"
-          sub={`+${fmtNum(d.customers?.newThisMonth)} this month`}
-        />
-        <KpiCard
-          label="Products Live"
-          value={fmtNum(d.products?.live)}
-          icon={Package}
-          accent="#22c55e"
-          sub={`of ${fmtNum(d.products?.total)} total`}
-        />
-      </div>
-
-      {/* Operational alerts */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-100 dark:border-amber-900/50 rounded-2xl p-4 flex items-center gap-3">
-          <Clock className="w-5 h-5 text-amber-500" />
-          <div>
-            <div className="text-xl font-semibold text-amber-700 dark:text-amber-400">{fmtNum(orders.pending)}</div>
-            <div className="text-xs text-amber-600 dark:text-amber-400">Orders awaiting action</div>
-          </div>
-        </div>
-        <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-4 flex items-center gap-3">
-          <Truck className="w-5 h-5 text-indigo-500" />
-          <div>
-            <div className="text-xl font-semibold text-indigo-700 dark:text-indigo-400">{fmtNum(orders.processing)}</div>
-            <div className="text-xs text-indigo-600 dark:text-indigo-400">In production / fulfillment</div>
-          </div>
-        </div>
-        <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-100 dark:border-emerald-900/50 rounded-2xl p-4 flex items-center gap-3">
-          <DollarSign className="w-5 h-5 text-emerald-500" />
-          <div>
-            <div className="text-xl font-semibold text-emerald-700 dark:text-emerald-400">{fmtMoney(revenue.thisMonth)}</div>
-            <div className="text-xs text-emerald-600 dark:text-emerald-400">Revenue this month</div>
-          </div>
-        </div>
-        <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-700/50 rounded-2xl p-4 flex items-center gap-3">
-          <ShoppingBag className="w-5 h-5 text-slate-500 dark:text-slate-400" />
-          <div>
-            <div className="text-xl font-semibold text-slate-700 dark:text-slate-300">{fmtNum(orders.total)}</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Orders all-time</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-[#091930] dark:text-foreground">Revenue Trend</h3>
-            <span className="text-xs text-gray-400 dark:text-muted-foreground">Last 12 months</span>
-          </div>
-          <ApexChart options={trendOptions} series={trendSeries} type="area" height={280} />
-        </div>
-
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border p-5 shadow-sm">
-          <h3 className="font-semibold text-[#091930] dark:text-foreground mb-2">Order Pipeline</h3>
-          {donutSeries.length ? (
-            <ApexChart options={donutOptions} series={donutSeries} type="donut" height={220} />
-          ) : (
-            <div className="h-[220px] flex items-center justify-center text-sm text-gray-400 dark:text-muted-foreground">
-              No orders yet
+      {/* Sales trend + order status */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader className="py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Sales &amp; orders trend
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Revenue and order volume over the last 12 months
+              </p>
             </div>
-          )}
-          <div className="mt-3 space-y-1.5">
-            {statusBreakdown.map((s) => (
-              <div key={s.status} className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-gray-600 dark:text-muted-foreground">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ background: STATUS_COLORS[s.status] || STEEL }}
-                  />
-                  {s.status}
-                </span>
-                <span className="font-medium text-[#091930] dark:text-foreground">{s.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Top products + recent orders */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border p-5 shadow-sm">
-          <h3 className="font-semibold text-[#091930] dark:text-foreground mb-4">Top Performing Products</h3>
-          <div className="space-y-3">
-            {topProducts.length ? (
-              topProducts.map((p, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-gray-50 dark:bg-muted border border-gray-100 dark:border-border overflow-hidden flex items-center justify-center shrink-0">
-                    {p.image ? (
-                      <img
-                        src={p.image}
-                        alt={p.name ? `${p.name} product thumbnail` : "Product thumbnail"}
-                        width={40}
-                        height={40}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Package className="w-4 h-4 text-gray-300 dark:text-muted-foreground" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-[#091930] dark:text-foreground truncate">{p.name}</div>
-                    <div className="text-xs text-gray-400 dark:text-muted-foreground">
-                      {p.code || "—"} · {p.orders} order{p.orders === 1 ? "" : "s"}
-                    </div>
-                  </div>
-                  <div className="text-sm font-semibold text-[#091930] dark:text-foreground">{fmtMoney(p.revenue)}</div>
-                </div>
-              ))
+          </CardHeader>
+          <CardContent>
+            {trend.length ? (
+              <ApexChart
+                options={trendOptions}
+                series={trendOptions.series}
+                type="bar"
+                height={300}
+              />
             ) : (
-              <div className="text-sm text-gray-500 dark:text-muted-foreground py-6 text-center">
-                No sales yet. Add products and process orders to see top performers.
-                <br />
-                <Link
-                  href="/dashboard/product-management/my-products"
-                  className="text-[#162640] font-medium underline underline-offset-2 hover:text-[#091930] dark:text-foreground"
-                >
-                  Go to Product Management
-                </Link>
+              <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+                No sales data yet
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white dark:bg-card rounded-2xl border border-gray-100 dark:border-border p-5 shadow-sm">
-          <h3 className="font-semibold text-[#091930] dark:text-foreground mb-4">Recent Orders</h3>
-          <div className="relative">
+        <Card>
+          <CardHeader className="py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Order status
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                How the {fmtNum(statusTotal)} orders are distributed
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {statusBreakdown.length ? (
+              <>
+                <ApexChart
+                  options={statusOptions}
+                  series={statusOptions.series}
+                  type="donut"
+                  height={196}
+                />
+                <ul className="space-y-2">
+                  {statusBreakdown.map((s) => (
+                    <li
+                      key={s.status}
+                      className="flex items-center justify-between gap-3 text-sm"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{ backgroundColor: statusColor(s.status) }}
+                          aria-hidden="true"
+                        />
+                        <span className="truncate text-muted-foreground">
+                          {s.status}
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-medium tabular-nums text-foreground">
+                        {fmtNum(s.count)}
+                        <span className="ms-1.5 text-xs font-normal text-muted-foreground">
+                          {statusTotal
+                            ? `${Math.round((s.count / statusTotal) * 100)}%`
+                            : "0%"}
+                        </span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+                No orders yet
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent orders + top products */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+        <Card className="lg:col-span-2">
+          <CardHeader className="py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Recent orders
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                The latest orders placed on the storefront
+              </p>
+            </div>
+            <Link
+              href="/dashboard/order-management/all"
+              className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              View all
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-500 dark:text-muted-foreground text-xs border-b border-gray-100 dark:border-border">
-                    <th scope="col" className="pb-2 font-medium">Order</th>
-                    <th scope="col" className="pb-2 font-medium">Customer</th>
-                    <th scope="col" className="pb-2 font-medium">Status</th>
-                    <th scope="col" className="pb-2 font-medium text-right">Amount</th>
+                  <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                    <th scope="col" className="px-5 py-2.5 font-medium">
+                      Order
+                    </th>
+                    <th scope="col" className="px-5 py-2.5 font-medium">
+                      Customer
+                    </th>
+                    <th scope="col" className="px-5 py-2.5 font-medium">
+                      Status
+                    </th>
+                    <th scope="col" className="px-5 py-2.5 font-medium">
+                      Payment
+                    </th>
+                    <th scope="col" className="px-5 py-2.5 text-right font-medium">
+                      Amount
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {recentOrders.length ? (
                     recentOrders.map((o) => (
-                      <tr key={o.id} className="border-b border-gray-50 dark:border-border last:border-0">
-                        <td className="py-2.5 font-medium text-[#091930] dark:text-foreground">
-                          {o.orderNumber || o.id?.slice(0, 8)}
-                        </td>
-                        <td className="py-2.5 text-gray-600 dark:text-muted-foreground truncate max-w-[120px]">{o.customer}</td>
-                        <td className="py-2.5">
-                          <span
-                            className="px-2 py-0.5 rounded-full text-[11px] font-medium"
-                            style={{
-                              background: `${STATUS_COLORS[o.status] || STEEL}1a`,
-                              color: STATUS_COLORS[o.status] || STEEL,
-                            }}
+                      <tr
+                        key={o.id}
+                        className="border-b border-border/60 last:border-0 hover:bg-muted/40"
+                      >
+                        <td className="whitespace-nowrap px-5 py-2.5">
+                          <Link
+                            href="/dashboard/order-management/all"
+                            className="font-medium text-foreground hover:underline"
                           >
-                            {o.status}
-                          </span>
+                            {o.orderNumber || String(o.id || "").slice(0, 8)}
+                          </Link>
+                          {o.date && (
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(o.date).toLocaleDateString("en-GB", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </div>
+                          )}
                         </td>
-                        <td className="py-2.5 text-right font-semibold text-[#091930] dark:text-foreground">
-                          {fmtMoney(o.amount)}
+                        <td className="max-w-[160px] truncate px-5 py-2.5 text-muted-foreground">
+                          {o.customer || "—"}
+                        </td>
+                        <td className="px-5 py-2.5">
+                          <StatusBadge status={o.status} />
+                        </td>
+                        <td className="px-5 py-2.5">
+                          <StatusBadge status={o.paymentStatus} />
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-2.5 text-right font-semibold text-foreground">
+                          {fmtMoney2(o.amount)}
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={4} className="py-6 text-center text-gray-500 dark:text-muted-foreground">
+                      <td
+                        colSpan={5}
+                        className="px-5 py-8 text-center text-sm text-muted-foreground"
+                      >
                         No recent orders
                       </td>
                     </tr>
@@ -389,14 +527,247 @@ const Overview = () => {
                 </tbody>
               </table>
             </div>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute top-0 right-0 h-full w-6 bg-gradient-to-l from-white to-transparent sm:hidden"
-            />
-          </div>
-        </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Top products
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Best sellers by revenue
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {topProducts.length ? (
+              topProducts.map((p, i) => {
+                const revenueValue = Number(p.revenue) || 0;
+                const pct = Math.max(
+                  Math.round((revenueValue / maxProductRevenue) * 100),
+                  2
+                );
+                return (
+                  <div key={`${p.code || p.name}-${i}`} className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
+                      {p.image ? (
+                        <img
+                          src={p.image}
+                          alt={p.name ? `${p.name} thumbnail` : "Product thumbnail"}
+                          width={40}
+                          height={40}
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <Package
+                          className="size-4 text-muted-foreground"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className="truncate text-sm font-medium text-foreground"
+                          title={p.name}
+                        >
+                          {p.name}
+                        </span>
+                        <span className="shrink-0 text-sm font-semibold text-foreground">
+                          {fmtMoney(revenueValue)}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {p.orders} order{p.orders === 1 ? "" : "s"}
+                      </div>
+                      <div
+                        className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+                        role="img"
+                        aria-label={`${p.name}: ${fmtMoney(revenueValue)} revenue`}
+                      >
+                        <span
+                          className="block h-full rounded-full bg-primary"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="py-8 text-center text-sm text-muted-foreground">
+                No sales yet.{" "}
+                <Link
+                  href="/dashboard/product-management/my-products"
+                  className="font-medium text-foreground underline underline-offset-2"
+                >
+                  Go to Product Management
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
-    </div>
+
+      {/* Inventory + customers */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+        <Card>
+          <CardHeader className="py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Inventory alerts
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Catalogue items that are not live on the storefront
+              </p>
+            </div>
+            <Link
+              href="/dashboard/product-management/my-products"
+              className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              View products
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {totalProducts === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                No products yet.
+              </p>
+            ) : (
+              <>
+                {notLiveProducts > 0 ? (
+                  <div className="flex items-start gap-3 rounded-lg border border-warning/20 bg-warning/5 p-3">
+                    <AlertTriangle
+                      className="mt-0.5 size-4 shrink-0 text-warning"
+                      aria-hidden="true"
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-foreground">
+                        {fmtNum(notLiveProducts)} product
+                        {notLiveProducts === 1 ? "" : "s"} not live
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Draft or unpublished items are hidden from the storefront.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3 rounded-lg border border-success/20 bg-success/5 p-3">
+                    <CheckCircle2
+                      className="mt-0.5 size-4 shrink-0 text-success"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        All products are live
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Every product is published to the storefront.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Live products</span>
+                    <span className="font-medium text-foreground">
+                      {fmtNum(liveProducts)} / {fmtNum(totalProducts)}
+                    </span>
+                  </div>
+                  <div
+                    className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+                    role="progressbar"
+                    aria-valuenow={livePct}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Live products"
+                  >
+                    <span
+                      className="block h-full rounded-full bg-primary"
+                      style={{ width: `${livePct}%` }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Customer growth
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                New storefront accounts this month
+              </p>
+            </div>
+            <span className="text-xs text-muted-foreground">This month</span>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[28px] font-semibold leading-none text-foreground">
+                  {fmtNum(customers.newThisMonth)}
+                </p>
+                <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <UserPlus className="size-4" aria-hidden="true" />
+                  new this month
+                </p>
+              </div>
+              <div className="text-end">
+                <p className="text-[28px] font-semibold leading-none text-foreground">
+                  {fmtNum(customers.total)}
+                </p>
+                <p className="mt-1.5 flex items-center justify-end gap-1.5 text-sm text-muted-foreground">
+                  <Users className="size-4" aria-hidden="true" />
+                  total customers
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">
+                  Share of new accounts
+                </span>
+                <span className="font-medium text-foreground">
+                  {newCustomerPct}%
+                </span>
+              </div>
+              <div
+                className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
+                role="progressbar"
+                aria-valuenow={newCustomerPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label="New customers this month"
+              >
+                <span
+                  className="block h-full rounded-full bg-primary"
+                  style={{ width: `${newCustomerPct}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground">
+                <Boxes className="size-4" aria-hidden="true" />
+              </span>
+              <p className="text-xs text-muted-foreground">
+                {fmtNum(orders.pending)} order
+                {orders.pending === 1 ? "" : "s"} waiting for confirmation and{" "}
+                {fmtNum(orders.processing)} in production.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </Page>
   );
 };
 

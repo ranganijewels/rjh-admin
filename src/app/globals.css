@@ -16,44 +16,48 @@
 /* @import "../css/icon.style.css"; */
 
 :root {
-  --background: #fbfbfb; /* off-white page background, distinct from white cards/popovers */
-  --foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */
-  --card: oklch(1 0 0); /* --color-white */
-  --card-foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */
-  --popover: oklch(1 0 0); /* --color-white */
-  --popover-foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */
-  --primary: #162640; /* Rangani Navy */
-  --primary-foreground: oklch(1 0 0); /* --color-white */
-  --secondary: oklch(96.7% 0.003 264.542); /* --color-zinc-100 */
-  /* --secondary-foreground: 5.2:1 on white — passes WCAG AA (4.5:1) for
-     normal text with margin. Reserve for primary/body content on
-     --secondary backgrounds; for lower-emphasis text prefer
-     --muted-foreground below, which is darker still (6:1). */
-  --secondary-foreground: oklch(44.6% 0.03 256.802); /* --color-zinc-600 */
-  --muted: oklch(96.7% 0.003 264.542); /* --color-zinc-100 */
-  --muted-foreground: oklch(
-    50% 0.016 286.067
-  ); /* darkened from zinc-400 (2.6:1) to meet WCAG AA 4.5:1 on white — verified ~6:1. Audit all text-muted-foreground usage against non-white backgrounds too. */
-  --accent: oklch(96.7% 0.003 264.542); /* --color-zinc-100 */
-  --accent-foreground: oklch(21% 0.006 285.885); /* --color-zinc-900 */
-  --destructive: oklch(57.7% 0.245 27.325); /* --color-red-600 */
-  --destructive-foreground: oklch(1 0 0); /* --color-white */
-  --mono: oklch(14.1% 0.005 285.823); /* --color-zinc-950 */
-  --mono-foreground: oklch(1 0 0); /* --color-white */
+  /* ── Storeflow-aligned light palette ─────────────────────────────────────
+     Near-neutral surfaces, a graphite primary, and one soft semantic color
+     per state. Rangani Navy is retained as an explicit brand token so the
+     logo/accents keep their identity without forcing it onto every button. */
+  --background: #f4f5f7; /* reference app canvas (#F5F5F5) */
+  --foreground: #111827; /* near-black body text */
+  --card: #ffffff; /* white surfaces */
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+  --primary: #111827; /* graphite primary CTA (reference "Create order") */
+  --primary-foreground: #ffffff;
+  --brand-navy: #162640; /* Rangani Navy — logo / brand accents only */
+  --secondary: #f1f5f9;
+  --secondary-foreground: #334155;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b; /* ~4.8:1 on white — still passes AA */
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #16a34a;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --info: #2563eb;
+  --info-foreground: #ffffff;
+  --mono: #0a0a0a;
+  --mono-foreground: #ffffff;
 
   /** Base Styles **/
-  --border: oklch(
-    94% 0.004 286.32
-  ); /* between --color-zinc-100 and --color-zinc-200 */
-  --input: oklch(92% 0.004 286.32); /* --color-zinc-200 */
-  --ring: oklch(87.1% 0.006 286.286); /* --color-zinc-400 */
-  /* Single base radius token; the full scale (sm/md/lg/xl) is derived from
-     it via calc() in the @theme inline block of ../css/config.reui.css
-     (--radius-sm = base-4px, --radius-md = base-2px, --radius-lg = base,
-     --radius-xl = base+4px). Change the base here to rescale all
-     rounded-{sm,md,lg,xl} utilities consistently instead of hardcoding
-     radii elsewhere. */
-  --radius: 0.5rem;
+  --border: #e5e7eb;
+  --input: #e5e7eb;
+  --ring: #cbd5e1;
+  /* Base radius: 12px. Tailwind scale derives from it in config.reui.css:
+     sm 8px, md 10px, lg 12px, xl 16px — matching the reference cards. */
+  --radius: 0.75rem;
+
+  /* Elevation: one flat card shadow + one floating shadow. */
+  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04),
+    0 1px 3px 0 rgb(16 24 40 / 0.06);
+  --shadow-popover: 0 12px 32px -12px rgb(15 23 42 / 0.18);
 }
 
 /* Dark mode — toggled by SettingsProvider adding/removing `.dark` on <html>
@@ -68,27 +72,63 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: #3a5c8a; /* Rangani Navy, lightened — the base #162640 loses contrast on a near-black page */
-  --primary-foreground: oklch(1 0 0);
+  --primary: oklch(0.985 0 0); /* light CTA on dark — starts to read like the reference's dark-on-light inverted */
+  --primary-foreground: oklch(0.145 0 0);
+  --brand-navy: #3a5c8a; /* navy lightened for dark surfaces */
   --secondary: oklch(0.269 0 0); /* --color-zinc-800 */
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0); /* --color-zinc-400, ~6:1 on the near-black background */
+  --muted-foreground: oklch(0.708 0 0); /* ~6:1 on the near-black background */
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216); /* brighter red — the light-mode red-600 reads muddy on dark */
+  --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.145 0 0);
-  --mono: oklch(0.985 0 0); /* inverted: mono stays the "opposite surface" in both themes */
+  --success: oklch(0.723 0.192 149.579);
+  --success-foreground: oklch(0.145 0 0);
+  --warning: oklch(0.769 0.188 70.08);
+  --warning-foreground: oklch(0.145 0 0);
+  --info: oklch(0.623 0.214 259.815);
+  --info-foreground: oklch(0.145 0 0);
+  --mono: oklch(0.985 0 0);
   --mono-foreground: oklch(0.145 0 0);
 
-  --border: oklch(1 0 0 / 10%); /* translucent white reads correctly against any dark surface */
+  --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+
+  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 1px 3px 0 rgb(0 0 0 / 0.3);
+  --shadow-popover: 0 12px 32px -12px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-brand-navy: var(--brand-navy);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --shadow-card: var(--shadow-card);
+  --shadow-popover: var(--shadow-popover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -134,11 +174,8 @@ body {
   --text-2xs--line-height: calc(0.825 / 0.6875);
 
   /** Sidebar width tokens, exposed for use as w-sidebar / w-sidebar-mobile **/
-  --width-sidebar: 310px;
-  --width-sidebar-mobile: 280px;
-
-  /* Semantic status color used e.g. for success borders/badges */
-  --color-success: oklch(72.7% 0.161 142.477); /* --color-green-500 */
+  --width-sidebar: 288px;
+  --width-sidebar-mobile: 288px;
 
   /* Teal accent used by Live Chat (agent bubbles / unread badge) */
   --color-teal: #2f6f7a;
@@ -155,9 +192,9 @@ body {
   .demo1 {
     --sidebar-transition-duration: 0.3s;
     --sidebar-transition-timing: ease;
-    --sidebar-width: 310px;
+    --sidebar-width: 288px;
     --sidebar-width-collapse: 80px;
-    --sidebar-default-width: 310px;
+    --sidebar-default-width: 288px;
     --header-height: 70px;
   }
 

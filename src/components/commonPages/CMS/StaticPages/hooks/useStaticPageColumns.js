@@ -8,6 +8,7 @@ import { Edit2Icon, EyeIcon, FileText, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/common/ui/button";
 import { RiDeleteBin5Line } from "@remixicon/react";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 import { useCrudApi } from "@/hooks/useCrudApi";
 
 export const useStaticPageColumns = ({
@@ -16,6 +17,8 @@ export const useStaticPageColumns = ({
   onFile = () => {},
   onEdit = () => {},
   onDelete = () => {},
+  canEdit = true,
+  canDelete = true,
 }) => {
   const columns = useMemo(
     () => [
@@ -26,16 +29,18 @@ export const useStaticPageColumns = ({
         enableSorting: false,
         enableHiding: false,
         size: 48,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "srno",
         header: ({ column }) => (
-          <DataGridColumnHeader title="ID" column={column} />
+          <DataGridColumnHeader title="Page ID" column={column} />
         ),
         accessorFn: (row) => row.id,
-        cell: ({ row }) => <p>{row.original.id}</p>,
+        cell: ({ row }) => <ShortId value={row.original.id} label="Page ID" />,
         enableSorting: true,
         size: 130,
+        meta: { headerTitle: "Page ID" },
       },
       {
         id: "Page Title",
@@ -43,15 +48,11 @@ export const useStaticPageColumns = ({
           <DataGridColumnHeader title="Page Title" column={column} />
         ),
         accessorFn: (row) => row.page_title,
-        cell: ({ row }) => {
-          const t = row.original.page_title || "-";
-          return (
-            <span title={t} className="block truncate">
-              {t}
-            </span>
-          );
-        },
-        size: 230,
+        cell: ({ row }) => (
+          <TruncatedText value={row.original.page_title} className="font-medium text-foreground" />
+        ),
+        size: 240,
+        meta: { headerTitle: "Page Title", identity: true, truncate: true },
       },
       {
         id: "Page Slug",
@@ -59,8 +60,9 @@ export const useStaticPageColumns = ({
           <DataGridColumnHeader title="Slug" column={column} />
         ),
         accessorFn: (row) => row.page_slug,
-        cell: ({ row }) => <span>{row.original.page_slug}</span>,
+        cell: ({ row }) => <TruncatedText value={row.original.page_slug} />,
         size: 165,
+        meta: { headerTitle: "Slug", truncate: true },
       },
 
       {
@@ -70,17 +72,24 @@ export const useStaticPageColumns = ({
         ),
         accessorFn: (row) => row.content,
         cell: ({ row }) => (
-          <div className="flex justify-start ml-4">
+          <div className="flex justify-start">
             <Button
               mode="icon"
               variant="outline"
-              onClick={() => onFile(row.original)}
+              aria-label={`View content for ${row.original.page_title || "page"}`}
+              title="View content"
+              onClick={(event) => {
+                event.stopPropagation();
+                onFile(row.original);
+              }}
             >
               <FileText />
             </Button>
           </div>
         ),
-        size: 165,
+        enableSorting: false,
+        size: 110,
+        meta: { headerTitle: "Content" },
       },
       {
         id: "active",
@@ -94,37 +103,54 @@ export const useStaticPageColumns = ({
             // toggleStatus={toggleStatus}
           />
         ),
-        size: 165,
+        enableHiding: false,
+        size: 100,
+        meta: { headerTitle: "Active" },
       },
       {
         id: "actions",
         header: ({ column }) => (
           <DataGridColumnHeader title="Actions" column={column} />
         ),
-        accessorFn: (row) => row.actions,
         cell: ({ row }) => (
           <div className="flex gap-2.5">
-            <Button
-              mode="icon"
-              variant="outline"
-              onClick={() => onEdit(row.original)}
-            >
-              <Edit2Icon />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              className="!cursor-pointer"
-              onClick={() => onDelete(row.original.id)}
-            >
-              <RiDeleteBin5Line />
-            </Button>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label="Edit page"
+                title="Edit page"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onEdit(row.original);
+                }}
+              >
+                <Edit2Icon />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="outline"
+                className="!cursor-pointer"
+                aria-label="Delete page"
+                title="Delete page"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onDelete(row.original.id);
+                }}
+              >
+                <RiDeleteBin5Line />
+              </Button>
+            )}
           </div>
         ),
-        size: 165,
+        enableHiding: false,
+        size: 110,
+        meta: { headerTitle: "Actions" },
       },
     ],
-    [onClick, onView, onFile, onEdit, onDelete]
+    [onClick, onView, onFile, onEdit, onDelete, canEdit, canDelete]
   );
 
   return columns;

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { MessageSquare, Send, CheckCheck, RefreshCw } from "lucide-react";
@@ -138,20 +139,15 @@ export default function LiveChatInbox() {
 
   return (
     <div className="flex flex-col h-screen space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" /> Live Chat
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Real-time conversations from storefront visitors. Replies appear instantly in
-            their chat window.
-          </p>
-        </div>
-        <Button variant="outline" size="sm" className="gap-1.5" onClick={fetchList}>
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
-      </div>
+      <PageHeader
+        title="Live Chat"
+        description="Real-time conversations from storefront visitors. Replies appear instantly in their chat window."
+        actions={
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={fetchList}>
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        }
+      />
 
       <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-4 flex-1 min-h-[460px]">
         {/* Conversation list */}

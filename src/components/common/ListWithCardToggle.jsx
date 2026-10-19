@@ -21,7 +21,6 @@ import {
 import { Columns, LayoutGrid, List, Search, Settings2, X } from "lucide-react";
 import {
   ToolbarDescription,
-  ToolbarTitle,
 } from "@/components/common/ui/toolbar";
 import {
   getCoreRowModel,
@@ -43,6 +42,24 @@ import { useMarginService } from "@/services/marginService";
 import { DataGridColumnVisibility } from "./ui/data-grid-column-visibility";
 import { Label } from "./ui/label";
 
+// Actions have historically been declared as either "action" or "actions".
+// Pin both so every table keeps its row actions visible. Identity columns opt
+// in with `meta: { identity: true }` and are pinned to the left edge.
+function getInitialColumnPinning(columns = []) {
+  const actionIds = columns
+    .map((column) => column.id)
+    .filter((id) => id === "action" || id === "actions");
+  const identityIds = columns
+    .filter((column) => column.meta?.identity)
+    .map((column) => column.id)
+    .filter(Boolean);
+
+  return {
+    left: ["expand-column", "select", ...identityIds],
+    right: actionIds.length ? actionIds : ["actions"],
+  };
+}
+
 export const ListWithCardToggle = ({
   title,
   description,
@@ -56,6 +73,9 @@ export const ListWithCardToggle = ({
   renderCardView,
   createBtn,
   filterDropdownProps,
+  // Extra controls rendered next to the filter dropdowns (e.g. a "Clear"
+  // button for the active filters).
+  filterActions,
   disableFooter,
   disableDescription,
   customCardHeader,
@@ -80,12 +100,33 @@ export const ListWithCardToggle = ({
   // Generic bulk-action bar shown when rows are selected, regardless of view
   // mode: [{key, label, variant?, confirmMessage?, onRun: (selectedRowObjects) => Promise<void>}]
   bulkActions = [],
+  // Extra classes for the outer container. Defaults to no extra horizontal
+  // padding: the app shell already provides the page padding (p-4 md:p-6),
+  // so the list lines up with the page header instead of being inset twice.
+  contentClassName = "px-0 lg:px-0",
+  // Opt-in: on screens below `lg` the card view is used automatically, since
+  // a wide data table cannot fit. The user can still switch back to the list.
+  responsiveCards = false,
+  // Changing this value resets the table back to the first page (used when a
+  // filter/tab changes the underlying rows).
+  paginationResetKey,
+  // Render the title as a section heading (h2) instead of the page heading
+  // (h1) — used when the page already renders its own <PageHeader>. Pass
+  // "none" to drop the title block entirely (the actions stay).
+  titleAs = "h1",
 }) => {
   const [currentMode, setCurrentMode] = useState(
-    renderCardView ? "cards" : "list"
+    renderCardView && !responsiveCards ? "cards" : "list"
   );
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const [sorting, setSorting] = useState([{ id: "id", desc: true }]);
+  // Default to sorting by `id` descending — but only when the table actually
+  // has an `id` column. TanStack throws "Column with id 'id' does not exist"
+  // when the sort state references a column that isn't part of the table,
+  // which is the case for most of the admin tables (orderId, request_id,
+  // srno, …).
+  const [sorting, setSorting] = useState(() =>
+    columns.some((column) => column.id === "id") ? [{ id: "id", desc: true }] : []
+  );
   const [rowSelection, setRowSelection] = useState({});
   const [searchQuery, setSearchQuery] = useState(externalSearchQuery || "");
   const [deletePermissionIds, setDeletePermissionIds] = useState([]);
@@ -103,10 +144,47 @@ export const ListWithCardToggle = ({
   const [bulkLabourCard, setBulkLabourCard] = useState("");
   const [bulkDiamondCard, setBulkDiamondCard] = useState("");
 
-  const [columnPinning, setColumnPinning] = useState({
-    left: ["expand-column", "id"],
-    right: ["actions"],
-  });
+  const [columnPinning, setColumnPinning] = useState(() =>
+    getInitialColumnPinning(columns)
+  );
+
+  // Responsive card view: below `lg` the stacked cards replace the table.
+  // `modeOverride` remembers an explicit choice by the user, which always
+  // wins over the automatic behaviour.
+  const [isNarrow, setIsNarrow] = useState(false);
+  const [modeOverride, setModeOverride] = useState(null);
+
+  useEffect(() => {
+    if (!responsiveCards) return undefined;
+    const query = window.matchMedia("(max-width: 1023px)");
+    const apply = () => setIsNarrow(query.matches);
+    apply();
+    query.addEventListener("change", apply);
+    return () => query.removeEventListener("change", apply);
+  }, [responsiveCards]);
+
+  const effectiveMode =
+    modeOverride ?? (responsiveCards && isNarrow ? "cards" : currentMode);
+
+  // New rows (filter/tab change) may no longer cover the current page, so
+  // jump back to the first page.
+  useEffect(() => {
+    setPagination((prev) =>
+      prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }
+    );
+  }, [paginationResetKey]);
+
+  // Drop sort entries whose column no longer exists (columns can change when
+  // a page swaps its column set) — otherwise TanStack throws while building
+  // the sorted row model.
+  useEffect(() => {
+    setSorting((prev) => {
+      const next = prev.filter((sort) =>
+        columns.some((column) => column.id === sort.id)
+      );
+      return next.length === prev.length ? prev : next;
+    });
+  }, [columns]);
 
   const actualPagination = serverSidePagination
     ? externalPagination
@@ -212,12 +290,6 @@ export const ListWithCardToggle = ({
       columnVisibility,
     },
     onColumnVisibilityChange: setColumnVisibility,
-    initialState: {
-      columnPinning: {
-        left: ["expand-column", "select"],
-        right: ["actions"],
-      },
-    },
     onColumnPinningChange: setColumnPinning,
     columnResizeMode: "onChange",
     enableColumnResizing: resizableColumns,
@@ -243,19 +315,19 @@ export const ListWithCardToggle = ({
 
   // Sync external search query with internal state
   useEffect(() => {
-    if (serverSidePagination && externalSearchQuery !== undefined) {
-      setSearchQuery(externalSearchQuery);
-    }
-  }, [externalSearchQuery, serverSidePagination]);
+    if (externalSearchQuery === undefined) return;
+    setSearchQuery((prev) =>
+      prev === externalSearchQuery ? prev : externalSearchQuery
+    );
+  }, [externalSearchQuery]);
 
   const handleSearchChange = (value) => {
-    if (serverSidePagination) {
-      onSearchChange?.(value);
-    } else {
+    if (!serverSidePagination) {
       setSearchQuery(value);
       // Reset to first page when searching
       setPagination((prev) => ({ ...prev, pageIndex: 0 }));
     }
+    onSearchChange?.(value);
   };
 
   const displayedData = serverSidePagination ? data : filteredData;
@@ -296,36 +368,58 @@ export const ListWithCardToggle = ({
     onLoadMore,
     hasMore,
     loadingMore,
-    currentMode,
+    effectiveMode,
     serverSidePagination,
     filteredData.length,
   ]);
 
   return (
-    <Container>
+    <Container className={contentClassName}>
       <div className="flex flex-col items-stretch gap-5 lg:gap-7.5">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-5 justify-between">
-          <div>
-            <ToolbarTitle>{title}</ToolbarTitle>
-            {!disableDescription && (
-              <ToolbarDescription>{description}</ToolbarDescription>
-            )}
-          </div>
+          {titleAs !== "none" && (
+            <div>
+              {titleAs === "h2" ? (
+                <h2 className="text-base font-semibold text-foreground">
+                  {title}
+                </h2>
+              ) : (
+                <h1 className="text-2xl font-semibold leading-tight text-foreground">
+                  {title}
+                </h1>
+              )}
+              {!disableDescription && (
+                <ToolbarDescription>{description}</ToolbarDescription>
+              )}
+            </div>
+          )}
 
           <div className="flex items-center gap-2">
             {createBtn && createBtn}
             <ToggleGroup
               type="single"
               variant="outline"
-              value={currentMode}
-              onValueChange={(value) => value && setCurrentMode(value)}
+              value={effectiveMode}
+              onValueChange={(value) => {
+                if (!value) return;
+                setCurrentMode(value);
+                setModeOverride(value);
+              }}
             >
-              <ToggleGroupItem value="list">
+              <ToggleGroupItem
+                value="list"
+                aria-label="List view"
+                title="List view"
+              >
                 <List size={16} />
               </ToggleGroupItem>
               {renderCardView && (
-                <ToggleGroupItem value="cards">
+                <ToggleGroupItem
+                  value="cards"
+                  aria-label="Card view"
+                  title="Card view"
+                >
                   <LayoutGrid size={16} />
                 </ToggleGroupItem>
               )}
@@ -345,7 +439,7 @@ export const ListWithCardToggle = ({
         )}
 
         {/* Card View */}
-        {renderCardView && currentMode === "cards" && (
+        {renderCardView && effectiveMode === "cards" && (
           <>
             {/* Bulk Action Toolbar for Cards */}
             {showBulkMargin && deletePermissionIds.length > 0 && (
@@ -435,7 +529,7 @@ export const ListWithCardToggle = ({
         )}
 
         {/* Table View */}
-        {currentMode === "list" && (
+        {effectiveMode === "list" && (
           <div className="flex flex-col gap-5 lg:gap-7.5">
             <DataGrid
               table={table}
@@ -449,6 +543,7 @@ export const ListWithCardToggle = ({
                 columnsMovable: true,
                 columnsVisibility: true,
                 cellBorder: true,
+                headerSticky: true,
                 columnsResizable: resizableColumns,
                 ...(resizableColumns ? { width: "fixed" } : {}),
               }}
@@ -481,6 +576,8 @@ export const ListWithCardToggle = ({
                             variant="ghost"
                             className="absolute end-1.5 top-1/2 -translate-y-1/2 h-6 w-6"
                             onClick={() => handleSearchChange("")}
+                            aria-label="Clear search"
+                            title="Clear search"
                           >
                             <X />
                           </Button>
@@ -489,7 +586,7 @@ export const ListWithCardToggle = ({
 
                       {/* Dropdown Filter */}
                       {filterDropdownProps && (
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           {Object.entries(filterDropdownProps).map(
                             ([key, filter]) => (
                               <Select
@@ -516,6 +613,7 @@ export const ListWithCardToggle = ({
                               </Select>
                             )
                           )}
+                          {filterActions}
                         </div>
                       )}
                     </div>
@@ -690,7 +788,7 @@ function BulkActionsBar({ actions, count, getSelectedRows, onDone }) {
 }
 
 // Standalone pagination bar for card/grid view (table view uses DataGridPagination).
-function CardPagination({ table, recordCount }) {
+function CardPagination({ table, recordCount, sizes = [10, 20, 50, 100] }) {
   const pageIndex = table.getState().pagination.pageIndex;
   const pageSize = table.getState().pagination.pageSize;
   const pageCount = table.getPageCount() || 1;
@@ -700,11 +798,30 @@ function CardPagination({ table, recordCount }) {
 
   return (
     <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-6">
-      <span className="text-sm text-muted-foreground">
-        {recordCount > 0
-          ? `Showing ${from}–${to} of ${recordCount}`
-          : "No records"}
-      </span>
+      <div className="flex items-center gap-2.5">
+        <span className="text-sm text-muted-foreground">
+          {recordCount > 0
+            ? `Showing ${from}–${to} of ${recordCount}`
+            : "No records"}
+        </span>
+        {/* Same rows-per-page control as the table footer, so the card view
+            (mobile / tablet) can change the page size too. */}
+        <Select
+          value={`${pageSize}`}
+          onValueChange={(value) => table.setPageSize(Number(value))}
+        >
+          <SelectTrigger className="h-8 w-fit" size="sm">
+            <SelectValue placeholder={`${pageSize}`} />
+          </SelectTrigger>
+          <SelectContent side="top" className="min-w-[80px]">
+            {sizes.map((size) => (
+              <SelectItem key={size} value={`${size}`}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
       <div className="flex items-center gap-1.5">
         <Button
           variant="outline"

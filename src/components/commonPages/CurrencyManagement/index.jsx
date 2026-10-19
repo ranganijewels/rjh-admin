@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
 import { Plus, RefreshCw, Star, Trash2, Pencil } from "lucide-react";
@@ -234,32 +235,29 @@ const CurrencyManagement = () => {
   if (loading) return <ContentLoader />;
 
   return (
-    <div className="space-y-4 p-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Currency &amp; Countries</h1>
-          <p className="text-sm text-muted-foreground">
-            Storefront currencies, live FX rates, and the default country. Base
-            currency is USD (rate = 1 USD in that currency).
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={refreshRates}
-            disabled={refreshing}
-          >
-            <RefreshCw
-              className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
-            />
-            {refreshing ? "Refreshing…" : "Refresh Live Rates"}
-          </Button>
-          <Button onClick={openAdd}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Currency
-          </Button>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Currency & Countries"
+        description="Storefront currencies, live FX rates, and the default country. Base currency is USD (rate = 1 USD in that currency)."
+        actions={
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={refreshRates}
+              disabled={refreshing}
+            >
+              <RefreshCw
+                className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`}
+              />
+              {refreshing ? "Refreshing…" : "Refresh Live Rates"}
+            </Button>
+            <Button onClick={openAdd}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Currency
+            </Button>
+          </div>
+        }
+      />
 
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
@@ -494,7 +492,7 @@ const CurrencyManagement = () => {
         message={`Remove ${selectedIds.size} selected currenc(ies) from the storefront? This cannot be undone.`}
         confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
-    </div>
+    </Page>
   );
 };
 

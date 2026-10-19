@@ -1,7 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
+import {
+  StatusFilter,
+  buildStatusOptions,
+} from "@/components/common/ui/status-filter";
 import { Button } from "@/components/common/ui/button";
 import { Alert, AlertDescription } from "@/components/common/ui/alert";
 import { Plus } from "lucide-react";
@@ -12,8 +16,10 @@ import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import BlogPostModel from "./BlogPostModel";
 import { useBlogPostColumns } from "./hooks/useBlogPostColumns";
+import { usePermissions } from "@/provider/permission-provider";
 
 const BlogPosts = ({ storeId = "default" }) => {
+  const { can } = usePermissions();
   const {
     list,
     loading,
@@ -32,9 +38,12 @@ const BlogPosts = ({ storeId = "default" }) => {
   const { remove } = useCrudApi(`/api/cms/blog/${storeId}/posts`);
 
   const [selectedPostId, setSelectedPostId] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   // Columns (Edit / Delete Actions)
   const columns = useBlogPostColumns({
+    canEdit: can("cms", "edit"),
+    canDelete: can("cms", "delete"),
     onEdit: async (item) => {
       try {
         setDialogOpen(true);
@@ -59,6 +68,26 @@ const BlogPosts = ({ storeId = "default" }) => {
     return data.filter((item) => item?.title?.toLowerCase().includes(q));
   };
 
+
+  const statusOptions = useMemo(
+    () =>
+      buildStatusOptions(list, (post) => (post?.isPublished ? "Published" : "Draft"), {
+        allLabel: "All posts",
+        order: ["Published", "Draft"],
+      }),
+    [list]
+  );
+
+  const scopedList = useMemo(
+    () =>
+      statusFilter === "all"
+        ? list
+        : (list || []).filter((post) =>
+            (post?.isPublished ? "Published" : "Draft") === statusFilter
+          ),
+    [list, statusFilter]
+  );
+
   if (loading) return <ContentLoader />;
   if (error)
     return (
@@ -74,15 +103,23 @@ const BlogPosts = ({ storeId = "default" }) => {
 
   return (
     <div className="space-y-4">
+      <StatusFilter
+        options={statusOptions}
+        value={statusFilter}
+        onChange={setStatusFilter}
+        ariaLabel="Post status"
+      />
+
       <ListWithCardToggle
         resizableColumns
         title="Blog Posts"
+        titleAs="h2"
         description="Manage your blog posts here."
-        data={list}
+        data={scopedList}
         columns={columns}
         filterFunction={filterOptions}
         infiniteScroll
-        bulkActions={[
+        bulkActions={can("cms", "delete") ? [
           {
             key: "delete",
             label: "Delete",
@@ -94,18 +131,20 @@ const BlogPosts = ({ storeId = "default" }) => {
               fetchData();
             },
           },
-        ]}
+        ] : []}
         createBtn={
-          <Button
-            onClick={() => {
-              setDialogOpen(true);
-              setEditData(null);
-              setSelectedPostId(null);
-            }}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Post
-          </Button>
+          can("cms", "create") ? (
+            <Button
+              onClick={() => {
+                setDialogOpen(true);
+                setEditData(null);
+                setSelectedPostId(null);
+              }}
+            >
+              <Plus className="size-4" />
+              Add Post
+            </Button>
+          ) : null
         }
       />
 

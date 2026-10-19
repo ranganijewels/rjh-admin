@@ -1,14 +1,16 @@
 "use client";
+
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/common/ui/button";
 import {
-  Toolbar,
-  ToolbarActions,
-  ToolbarDescription,
-  ToolbarHeading,
-  ToolbarPageTitle,
-} from "@/components/common/ui/toolbar";
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/common/ui/cards/card";
+import { Badge } from "@/components/common/ui/badge";
+import { PageHeader } from "@/components/common/ui/page";
+import { cn } from "@/lib/utils";
 import StandardMenuEditor from "./StandardMenuEditor";
 import CustomizeMenuEditor from "./CustomizeMenuEditor";
 
@@ -127,7 +129,7 @@ const MegaMenuManager = () => {
         pageSlug: PAGE_SLUG,
         sectionKey: sec.sectionKey,
         sectionType: sec.sectionType,
-        label: activeItem.label,
+        label: sec.label,
         sortOrder: sec.sortOrder ?? 0,
         isPublished: true,
         content: sec.content,
@@ -151,67 +153,131 @@ const MegaMenuManager = () => {
 
   return (
     <div>
-      <Toolbar>
-        <ToolbarHeading>
-          <ToolbarPageTitle text="Mega Menu Content" className="font-semibold !text-foreground text-lg" />
-          <ToolbarDescription className="mt-1 text-sm">
-            Edit the images, columns, links, and CTA for any nav item with "Rich mega-menu" enabled — turn that
-            on per item in CMS → Navigation.
-          </ToolbarDescription>
-        </ToolbarHeading>
-        {!loading && missingCount > 0 && (
-          <ToolbarActions>
+      <PageHeader
+        titleAs="h2"
+        title="Mega Menu Content"
+        description={
+          <>
+            Edit the images, columns, links, and CTA for any nav item with
+            &quot;Rich mega-menu&quot; enabled — turn that on per item in CMS →
+            Navigation.
+          </>
+        }
+        actions={
+          !loading && missingCount > 0 ? (
             <Button variant="outline" onClick={handleSeed} disabled={seeding}>
               {seeding ? "Loading…" : "Load starter content"}
             </Button>
-          </ToolbarActions>
-        )}
-      </Toolbar>
+          ) : null
+        }
+      />
 
       {loading ? (
-        <p className="text-sm text-muted-foreground mt-4">Loading…</p>
+        <Card className="mt-4">
+          <CardContent className="p-6 text-sm text-muted-foreground">Loading…</CardContent>
+        </Card>
       ) : navMenuItems.length === 0 ? (
-        <div className="border border-dashed border-border rounded-lg p-8 text-center mt-4">
-          <p className="text-sm text-muted-foreground">
-            No nav items have a rich mega-menu yet. Go to CMS → Navigation, edit (or add) a top-level item, and
-            check "Rich mega-menu" — it'll show up here to edit.
-          </p>
-        </div>
+        <Card className="mt-4 border-dashed">
+          <CardContent className="p-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No nav items have a rich mega-menu yet. Go to CMS → Navigation, edit
+              (or add) a top-level item, and check &quot;Rich mega-menu&quot; — it&apos;ll
+              show up here to edit.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
         <>
-          <div className="flex flex-wrap gap-2 mt-4 mb-4">
-            {navMenuItems.map((m) => (
-              <button
-                key={m.key}
-                type="button"
-                onClick={() => setActive(m.key)}
-                className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                  active === m.key
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "border-border text-muted-foreground hover:bg-muted/50"
-                }`}
-              >
-                {m.label}
-                {!sections[m.key] && <span className="ml-1.5 text-[10px] opacity-70">(not set up)</span>}
-              </button>
-            ))}
-          </div>
+          {/* Menu picker */}
+          <Card className="mt-4">
+            <CardHeader className="py-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">Menus</p>
+                <p className="text-xs text-muted-foreground">
+                  {navMenuItems.length} nav {navMenuItems.length === 1 ? "item" : "items"} with a
+                  rich mega-menu
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-border">
+                {navMenuItems.map((m) => {
+                  const isActive = active === m.key;
+                  const isMissing = !sections[m.key];
+                  return (
+                    <li key={m.key}>
+                      <button
+                        type="button"
+                        onClick={() => setActive(m.key)}
+                        aria-current={isActive ? "true" : undefined}
+                        className={cn(
+                          "group flex w-full items-center gap-4 px-4 py-3.5 text-start transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                          isActive ? "bg-muted/60" : "hover:bg-muted/40"
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+                            isActive
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-secondary text-foreground"
+                          )}
+                          aria-hidden="true"
+                        >
+                          {m.label?.charAt(0)?.toUpperCase() || "?"}
+                        </span>
 
-          {!current && (
-            <p className="text-sm text-muted-foreground mb-3">
-              No content saved yet for {activeItem?.label} — build it below and Save &amp; Publish.
-            </p>
-          )}
-          {activeItem?.layout === "tiles" ? (
-            <CustomizeMenuEditor content={content} onChange={setContent} />
-          ) : (
-            <StandardMenuEditor content={content} onChange={setContent} />
-          )}
-          <div className="mt-4 flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Saving…" : "Save & Publish"}
-            </Button>
-          </div>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="truncate text-sm font-medium text-foreground">
+                              {m.label}
+                            </span>
+                            {isMissing && (
+                              <Badge appearance="outline" shape="circle" size="sm">
+                                Not set up
+                              </Badge>
+                            )}
+                          </span>
+                          <span className="mt-0.5 block text-xs capitalize text-muted-foreground">
+                            {m.layout === "tiles" ? "Media tiles" : "Columns + CTA"}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* Editor */}
+          <Card className="mt-5">
+            <CardHeader className="py-4">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {activeItem?.label || "Menu"} content
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {current
+                    ? "Saved content — make your changes and publish again."
+                    : "No content saved yet for this menu — build it below and save & publish."}
+                </p>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              {activeItem?.layout === "tiles" ? (
+                <CustomizeMenuEditor content={content} onChange={setContent} />
+              ) : (
+                <StandardMenuEditor content={content} onChange={setContent} />
+              )}
+
+              <div className="flex justify-end border-t border-border pt-4">
+                <Button onClick={handleSave} disabled={saving}>
+                  {saving ? "Saving…" : "Save & Publish"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

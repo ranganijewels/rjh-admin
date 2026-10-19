@@ -16,7 +16,7 @@ export const authHeaders = () => {
 export const Section = ({ title, action, children }) => (
   <section className="mb-6 rounded-xl border border-border bg-card">
     <div className="flex items-center justify-between bg-muted/60 px-5 py-3 rounded-t-xl">
-      <h3 className="text-sm font-semibold text-[#162640]">{title}</h3>
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {action}
     </div>
     <div className="p-5">{children}</div>

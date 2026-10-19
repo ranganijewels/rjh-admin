@@ -4,12 +4,12 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/common/ui/input";
 import { Textarea } from "@/components/common/ui/textarea";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import ImageUpload from "../ProductForm/ImageUpload";
 import { Plus, Pencil, Trash2, Boxes, ExternalLink, X, Search } from "lucide-react";
 
-const NAVY = "#162640";
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
 
@@ -294,26 +294,26 @@ export default function ManageCollection() {
   }, [products, productSearch]);
 
   return (
-    <div className="space-y-4">
+    <Page>
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold" style={{ color: NAVY }}>
-            Collections
-          </h1>
-          <p className="text-sm text-muted-foreground">
+      <PageHeader
+        title="Collections"
+        description={
+          <>
             Create collections, assign products, and share the page link. Each
             collection is live at{" "}
             <code className="text-xs bg-muted px-1 py-0.5 rounded">
               /collections/&lt;slug&gt;
             </code>{" "}
             — paste that path into CMS menus or banners to link it.
-          </p>
-        </div>
-        <Button onClick={openAdd} className="gap-1.5 self-start">
-          <Plus className="size-4" /> New Collection
-        </Button>
-      </div>
+          </>
+        }
+        actions={
+          <Button onClick={openAdd} className="gap-1.5">
+            <Plus className="size-4" /> New Collection
+          </Button>
+        }
+      />
 
       {/* Create / edit panel */}
       {panelOpen && (
@@ -436,7 +436,7 @@ export default function ManageCollection() {
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#162640] text-white text-left">
+            <tr className="bg-muted/60 text-foreground text-left">
               <th className="px-4 py-2.5 font-medium w-10">
                 <input
                   type="checkbox"
@@ -508,8 +508,7 @@ export default function ManageCollection() {
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-xs font-mono hover:underline"
-                      style={{ color: NAVY }}
-                    >
+                                          >
                       /collections/{row.slug}
                       <ExternalLink className="size-3" />
                     </a>
@@ -662,6 +661,6 @@ export default function ManageCollection() {
         message={`Delete ${selectedCollectionIds.size} selected collection(s)? Their products are kept (only detached).`}
         confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
-    </div>
+    </Page>
   );
 }

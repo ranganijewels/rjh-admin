@@ -113,7 +113,7 @@ const SelectionProducts = () => {
   ];
 
   return (
-    <div className="p-6 space-y-4">
+    <div className="space-y-4">
       <ListWithCardToggle
         title="Selection Products"
         data={products}

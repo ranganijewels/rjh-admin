@@ -6,6 +6,7 @@ import {
   Sheet,
   SheetBody,
   SheetContent,
+  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -34,6 +35,13 @@ const BaseEditModal = ({
       >
         <SheetHeader className="border-b py-3.5 px-5 border-border">
           <SheetTitle>{title}</SheetTitle>
+          {/* Radix requires a description (or an explicit aria-describedby)
+              on the dialog content — otherwise it logs an accessibility
+              warning. Kept screen-reader-only so the visual design is
+              unchanged. */}
+          <SheetDescription className="sr-only">
+            {title}
+          </SheetDescription>
         </SheetHeader>
 
         <Form {...form}>

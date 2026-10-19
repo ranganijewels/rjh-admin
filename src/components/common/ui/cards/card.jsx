@@ -25,8 +25,8 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-card border border-border shadow-xs black/5",
-        accent: "bg-muted shadow-xs p-1",
+        default: "bg-card border border-border shadow-card",
+        accent: "bg-muted shadow-card p-1",
       },
     },
     defaultVariants: {

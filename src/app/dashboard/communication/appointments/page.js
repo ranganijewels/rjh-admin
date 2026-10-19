@@ -2,6 +2,15 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { Page, PageHeader } from "@/components/common/ui/page";
+import { StatusBadge } from "@/components/common/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
 
 const authHeaders = () => {
   const token =
@@ -15,26 +24,18 @@ const authHeaders = () => {
 };
 
 const STATUSES = ["pending", "confirmed", "completed", "cancelled", "no_show"];
-const badge = (s) =>
-  ({
-    pending: "bg-amber-100 text-amber-800",
-    confirmed: "bg-green-100 text-green-700",
-    completed: "bg-blue-100 text-blue-700",
-    cancelled: "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground",
-    no_show: "bg-red-100 text-red-700",
-  }[s] || "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground");
 
 // Expert-consultation bookings from the storefront "Speak to an Expert" modal.
 export default function AppointmentsPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("");
+  const [filter, setFilter] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/appointments${filter ? `?status=${filter}` : ""}`,
+        `/api/appointments${filter && filter !== "all" ? `?status=${filter}` : ""}`,
         { headers: authHeaders(), cache: "no-store" }
       );
       const j = await res.json();
@@ -67,30 +68,30 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-[#162640]">Appointments</h1>
-          <p className="text-sm text-muted-foreground">
-            30-min expert consultations booked from product pages · slots Mon–Fri
-            9:00–18:00 US Eastern
-          </p>
-        </div>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-        >
-          <option value="">All statuses</option>
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-      </div>
+      <PageHeader
+        title="Appointments"
+        description="30-min expert consultations booked from product pages · slots Mon–Fri 9:00–18:00 US Eastern"
+        actions={
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="All statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All statuses</SelectItem>
+              {STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {s}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
+      />
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-[#162640] text-white text-left">
+            <tr className="bg-muted/60 text-foreground text-left">
               {["When (US Eastern)", "Customer", "Contact", "Regarding", "Status", "Actions"].map((h) => (
                 <th key={h} className="px-4 py-2.5 font-medium whitespace-nowrap">{h}</th>
               ))}
@@ -117,9 +118,7 @@ export default function AppointmentsPage() {
                     <span className="line-clamp-2 whitespace-pre-line">{r.notes || "—"}</span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badge(r.status)}`}>
-                      {r.status}
-                    </span>
+                    <StatusBadge status={r.status} />
                   </td>
                   <td className="px-4 py-2.5">
                     <select

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/common/ui/button";
+import { Page, PageHeader } from "@/components/common/ui/page";
 import { Plus } from "lucide-react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
@@ -10,8 +11,10 @@ import { useCrudApi } from "@/hooks/useCrudApi";
 import { userDepartments } from "./hooks/userDepartments";
 import AddDepartmentModel from "./AddDepartmentsModel";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { usePermissions } from "@/provider/permission-provider";
 
 const Department = () => {
+  const { can } = usePermissions();
   const {
     list,
     loading,
@@ -58,32 +61,42 @@ const Department = () => {
   if (error) return <div className="text-red-500">Error: {error}</div>;
 
   return (
-    <div className="space-y-4">
+    <Page>
+      <PageHeader
+        title="Departments"
+        description="The departments a team member can belong to. Departments scope the product catalogue and reporting."
+        actions={
+          can("users_roles", "create") ? (
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="size-4" /> Add Department
+            </Button>
+          ) : null
+        }
+      />
+
       <ListWithCardToggle
-        title="All Departments"
+        titleAs="none"
         data={list?.data}
         columns={columns}
         resizableColumns
         filterFunction={filterOptions}
         infiniteScroll
-        bulkActions={[
-          {
-            key: "delete",
-            label: "Delete",
-            variant: "destructive",
-            confirmMessage:
-              "Delete the selected department(s)? This cannot be undone.",
-            onRun: async (rows) => {
-              await Promise.all(rows.map((r) => remove(r.id)));
-              fetchData();
-            },
-          },
-        ]}
-        createBtn={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Department
-          </Button>
+        bulkActions={
+          can("users_roles", "delete")
+            ? [
+                {
+                  key: "delete",
+                  label: "Delete",
+                  variant: "destructive",
+                  confirmMessage:
+                    "Delete the selected department(s)? This cannot be undone.",
+                  onRun: async (rows) => {
+                    await Promise.all(rows.map((r) => remove(r.id)));
+                    fetchData();
+                  },
+                },
+              ]
+            : []
         }
       />
 
@@ -104,7 +117,7 @@ const Department = () => {
         title="Delete Department"
         message="Are you sure you want to delete this department? This action cannot be undone."
       />
-    </div>
+    </Page>
   );
 };
 

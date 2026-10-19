@@ -21,7 +21,7 @@ export const CustomerEngagement = () => {
         <FormProvider {...form}>
           <form>
             <div className="flex flex-col gap-3.5">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Newsletter Subscription
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -34,7 +34,7 @@ export const CustomerEngagement = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono">
+              <span className="text-base font-medium text-foreground">
                 Contact Form Fields
               </span>
               <div className="flex items-center space-x-2">
@@ -63,7 +63,7 @@ export const CustomerEngagement = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Live Chat Integration
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -76,7 +76,7 @@ export const CustomerEngagement = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Social Proof Elements
               </span>
               <RadioGroup
@@ -104,7 +104,7 @@ export const CustomerEngagement = () => {
               </RadioGroup>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Loyalty/Referral Program
               </span>
               <div className="flex flex-col items-start gap-4">
@@ -117,7 +117,7 @@ export const CustomerEngagement = () => {
               </div>
             </div>
             <div className="flex flex-col gap-3.5 mt-7">
-              <span className="text-base font-medium text-mono pb-0.5">
+              <span className="text-base font-medium text-foreground pb-0.5">
                 Pop-ups or Offers
               </span>
               <div className="flex items-center space-x-2">

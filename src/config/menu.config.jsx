@@ -85,8 +85,17 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 export const MENU_SIDEBAR = [
   // ── Everyday ───────────────────────────────────────────────────────────────
+  { heading: "Main" },
+  {
+    title: "Dashboard",
+    module: "dashboard",
+    icon: LayoutDashboard,
+    path: "/dashboard",
+  },
+  { heading: "Catalog" },
   {
     title: "Product Management",
+    module: "products",
     icon: RiStore2Line,
     children: [
       { title: "Product List", path: "/dashboard/product-management/my-products" },
@@ -96,6 +105,7 @@ export const MENU_SIDEBAR = [
   },
   {
     title: "Pricing Engine",
+    module: "pricing",
     icon: RiPriceTag2Line,
     children: [
       { title: "Price Preview", path: "/dashboard/pricing/price-preview" },
@@ -110,8 +120,10 @@ export const MENU_SIDEBAR = [
       { title: "Price Books (B2B/Wholesale)", path: "/dashboard/pricing/price-books" },
     ],
   },
+  { heading: "Operations" },
   {
     title: "Order Management",
+    module: "orders",
     icon: ListChecks,
     children: [
       { title: "All Orders", path: "/dashboard/order-management/all" },
@@ -120,6 +132,7 @@ export const MENU_SIDEBAR = [
   },
   {
     title: "Custom Jewelry",
+    module: "custom_jewelry",
     icon: ArrowUpNarrowWideIcon,
     children: [
       { title: "All Custom Requests", path: "/dashboard/custom-jewelary/all-custom-request" },
@@ -127,16 +140,19 @@ export const MENU_SIDEBAR = [
   },
   {
     title: "Customer Data",
+    module: "customers",
     icon: Users,
     children: [{ title: "All Customers", path: "/dashboard/customer-data" }],
   },
   {
     title: "Coupons Management",
+    module: "coupons",
     icon: Gift,
     children: [{ title: "Coupons", path: "/dashboard/coupons-management" }],
   },
   {
     title: "Communication",
+    module: "communication",
     icon: MessagesSquare,
     children: [
       { title: "Live Chat", path: "/dashboard/communication/live-chat" },
@@ -144,15 +160,19 @@ export const MENU_SIDEBAR = [
       { title: "Support Inbox", path: "/dashboard/support" },
     ],
   },
+  { heading: "Content" },
   {
     title: "CMS",
+    module: "cms",
     icon: Layout,
     children: [{ title: "RJ House CMS", path: "/dashboard/cms" }],
   },
 
   // ── Advanced / Enterprise (collapsed by default) ─────────────────────────────
+  { heading: "System" },
   {
     title: "Advanced (Enterprise)",
+    module: "enterprise",
     icon: Building,
     children: [
       {
@@ -203,10 +223,12 @@ export const MENU_SIDEBAR = [
   // ── Settings & Setup (collapsed by default) ──────────────────────────────────
   {
     title: "Settings",
+    module: "settings",
     icon: Settings,
     children: [
       {
         title: "Currency & Countries",
+        module: "settings",
         icon: CurrencyIcon,
         children: [
           { title: "Currency Management", path: "/dashboard/currency-management" },
@@ -214,6 +236,7 @@ export const MENU_SIDEBAR = [
       },
       {
         title: "Users & Roles",
+        module: "users_roles",
         icon: RiLoopLeftLine,
         children: [
           { title: "All Users List", path: "/dashboard/all-user-list" },

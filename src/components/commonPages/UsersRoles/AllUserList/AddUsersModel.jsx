@@ -342,7 +342,7 @@ const AddUserModal = ({ open, onClose, onSuccess, editData }) => {
                               </SelectItem>
                             ))
                           ) : (
-                            <SelectItem disabled>
+                            <SelectItem disabled value="none">
                               No departments found
                             </SelectItem>
                           )}

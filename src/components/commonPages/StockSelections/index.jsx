@@ -101,7 +101,7 @@ const StockSelections = () => {
     <>
       <div className="flex flex-col space-y-[10px]">
         {/* Top Category Selector */}
-        <div className="flex items-center gap-2 px-4 pt-4">
+        <div className="flex items-center gap-2 pt-4">
           <Button variant="ghost" size="icon" aria-label="Go back">
             <ChevronLeft size={20} />
           </Button>
@@ -126,7 +126,7 @@ const StockSelections = () => {
         </div>
 
         {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-[25px] px-4 py-3 text-sm font-medium text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 py-3 text-sm font-medium text-muted-foreground">
           {FILTERS_CONFIG.map((filter) => (
             <div key={filter.key} className="flex items-center gap-2 relative">
               <label className="text-muted-foreground">{filter.label}</label>
@@ -152,7 +152,7 @@ const StockSelections = () => {
       </div>
 
       {/* Products Section */}
-      <Card className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full p-[30px] mt-[30px]">
+      <Card className="grid w-full grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
         {STOCK_PRODUCT_DETAIL.map((product) => (
           <div key={product.id} className="p-4">
             <div className="flex flex-col">
@@ -162,7 +162,7 @@ const StockSelections = () => {
                   alt={product.title}
                   width={200}
                   height={200}
-                  className="rounded-lg h-[200px] w-auto object-contain border border-muted/30 mb-4 bg-[#FCFCFC]"
+                  className="rounded-lg h-[200px] w-auto object-contain mb-4 border border-border bg-muted/30"
                 />
                 <div className="flex flex-col gap-2">
                   <h3 className="text-base font-medium">{product.id}</h3>

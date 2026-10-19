@@ -27,6 +27,17 @@ import {
 import { Button } from "./button";
 import { useDataGrid } from "./data-grid";
 
+function humanizeColumnId(id = "") {
+  return String(id)
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function columnLabel(column) {
+  return column.columnDef.meta?.headerTitle || humanizeColumnId(column.id);
+}
+
 function DataGridColumnHeader({
   column,
   title = "",
@@ -271,10 +282,20 @@ function DataGridColumnHeader({
                             }
                             className="capitalize"
                           >
-                            {col.columnDef.meta?.headerTitle || col.id}
+                            {columnLabel(col)}
                           </DropdownMenuCheckboxItem>
                         );
                       })}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        table.resetColumnVisibility();
+                      }}
+                      className="justify-center text-xs font-medium"
+                    >
+                      Reset columns
+                    </DropdownMenuItem>
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>

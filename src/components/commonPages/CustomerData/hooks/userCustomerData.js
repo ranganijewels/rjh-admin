@@ -5,6 +5,7 @@ import {
   DataGridTableRowSelectAll,
 } from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
+import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
 
 export const useCustomerData = () => {
   return useMemo(
@@ -16,19 +17,21 @@ export const useCustomerData = () => {
         enableSorting: false,
         enableHiding: false,
         size: 48,
+        meta: { headerTitle: "Select" },
       },
       {
         id: "id",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Customer Id" column={column} />
+          <DataGridColumnHeader title="Customer ID" column={column} />
         ),
         accessorFn: (row) => row.id,
         cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.getValue("id")}</span>
+          <ShortId value={row.getValue("id")} label="Customer ID" />
         ),
         enableSorting: false,
-        size: 40,
+        size: 140,
         meta: {
+          headerTitle: "Customer ID",
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -39,13 +42,17 @@ export const useCustomerData = () => {
         ),
         accessorFn: (row) => row.firstName,
         cell: ({ row }) => (
-          <span className="text-sm font-medium">
-            {row.getValue("firstName")}
-          </span>
+          <TruncatedText
+            value={row.getValue("firstName")}
+            className="font-medium text-foreground"
+          />
         ),
         enableSorting: true,
-        size: 80,
+        size: 160,
         meta: {
+          headerTitle: "First Name",
+          identity: true,
+          truncate: true,
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -56,13 +63,16 @@ export const useCustomerData = () => {
         ),
         accessorFn: (row) => row.lastName,
         cell: ({ row }) => (
-          <span className="text-sm font-medium">
-            {row.getValue("lastName")}
-          </span>
+          <TruncatedText
+            value={row.getValue("lastName")}
+            className="font-medium text-foreground"
+          />
         ),
         enableSorting: true,
-        size: 80,
+        size: 160,
         meta: {
+          headerTitle: "Last Name",
+          truncate: true,
           skeleton: <Skeleton className="h-4 w-[125px]" />,
         },
       },
@@ -72,16 +82,11 @@ export const useCustomerData = () => {
           <DataGridColumnHeader title="Email ID" column={column} />
         ),
         accessorFn: (row) => row.email,
-        cell: ({ row }) => {
-          const t = row.getValue("email");
-          return (
-            <span title={t} className="block truncate">
-              {t}
-            </span>
-          );
-        },
-        size: 230,
+        cell: ({ row }) => <TruncatedText value={row.getValue("email")} />,
+        size: 240,
         meta: {
+          headerTitle: "Email",
+          truncate: true,
           skeleton: <Skeleton className="h-4 w-[100px]" />,
         },
       },
