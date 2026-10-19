@@ -1,5 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
 
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
@@ -10,6 +14,14 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
 
   const columns = useMemo(
     () => [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "id",
         header: ({ column }) => (
@@ -160,7 +172,7 @@ export const useUsersList = ({ onEdit, onToggleStatus, onViewPermission } = {}) 
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                 active
                   ? "bg-green-100 text-green-700"
-                  : "bg-gray-200 text-gray-600"
+                  : "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground"
               }`}
             >
               {active ? "Active" : "Inactive"}

@@ -170,7 +170,7 @@ const FAQModel = ({
                       <SelectContent>
                         <SelectGroup>
                           {categories.length === 0 ? (
-                            <div className="text-center text-xs text-gray-500">
+                            <div className="text-center text-xs text-gray-500 dark:text-muted-foreground">
                               No categoires available
                             </div>
                           ) : (

@@ -40,15 +40,15 @@ export const useManageCollectionColumns = ({
             onClick={() => onClick?.("collection")}
           />
         ),
-        accessorFn: (row) => row.collection_name,
+        accessorFn: (row) => row.name,
         cell: ({ row }) => {
-          const { collection_name } = row.original;
-          const value = collection_name || "-";
+          const { name } = row.original;
+          const value = name || "-";
           return (
             <div className="flex items-center gap-3">
               <span
                 title={value}
-                className="block truncate text-sm font-medium text-gray-800"
+                className="block truncate text-sm font-medium text-gray-800 dark:text-foreground"
               >
                 {value}
               </span>
@@ -75,10 +75,10 @@ export const useManageCollectionColumns = ({
         header: ({ column }) => (
           <DataGridColumnHeader title="Created At" column={column} />
         ),
-        accessorFn: (row) => row.created_at,
+        accessorFn: (row) => row.createdAt,
         cell: ({ row }) =>
-          row.original.created_at
-            ? new Date(row.original.created_at).toLocaleDateString()
+          row.original.createdAt
+            ? new Date(row.original.createdAt).toLocaleDateString()
             : "-",
         size: 150,
       },
@@ -87,11 +87,11 @@ export const useManageCollectionColumns = ({
         header: ({ column }) => (
           <DataGridColumnHeader title="Status" column={column} />
         ),
-        accessorFn: (row) => row.is_active,
+        accessorFn: (row) => row.status === "active",
         cell: ({ row }) => (
           <ActiveToggleCell
             id={row.original.id}
-            isActive={row.original.is_active}
+            isActive={row.original.status === "active"}
             toggleStatus={() => console.log("Toggle", row.original.id)}
           />
         ),
@@ -102,9 +102,11 @@ export const useManageCollectionColumns = ({
         header: ({ column }) => (
           <DataGridColumnHeader title="Visibility" column={column} />
         ),
-        accessorFn: (row) => (row.visibility === 1 ? "published" : "draft"),
+        // Backend Collection entity only has one `status` field, no separate
+        // visibility concept — mirrors the Status column.
+        accessorFn: (row) => (row.status === "active" ? "published" : "draft"),
         cell: ({ row }) => {
-          const isPublished = row.original.visibility === 1;
+          const isPublished = row.original.status === "active";
           const statusText = isPublished ? "published" : "draft";
           return (
             <StatusBadge

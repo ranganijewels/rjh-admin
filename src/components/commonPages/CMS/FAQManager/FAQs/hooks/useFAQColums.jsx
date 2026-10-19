@@ -37,7 +37,7 @@ export const useFAQColumns = ({ onEdit, onDelete }) => {
 
           return (
             <div className="flex flex-col">
-              <span className="font-medium text-sm text-gray-900">
+              <span className="font-medium text-sm text-gray-900 dark:text-foreground">
                 {row?.original?.title || "Untitled"}
               </span>
               <span className="text-sm text-muted-foreground truncate max-w-[250px]">

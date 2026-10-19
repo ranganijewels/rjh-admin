@@ -110,7 +110,7 @@ export const ProductsCategories = () => {
             <Card
               key={category.id}
               onClick={() => handleCategoryClick(category.slug, category?.id)}
-              className="p-6 rounded-xl border border-gray-200 transition-all cursor-pointer group bg-white hover:border-primary hover:shadow-md"
+              className="p-6 rounded-xl border border-gray-200 dark:border-border transition-all cursor-pointer group bg-white dark:bg-card hover:border-primary hover:shadow-md"
             >
               <div className="flex items-center gap-4">
                 {/* Icon */}
@@ -120,21 +120,21 @@ export const ProductsCategories = () => {
 
                 {/* Info */}
                 <div className="flex-1">
-                  <h3 className="text-gray-900 mb-1 font-medium group-hover:text-primary">
+                  <h3 className="text-gray-900 dark:text-foreground mb-1 font-medium group-hover:text-primary">
                     {toTitleCase(category.custom_title || category.name)}
                   </h3>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-muted-foreground">
                     {category.total_products_count || category.product_count}{" "}
                     Products
                   </p>
                 </div>
 
-                <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <ChevronRight className="w-5 h-5 text-gray-400 dark:text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
             </Card>
           ))
         ) : (
-          <p className="col-span-full text-center text-gray-500">
+          <p className="col-span-full text-center text-gray-500 dark:text-muted-foreground">
             No categories found.
           </p>
         )}

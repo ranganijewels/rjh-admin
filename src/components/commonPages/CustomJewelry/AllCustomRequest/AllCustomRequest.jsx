@@ -40,6 +40,7 @@ const AllCustomRequest = () => {
         title="All Custom Requests"
         data={list}
         columns={columns}
+        infiniteScroll
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         filterFunction={(data, query) => {

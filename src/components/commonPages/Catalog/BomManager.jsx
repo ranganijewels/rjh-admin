@@ -57,6 +57,9 @@ export default function BomManager() {
   const [curveRows, setCurveRows] = useState([{ carat: "", weightG: "" }]);
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -65,11 +68,48 @@ export default function BomManager() {
       const res = await fetch("/api/catalog/boms", { cache: "no-store" });
       const data = await res.json();
       setBoms(Array.isArray(data) ? data : []);
+      setSelectedIds(new Set());
     } catch (e) {
       setError("Failed to load BOMs.");
       setBoms([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === boms.length ? new Set() : new Set(boms.map((b) => b.id))
+    );
+  };
+  const toggleSelectRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) =>
+          fetch(`/api/catalog/boms/${id}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          })
+        )
+      );
+      toast.success(`${selectedIds.size} BOM revision(s) deleted.`);
+      setSelectedIds(new Set());
+      await load();
+    } catch (e) {
+      toast.error(e.message || "Failed to delete selected BOMs.");
+    } finally {
+      setBulkDeleting(false);
+      setBulkConfirmOpen(false);
     }
   };
 
@@ -420,12 +460,35 @@ export default function BomManager() {
         </Section>
       )}
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <button
+            type="button"
+            onClick={() => setBulkConfirmOpen(true)}
+            className="ms-auto rounded-md border border-rose-200 bg-white dark:bg-card px-3 py-1.5 text-sm font-medium text-rose-600 hover:bg-rose-50"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[var(--primary)] text-white text-left">
+                <th scope="col" className="px-4 py-3 font-medium w-10">
+                  <input
+                    type="checkbox"
+                    checked={boms.length > 0 && selectedIds.size === boms.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select all"
+                  />
+                </th>
                 <th scope="col" className="px-4 py-3 font-medium">Master Code</th>
                 <th scope="col" className="px-4 py-3 font-medium">Rev</th>
                 <th scope="col" className="px-4 py-3 font-medium">Status</th>
@@ -439,7 +502,7 @@ export default function BomManager() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     Loading BOMs…
@@ -448,7 +511,7 @@ export default function BomManager() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-rose-600"
                   >
                     {error}
@@ -457,7 +520,7 @@ export default function BomManager() {
               ) : boms.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No BOMs yet. Create your first revision.
@@ -467,8 +530,17 @@ export default function BomManager() {
                 boms.map((bom, i) => (
                   <tr
                     key={bom.id ?? i}
-                    className={i % 2 === 0 ? "bg-white" : "bg-muted/40"}
+                    className={i % 2 === 0 ? "bg-white dark:bg-card" : "bg-muted/40"}
                   >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(bom.id)}
+                        onChange={() => toggleSelectRow(bom.id)}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label="Select row"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium text-[var(--primary)]">
                       {bom.masterCode || "—"}
                     </td>
@@ -529,6 +601,15 @@ export default function BomManager() {
               }? This cannot be undone.`
             : ""
         }
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete selected BOM revisions"
+        message={`Delete ${selectedIds.size} selected BOM revision(s)? This cannot be undone.`}
+        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
     </div>
   );

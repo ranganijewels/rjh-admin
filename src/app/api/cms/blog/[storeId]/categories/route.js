@@ -9,7 +9,12 @@ export async function GET(req) {
 export async function POST(req) {
   const authHeader = req.headers.get("authorization");
   const body = await req.json();
-  const payload = { category: "blog_category", value: body.name || body.value, label: body.name || body.label };
+  const payload = {
+    category: "blog_category",
+    value: body.name || body.value,
+    label: body.name || body.label,
+    description: body.description,
+  };
   const fakeReq = new Request("http://localhost", {
     method: "POST",
     headers: { "Content-Type": "application/json", authorization: authHeader || "" },

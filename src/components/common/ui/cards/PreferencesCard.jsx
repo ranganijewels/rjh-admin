@@ -101,7 +101,7 @@ export const PreferencesCard = ({ data, selected }) => {
 
 // Extracted reusable component for theme info cards
 const ThemeCard = ({ title, content }) => (
-  <Card className="bg-white border-2 border-dashed border-gray-300 ">
+  <Card className="bg-white dark:bg-card border-2 border-dashed border-gray-300 dark:border-border ">
     <CardContent className="">
       <h3 className="font-semibold text-base mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground">{content}</p>

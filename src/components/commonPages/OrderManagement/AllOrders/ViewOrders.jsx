@@ -1,6 +1,5 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useCrudList } from "@/hooks/useCrudList"; // import your hook
 import {
   Sheet,
   SheetBody,
@@ -16,11 +15,9 @@ import {
 } from "@/components/common/ui/cards/card";
 import { TwoColCard } from "@/components/common/ui/cards/TwoColCard";
 import { Button } from "@/components/common/ui/button";
-import { Progress } from "@/components/common/ui/progress";
 import { Badge, BadgeDot } from "@/components/common/ui/badge";
-import { MapPin, Download, Truck, Check } from "lucide-react";
+import { Download, Truck, Check } from "lucide-react";
 import { cn, formatDateShort } from "@/lib/utils";
-import { ORDER_DATA } from "../constant";
 
 // Fulfillment pipeline — the operational lifecycle of a luxury order.
 const FULFILLMENT_STAGES = [
@@ -144,34 +141,9 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
     }
   };
 
-  const {
-    Locations,
-    ShippingInfo,
-    Statuses,
-    OrderInfo,
-    OrderedProducts,
-    ShippingLog,
-  } = ORDER_DATA;
-
-  const CheckIcon = ({ active = true }) => (
-    <svg
-      className={cn(
-        "size-4",
-        active ? "text-success" : "text-muted-foreground"
-      )}
-      viewBox="0 0 16 16"
-      fill="none"
-    >
-      <path
-        d="M15.333 8A7.333 7.333 0 1 1 8 .667 7.333 7.333 0 0 1 15.333 8ZM7.78 10.72l4.4-4.4a.667.667 0 0 0-.935-.935L7.267 9.165 4.847 6.745a.667.667 0 0 0-.935.935l2.933 2.933a.667.667 0 0 0 .935 0Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:w-[720px] inset-2 sm:inset-5 start-auto h-auto rounded-lg p-0 sm:max-w-none [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
+      <SheetContent className="w-full sm:w-[720px] top-2 sm:top-5 bottom-2 sm:bottom-5 end-2 sm:end-5 h-auto rounded-lg p-0 sm:max-w-none [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
         <SheetHeader className="border-b py-3.5 px-5 border-border flex-row items-center justify-between">
           <SheetTitle>Order Info</SheetTitle>
           <Button
@@ -197,13 +169,20 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                       ["Order ID", orders?.id],
                       ["Status", orders?.order_status],
                       ["Order placed", formatDateShort(orders?.created_at)],
-                      ["Total", orders?.total],
                       [
-                        "Ship to",
-                        orders?.customer?.first_name +
-                          " " +
-                          orders?.customer?.last_name,
+                        "Total",
+                        Number.isFinite(Number(orders?.subtotal))
+                          ? `$${Number(orders.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : "—",
                       ],
+                      [
+                        "Payment",
+                        `${orders?.payment_method || "COD"} · ${orders?.payment_status || "Pending"}` +
+                          (orders?.currency_code && orders.currency_code !== "USD" && orders?.charged_amount
+                            ? ` (charged ${orders.currency_code} ${Number(orders.charged_amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+                            : ""),
+                      ],
+                      ["Ship to", orders?.customer_name || "—"],
                       ["Estimated Delivery", orders?.estimated_delivery || "—"],
                     ].map(([label, value], i) => (
                       <div key={i}>
@@ -243,7 +222,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                               "size-5 rounded-full flex items-center justify-center text-xs font-semibold",
                               done
                                 ? "bg-primary text-white"
-                                : "bg-gray-100 text-gray-600"
+                                : "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground"
                             )}
                           >
                             {done ? <Check className="size-3" /> : i + 1}
@@ -251,7 +230,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                           <span
                             className={cn(
                               "text-xs text-center max-w-[64px] leading-tight",
-                              done ? "text-primary font-medium" : "text-gray-600"
+                              done ? "text-primary font-medium" : "text-gray-600 dark:text-muted-foreground"
                             )}
                           >
                             {s}
@@ -261,7 +240,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                           <div
                             className={cn(
                               "h-0.5 flex-1 min-w-2 rounded",
-                              i < currentStageIdx ? "bg-primary" : "bg-gray-200"
+                              i < currentStageIdx ? "bg-primary" : "bg-gray-200 dark:bg-secondary"
                             )}
                           />
                         )}
@@ -283,7 +262,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                       id={`order-status-${orderRowId ?? "new"}`}
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="border border-input rounded-md px-2.5 py-2 text-sm bg-white"
+                      className="border border-input rounded-md px-2.5 py-2 text-sm bg-white dark:bg-card"
                     >
                       {FULFILLMENT_STAGES.map((s) => (
                         <option key={s} value={s}>
@@ -398,105 +377,51 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
               </div>
             </div>
 
-            <Card className="overflow-hidden my-5">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between gap-5 flex-wrap px-5 bg-muted/70 py-2.5">
-                  <div className="flex flex-col space-y-3 relative">
-                    {Locations.map((loc, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-2 relative z-10"
-                      >
-                        {index !== Locations.length - 1 && (
-                          <div className="absolute left-0.5 top-4 w-0.5 h-full bg-input rounded-full z-0"></div>
-                        )}
-                        <span className="size-1.5 rounded-full bg-gray-700 z-10 outline outline-gray-50 mt-0.5"></span>
-                        <span className="text-xs font-medium text-foreground">
-                          {loc.address}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <span className="border-b border-border"></span>
-
-                <div className="grid grid-cols-4 justify-start gap-2 p-5 pt-4">
-                  {Statuses.map((s, i) => (
-                    <div key={i}>
-                      <Progress
-                        value={s.value}
-                        className="h-1.5 mb-2"
-                        indicatorClassName="bg-success"
-                      />
-                      <div className="flex items-center gap-1 text-xs font-medium">
-                        <CheckIcon active={s.active} />
-                        {s.label}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* shipping data */}
-            <Card>
+            {/* shipping data — real order fields only; no fake ETA/log, see
+                OrderManagement/constant.js history for the mock data this replaced */}
+            <Card className="my-5">
               <CardHeader className="justify-start bg-muted/70 gap-9 h-auto py-5">
                 Shipping Data
               </CardHeader>
-              <CardContent className="flex justify-between">
-                {ShippingInfo.map(({ label, value }, i) => (
+              <CardContent className="flex flex-wrap justify-between gap-5">
+                {[
+                  ["Courier", orders?.courierName || orders?.courier_name],
+                  [
+                    "Tracking #",
+                    orders?.trackingNumber || orders?.tracking_number,
+                    orders?.trackingUrl || orders?.tracking_url,
+                  ],
+                  [
+                    "Shipped",
+                    (orders?.shippedAt || orders?.shipped_at) &&
+                      formatDateShort(orders?.shippedAt || orders?.shipped_at),
+                  ],
+                  [
+                    "Delivered",
+                    (orders?.deliveredAt || orders?.delivered_at) &&
+                      formatDateShort(orders?.deliveredAt || orders?.delivered_at),
+                  ],
+                ].map(([label, value, url], i) => (
                   <div key={i} className="flex flex-col gap-1.5">
                     <span className="text-xs font-normal text-secondary-foreground">
                       {label}
                     </span>
-                    <span className="text-sm font-medium text-mono">
-                      {value}
-                    </span>
+                    {value && url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium text-primary underline"
+                      >
+                        {value}
+                      </a>
+                    ) : (
+                      <span className="text-sm font-medium text-mono">
+                        {value || "—"}
+                      </span>
+                    )}
                   </div>
                 ))}
-              </CardContent>
-            </Card>
-
-            {/* shipping log */}
-            <Card className="my-5">
-              <CardHeader className="justify-start bg-muted/70 gap-9 h-auto py-5">
-                Shipping Log
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col relative">
-                  {ShippingLog.map((shippingLog, index) => (
-                    <div
-                      key={index}
-                      className="flex items-start gap-2 relative z-10"
-                    >
-                      {index !== shippingLog.length - 1 && (
-                        <div className="absolute left-0.5 top-0 w-0.5 h-full bg-input rounded-full z-0"></div>
-                      )}
-                      <span className="size-1.5 rounded-full bg-gray-700 z-10 outline-gray-50 outline-3 mt-0.5"></span>
-                      <div className="mb-4">
-                        <div className="text-sm font-medium">
-                          {shippingLog.orderStatus}{" "}
-                          <span className="text-sm font-[400] text-secondary-foreground">
-                            {shippingLog.date}
-                          </span>
-                        </div>
-                        <div className="text-sm font-[400] text-secondary-foreground">
-                          {shippingLog.description}
-                        </div>
-                        {shippingLog.address && (
-                          <div className="flex items-center gap-1.5 text-sm font-normal text-foreground">
-                            <MapPin
-                              size={16}
-                              className="text-base text-muted-foreground"
-                            />
-                            {shippingLog.address}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </CardContent>
             </Card>
           </ScrollArea>

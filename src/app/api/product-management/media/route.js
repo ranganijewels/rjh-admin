@@ -14,7 +14,8 @@ export async function POST(req) {
     sortOrder: b.sortOrder ?? b.sort_order ?? 0,
     metalColor: b.metalColor ?? b.metal_color ?? null,
     title: b.title ?? null,
-    altText: b.altText ?? b.alt_text ?? null, // role marker: main | rollover
+    altText: b.altText ?? b.alt_text ?? null, // role marker: main | rollover | gallery
+    seoAltText: b.seoAltText ?? b.seo_alt_text ?? null, // real image description (SEO/a11y)
   };
   const res = await fetch(`${NEST}/api/v1/products/media`, {
     method: "POST",

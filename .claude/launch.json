@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "elova-admin",
+      "name": "rj-house-admin",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3003

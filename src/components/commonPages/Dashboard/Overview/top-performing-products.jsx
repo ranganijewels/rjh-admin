@@ -39,7 +39,7 @@ const renderRow = (row, index) => {
           </span>
         </div>
       </div>
-      <div className="border-b border-dashed border-gray-200"></div>
+      <div className="border-b border-dashed border-gray-200 dark:border-border"></div>
     </Fragment>
   );
 };

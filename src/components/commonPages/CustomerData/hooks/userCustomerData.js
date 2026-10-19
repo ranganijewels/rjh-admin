@@ -1,18 +1,22 @@
 import { useMemo } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 
 export const useCustomerData = () => {
   return useMemo(
     () => [
-      // {
-      //   accessorKey: "id",
-      //   header: () => <DataGridTableRowSelectAll />,
-      //   cell: ({ row }) => <DataGridTableRowSelect row={row} />,
-      //   enableSorting: false,
-      //   enableHiding: false,
-      //   size: 30,
-      // },
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "id",
         header: ({ column }) => (

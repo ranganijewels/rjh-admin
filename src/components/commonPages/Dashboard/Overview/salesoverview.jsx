@@ -149,10 +149,10 @@ export const SalesOverview = () => {
 
   const ChartCard = ({ title, subtitle, options, series, height }) => (
     <Card>
-      <h2 className="text-xl font-semibold text-gray-800 mb-2 ml-5 mt-5">
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-foreground mb-2 ml-5 mt-5">
         {title}
       </h2>
-      <h3 className="text-md text-gray-400 mb-2 ml-5 mt-2">{subtitle}</h3>
+      <h3 className="text-md text-gray-400 dark:text-muted-foreground mb-2 ml-5 mt-2">{subtitle}</h3>
       <ApexChart options={options} series={series} type="bar" height={height} />
     </Card>
   );

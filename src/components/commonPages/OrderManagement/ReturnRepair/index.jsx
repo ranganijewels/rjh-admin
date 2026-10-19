@@ -33,6 +33,7 @@ const ReturnRepair = () => {
         data={filteredList}
         columns={columns}
         useFilteredData={useFilteredStoreData}
+        infiniteScroll
         ToolbarComponent={(props) => (
           <DataGridToolbar
             {...props}

@@ -61,6 +61,7 @@ export const SettingsProvider = ({ children }) => {
     if (!isBrowser()) return;
 
     const init = structuredClone(APP_SETTINGS);
+    let hasStoredTheme = false;
     Object.keys(localStorage)
       .filter((key) => key.startsWith(LOCAL_STORAGE_PREFIX))
       .forEach((key) => {
@@ -68,10 +69,27 @@ export const SettingsProvider = ({ children }) => {
         const value = getLeafFromStorage(path);
         if (value !== undefined) {
           setToPath(init, path, value);
+          if (path === 'theme.mode') hasStoredTheme = true;
         }
       });
+
+    // No explicit choice yet — the very first visit follows the OS
+    // preference instead of always defaulting to light (the inline script
+    // in layout.js already painted the page this way, so this just keeps
+    // React state — and the toggle UI — in sync with it).
+    if (!hasStoredTheme && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+      setToPath(init, 'theme.mode', 'dark');
+    }
+
     setSettings(init);
   }, []); // Empty dependency array to run once on mount
+
+  // Keep the `dark` class on <html> in sync with the resolved theme, so
+  // every CSS-variable-driven color in globals.css flips with it.
+  useEffect(() => {
+    if (!isBrowser()) return;
+    document.documentElement.classList.toggle('dark', settings?.theme?.mode === 'dark');
+  }, [settings?.theme?.mode]);
 
   const getOption = useCallback(
     (path) => {

@@ -20,7 +20,7 @@ export const useStaticPageColumns = ({
   const columns = useMemo(
     () => [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
@@ -56,7 +56,7 @@ export const useStaticPageColumns = ({
       {
         id: "Page Slug",
         header: ({ column }) => (
-          <DataGridColumnHeader title="page_slug" column={column} />
+          <DataGridColumnHeader title="Slug" column={column} />
         ),
         accessorFn: (row) => row.page_slug,
         cell: ({ row }) => <span>{row.original.page_slug}</span>,

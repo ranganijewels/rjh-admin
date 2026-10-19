@@ -12,6 +12,12 @@ function mapProduct(p) {
     metal_color: p.metalColor ?? null,
     collection: p.collectionName,
     gender: p.gender ?? null,
+    // A product with zero media rows is excluded from every storefront-facing
+    // "active" query server-side (see products.service.ts findAll) even
+    // though its own status column still says active — surfaced here so the
+    // admin list can explain that instead of just showing "Active" with no
+    // context for why it isn't actually live.
+    has_media: Array.isArray(p.media) && p.media.length > 0,
     created_at: p.createdAt,
     updated_at: p.updatedAt,
   };

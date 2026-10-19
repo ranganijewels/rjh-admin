@@ -20,7 +20,7 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
   return useMemo(() => {
     return [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
@@ -32,9 +32,9 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
         header: ({ column }) => (
           <DataGridColumnHeader title="Category" column={column} />
         ),
-        accessorFn: (row) => row.title,
+        accessorFn: (row) => row.valueLabel,
         cell: ({ row }) => {
-          const t = row.original.title;
+          const t = row.original.valueLabel;
           return (
             <span title={t} className="block truncate">
               {t}
@@ -53,33 +53,15 @@ export const useBlogCategoriesColumns = ({ onEdit, onDelete, storeId }) => {
         size: 280,
       },
       {
-        id: "slug",
-        header: ({ column }) => (
-          <DataGridColumnHeader title="Slug" column={column} />
-        ),
-        accessorFn: (row) => row.slug,
-        cell: ({ row }) => row.original.slug,
-        size: 120,
-      },
-      // {
-      //   id: "postcount",
-      //   header: ({ column }) => (
-      //     <DataGridColumnHeader title="Post Count" column={column} />
-      //   ),
-      //   accessorFn: (row) => row?.postcount || "-",
-      //   cell: ({ row }) => row?.original?.postcount || "-",
-      //   size: 120,
-      // },
-      {
         id: "is_active",
         header: ({ column }) => (
           <DataGridColumnHeader title="Active" column={column} />
         ),
-        accessorFn: (row) => row?.is_active ?? false,
+        accessorFn: (row) => row?.isActive ?? false,
         cell: ({ row }) => (
           <ActiveToggleCell
             id={row.original.id}
-            isActive={row.original.is_active}
+            isActive={row.original.isActive}
             toggleStatus={toggleStatus}
           />
         ),

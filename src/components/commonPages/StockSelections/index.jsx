@@ -7,9 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/common/ui/cards/card";
-import { ListWithCardToggle } from "@/components/common/ui/ListWithCardToggle";
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { useStockSelections } from "@/components/commonPages/StockSelections/hooks/useStockSelections";
-import { useFilteredStoreData } from "@/components/commonPages/StockSelections/hooks/useFilteredData";
 import { Button } from "@/components/common/ui/button";
 import { ShoppingCart, ChevronLeft } from "lucide-react";
 import Link from "next/link";
@@ -24,6 +23,18 @@ import {
 } from "@/components/common/ui/select";
 import { cn, toTitleCase } from "@/lib/utils";
 import { FILTERS_CONFIG, STOCK_DETAIL, STOCK_PRODUCT_DETAIL } from "./constant";
+
+const filterStockSelections = (data, query) => {
+  if (!query) return data;
+  const q = query.toLowerCase();
+  return data.filter(
+    (item) =>
+      (item.designNo && item.designNo.toLowerCase().includes(q)) ||
+      (item.category && item.category.toLowerCase().includes(q)) ||
+      (item.style && item.style.toLowerCase().includes(q)) ||
+      (item.status && item.status.toLowerCase().includes(q))
+  );
+};
 
 // Single product card
 const StockSelectionCard = ({ product, onView, selectedProduct }) => {
@@ -173,8 +184,9 @@ const StockSelections = () => {
                 title="Select Variants"
                 data={STOCK_DETAIL}
                 columns={columns}
-                useFilteredData={useFilteredStoreData}
+                filterFunction={filterStockSelections}
                 resizableColumns
+                infiniteScroll
               />
             </div>
           </div>
@@ -183,7 +195,7 @@ const StockSelections = () => {
 
       {/* Summary Section */}
       <Card className="w-full mt-4">
-        <CardHeader className="sticky top-0 z-10 bg-white py-5 px-6 shadow-sm border rounded-md">
+        <CardHeader className="sticky top-0 z-10 bg-white dark:bg-card py-5 px-6 shadow-sm border rounded-md">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
             <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
               Variants Selected: 3/5
@@ -207,7 +219,7 @@ const StockSelections = () => {
 
       {/* Footer Section */}
       <Card className="w-full mt-4">
-        <CardHeader className="sticky top-0 z-10 bg-white py-5 px-6 shadow-sm border border-primary rounded-md">
+        <CardHeader className="sticky top-0 z-10 bg-white dark:bg-card py-5 px-6 shadow-sm border border-primary rounded-md">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
             <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
               Total Products Selected: 45
@@ -596,7 +608,7 @@ export default StockSelections;
 //       {/* Variants Selected Card */}
 //       {!loading && (
 //         <Card className="w-full mt-4">
-//           <CardHeader className="sticky top-0 z-10 bg-white py-5 px-6 shadow-sm border rounded-md">
+//           <CardHeader className="sticky top-0 z-10 bg-white dark:bg-card py-5 px-6 shadow-sm border rounded-md">
 //             <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
 //               <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
 //                 Variants Selected: 3/5
@@ -622,7 +634,7 @@ export default StockSelections;
 //       {/* Budget Card */}
 //       {!loading && (
 //         <Card className="w-full mt-4">
-//           <CardHeader className="sticky top-0 z-10 bg-white py-5 px-6 shadow-sm border border-primary rounded-md">
+//           <CardHeader className="sticky top-0 z-10 bg-white dark:bg-card py-5 px-6 shadow-sm border border-primary rounded-md">
 //             <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
 //               <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
 //                 Total Products Selected: 45
@@ -989,7 +1001,7 @@ export default StockSelections;
 //       {/* Variants Selected Card */}
 //       {!loading && (
 //         <Card className="w-full mt-4">
-//           <CardHeader className="sticky top-0 z-10 bg-white py-5 px-6 shadow-sm border rounded-md">
+//           <CardHeader className="sticky top-0 z-10 bg-white dark:bg-card py-5 px-6 shadow-sm border rounded-md">
 //             <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
 //               <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
 //                 Variants Selected: 3/5
@@ -1013,7 +1025,7 @@ export default StockSelections;
 //       {/* Budget Card */}
 //       {!loading && (
 //         <Card className="w-full mt-4">
-//           <CardHeader className="sticky top-0 z-10 bg-white py-5 px-6 shadow-sm border border-primary rounded-md">
+//           <CardHeader className="sticky top-0 z-10 bg-white dark:bg-card py-5 px-6 shadow-sm border border-primary rounded-md">
 //             <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
 //               <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
 //                 Total Products Selected: 45

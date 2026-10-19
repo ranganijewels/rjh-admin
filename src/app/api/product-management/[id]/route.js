@@ -160,8 +160,22 @@ function toProductBody(body = {}) {
   const dd = Number(body.display_discount_percent);
   if (Number.isFinite(dd)) meta.displayDiscountPercent = dd > 0 ? dd : undefined;
   if (meta.displayDiscountPercent === undefined) delete meta.displayDiscountPercent;
+  if (typeof body.display_discount_ends_at === "string")
+    meta.displayDiscountEndsAt = body.display_discount_ends_at || undefined;
+  if (meta.displayDiscountEndsAt === undefined) delete meta.displayDiscountEndsAt;
+  if (typeof body.engraving_enabled === "boolean") meta.engravingEnabled = body.engraving_enabled;
+  if (typeof body.production_time === "string")
+    meta.productionTime = body.production_time.trim() || undefined;
+  if (meta.productionTime === undefined) delete meta.productionTime;
   if (Array.isArray(body.pairs_with))
     meta.pairsWith = body.pairs_with.filter(Boolean).slice(0, 4);
+  if (Array.isArray(body.badges)) meta.badges = body.badges.filter(Boolean);
+  if (typeof body.aeo_summary === "string") meta.aeoSummary = body.aeo_summary || undefined;
+  if (meta.aeoSummary === undefined) delete meta.aeoSummary;
+  if (Array.isArray(body.faqs))
+    meta.faqs = body.faqs.filter((f) => f?.question && f?.answer);
+  if (typeof body.variant_label === "string") meta.variantLabel = body.variant_label.trim() || undefined;
+  if (meta.variantLabel === undefined) delete meta.variantLabel;
   const mrp = Number(body.mrp_override);
   if (Number.isFinite(mrp)) meta.mrpOverride = mrp > 0 ? mrp : undefined;
   if (meta.mrpOverride === undefined) delete meta.mrpOverride;

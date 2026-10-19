@@ -98,7 +98,7 @@ export default function GoldDerivedRates() {
           {state.rows.map((r) => (
             <div
               key={r.code}
-              className="rounded-md border border-amber-200 bg-white px-3 py-1.5 text-xs"
+              className="rounded-md border border-amber-200 bg-white dark:bg-card px-3 py-1.5 text-xs"
             >
               <span className="font-semibold">{r.code}</span>{" "}
               {r.override != null ? (

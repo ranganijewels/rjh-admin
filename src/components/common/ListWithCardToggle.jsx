@@ -1,6 +1,8 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Container } from "@/components/common/ui/container";
+import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import {
   Card,
   CardFooter,
@@ -75,6 +77,9 @@ export const ListWithCardToggle = ({
   onLoadMore,
   hasMore = false,
   loadingMore = false,
+  // Generic bulk-action bar shown when rows are selected, regardless of view
+  // mode: [{key, label, variant?, confirmMessage?, onRun: (selectedRowObjects) => Promise<void>}]
+  bulkActions = [],
 }) => {
   const [currentMode, setCurrentMode] = useState(
     renderCardView ? "cards" : "list"
@@ -99,7 +104,7 @@ export const ListWithCardToggle = ({
   const [bulkDiamondCard, setBulkDiamondCard] = useState("");
 
   const [columnPinning, setColumnPinning] = useState({
-    left: ["expand-column"],
+    left: ["expand-column", "id"],
     right: ["actions"],
   });
 
@@ -209,7 +214,7 @@ export const ListWithCardToggle = ({
     onColumnVisibilityChange: setColumnVisibility,
     initialState: {
       columnPinning: {
-        left: ["expand-column"],
+        left: ["expand-column", "select"],
         right: ["actions"],
       },
     },
@@ -259,7 +264,11 @@ export const ListWithCardToggle = ({
     : searchQuery;
 
   // Infinite scroll: one sentinel shared by both views (only one is mounted
-  // at a time), observed for the lifetime of the component.
+  // at a time), observed for the lifetime of the component. Server-paginated
+  // callers pass onLoadMore/hasMore/loadingMore; client fetch-all callers
+  // just pass infiniteScroll and this grows the local page size instead.
+  const localHasMore =
+    !serverSidePagination && pagination.pageSize < filteredData.length;
   const sentinelRef = useRef(null);
   useEffect(() => {
     if (!infiniteScroll) return;
@@ -267,13 +276,30 @@ export const ListWithCardToggle = ({
     if (!el) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && hasMore && !loadingMore) onLoadMore?.();
+        if (!entries[0]?.isIntersecting) return;
+        if (serverSidePagination) {
+          if (hasMore && !loadingMore) onLoadMore?.();
+        } else {
+          setPagination((prev) =>
+            prev.pageSize < filteredData.length
+              ? { ...prev, pageSize: prev.pageSize + 20 }
+              : prev
+          );
+        }
       },
       { rootMargin: "400px" }
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [infiniteScroll, onLoadMore, hasMore, loadingMore, currentMode]);
+  }, [
+    infiniteScroll,
+    onLoadMore,
+    hasMore,
+    loadingMore,
+    currentMode,
+    serverSidePagination,
+    filteredData.length,
+  ]);
 
   return (
     <Container>
@@ -306,6 +332,17 @@ export const ListWithCardToggle = ({
             </ToggleGroup>
           </div>
         </div>
+
+        {bulkActions.length > 0 && deletePermissionIds.length > 0 && (
+          <BulkActionsBar
+            actions={bulkActions}
+            count={deletePermissionIds.length}
+            getSelectedRows={() =>
+              table.getSelectedRowModel().rows.map((r) => r.original)
+            }
+            onDone={() => setRowSelection({})}
+          />
+        )}
 
         {/* Card View */}
         {renderCardView && currentMode === "cards" && (
@@ -553,14 +590,6 @@ export const ListWithCardToggle = ({
                         }
                       />
 
-                      {/* {deletePermissionIds.length > 0 && (
-                      <Button
-                        variant="destructive"
-                        onClick={() => setGroupDeleteDialogOpen(true)}
-                      >
-                        Delete {deletePermissionIds.length} permissions
-                      </Button>
-                    )} */}
                     </CardToolbar>
                   </div>
                 </CardHeader>
@@ -591,7 +620,7 @@ export const ListWithCardToggle = ({
           </div>
         )}
 
-        {infiniteScroll && (
+        {infiniteScroll && (serverSidePagination ? hasMore : localHasMore) && (
           <div ref={sentinelRef} className="flex items-center justify-center py-6">
             {loadingMore && (
               <span className="text-sm text-muted-foreground">Loading more…</span>
@@ -602,6 +631,63 @@ export const ListWithCardToggle = ({
     </Container>
   );
 };
+
+// Bulk-action bar shown above both views when rows are selected. Actions with
+// a confirmMessage go through ConfirmDialog first; others run immediately.
+function BulkActionsBar({ actions, count, getSelectedRows, onDone }) {
+  const [runningKey, setRunningKey] = useState(null);
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  const run = async (action) => {
+    setRunningKey(action.key);
+    try {
+      await action.onRun(getSelectedRows());
+      onDone?.();
+    } catch (e) {
+      toast.error(e?.message || `${action.label} failed`);
+    } finally {
+      setRunningKey(null);
+    }
+  };
+
+  return (
+    <>
+      <div className="flex items-center gap-3 rounded-md border border-input bg-muted/40 px-4 py-2.5">
+        <span className="text-sm font-medium">{count} selected</span>
+        <div className="flex items-center gap-2 ms-auto">
+          {actions.map((action) => (
+            <Button
+              key={action.key}
+              size="sm"
+              variant={action.variant || "outline"}
+              disabled={runningKey === action.key}
+              onClick={() =>
+                action.confirmMessage ? setConfirmAction(action) : run(action)
+              }
+            >
+              {runningKey === action.key ? "Working…" : action.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => {
+          const action = confirmAction;
+          setConfirmAction(null);
+          run(action);
+        }}
+        title={confirmAction?.label}
+        message={confirmAction?.confirmMessage}
+        confirmLabel={confirmAction?.label}
+        confirmVariant={
+          confirmAction?.variant === "destructive" ? "destructive" : "primary"
+        }
+      />
+    </>
+  );
+}
 
 // Standalone pagination bar for card/grid view (table view uses DataGridPagination).
 function CardPagination({ table, recordCount }) {

@@ -29,7 +29,7 @@ const MetricBreakdownCard = ({
         </div>
 
         {/* Breakdown */}
-        <div className="flex flex-col gap-2 text-sm font-medium text-gray-600 w-full">
+        <div className="flex flex-col gap-2 text-sm font-medium text-gray-600 dark:text-muted-foreground w-full">
           {items.map(({ label, value, color, showDashed }, idx) => (
             <div key={idx} className="flex items-center gap-2 w-full">
               <span
@@ -38,7 +38,7 @@ const MetricBreakdownCard = ({
               />
               <span>{label}</span>
               {showDashed && <span className="border w-7 border-dashed" />}
-              <span className="ml-auto font-semibold text-gray-900">
+              <span className="ml-auto font-semibold text-gray-900 dark:text-foreground">
                 {value}
               </span>
             </div>

@@ -110,6 +110,22 @@ const AllUserList = () => {
         data={list}
         columns={columns}
         resizableColumns
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "deactivate",
+            label: "Deactivate",
+            variant: "destructive",
+            confirmMessage:
+              "Deactivate the selected user(s)? They won't be able to log in until reactivated.",
+            onRun: async (rows) => {
+              await Promise.all(
+                rows.map((r) => updateUser(r.id, { isActive: false }))
+              );
+              fetchData();
+            },
+          },
+        ]}
         createBtn={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" /> Add User

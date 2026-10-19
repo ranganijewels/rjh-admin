@@ -2,10 +2,23 @@
 
 import { useMemo } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
-import { Edit2Icon, EyeIcon, Trash2Icon } from "lucide-react";
+import { Edit2Icon, ExternalLinkIcon, EyeIcon, Trash2Icon, ImageOff } from "lucide-react";
 import { toTitleCase } from "@/lib/utils";
+import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/common/ui/tooltip";
+
+const STOREFRONT_URL =
+  process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
 
 export const useProductListColumns = ({
   editingCell,
@@ -16,6 +29,7 @@ export const useProductListColumns = ({
   onView,
   onEdit,
   onDelete,
+  toggleStatus,
 }) => {
   const formatDate = (date) => {
     if (!date) return "-";
@@ -29,6 +43,14 @@ export const useProductListColumns = ({
   const columns = useMemo(
     () => [
       {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
+      {
         id: "product_image",
         header: ({ column }) => (
           <DataGridColumnHeader
@@ -40,6 +62,14 @@ export const useProductListColumns = ({
         accessorFn: (row) => row.product_image,
         cell: ({ row }) => {
           const productImage = row.original.product_image;
+
+          if (!productImage) {
+            return (
+              <div className="w-[55px] h-[70px] flex items-center justify-center bg-muted rounded">
+                <ImageOff className="h-4 w-4 text-muted-foreground" />
+              </div>
+            );
+          }
 
           return (
             <img
@@ -172,11 +202,39 @@ export const useProductListColumns = ({
         size: 100,
       },
       {
+        id: "active",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Active" column={column} />
+        ),
+        accessorFn: (row) => row?.active ?? false,
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1.5">
+            <ActiveToggleCell
+              id={row?.original?.id}
+              isActive={row?.original?.active ?? false}
+              toggleStatus={toggleStatus}
+            />
+            {!row?.original?.has_media && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ImageOff className="h-4 w-4 text-amber-600 shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  Hidden from the storefront until at least one photo is
+                  uploaded — Active status alone isn&apos;t enough.
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+        ),
+        size: 120,
+      },
+      {
         id: "actions",
         header: "",
         pinning: "right",
         cell: ({ row }) => (
-          <div className="flex items-center justify-center gap-[10px] bg-white opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center justify-center gap-[10px] bg-white dark:bg-card opacity-0 group-hover:opacity-100 transition-opacity">
             <Button
               variant="outline"
               mode="icon"
@@ -184,6 +242,20 @@ export const useProductListColumns = ({
               title="View"
             >
               <EyeIcon className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              mode="icon"
+              asChild
+              title="View on Storefront"
+            >
+              <a
+                href={`${STOREFRONT_URL}/product/${row.original.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <ExternalLinkIcon className="h-4 w-4" />
+              </a>
             </Button>
             {onEdit && (
               <Button
@@ -207,7 +279,7 @@ export const useProductListColumns = ({
             )}
           </div>
         ),
-        size: 140,
+        size: 180,
       },
     ],
     [
@@ -219,6 +291,7 @@ export const useProductListColumns = ({
       onEdit,
       onDelete,
       onClick,
+      toggleStatus,
     ]
   );
 

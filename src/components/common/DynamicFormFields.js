@@ -70,7 +70,7 @@ export const DynamicFormFields = ({
                           </SelectItem>
                         ))
                       ) : (
-                        <div className="text-center text-gray-500">
+                        <div className="text-center text-gray-500 dark:text-muted-foreground">
                           No options available
                         </div>
                       )}

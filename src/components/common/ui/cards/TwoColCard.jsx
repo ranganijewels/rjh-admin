@@ -45,6 +45,12 @@ export function TwoColCard({ items = [], limit = items.length }) {
               </div>
             )}
 
+            {Array.isArray(items?.specs) && items.specs.length > 0 && (
+              <div className="text-xs text-secondary-foreground">
+                {items.specs.join(" · ")}
+              </div>
+            )}
+
             {items?.center_diamond_weight && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-normal text-secondary-foreground uppercase">

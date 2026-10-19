@@ -127,9 +127,9 @@ export function NotificationCenterSheet({ isOpen, onOpenChange }) {
         content: "text-green-500",
         product: "text-orange-500",
         billing: "text-yellow-500",
-        system: "text-gray-500",
+        system: "text-gray-500 dark:text-muted-foreground",
         store: "text-pink-500",
-      }[type] || "text-gray-500"
+      }[type] || "text-gray-500 dark:text-muted-foreground"
     );
   };
 

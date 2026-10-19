@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/common/ui/button";
 import { Card } from "@/components/common/ui/cards/card";
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import { useCrudListWithPagination } from "@/hooks/useCrudListWithPagination";
 
@@ -66,6 +66,23 @@ export default function TicketList({
     }
   };
   const allTickets = [...(tickets || [])];
+
+  // Auto-load the next page as the sentinel scrolls into view.
+  const hasMoreTickets = pagination.currentPage < pagination.totalPages;
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasMoreTickets && !loading)
+          handleLoadMore();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMoreTickets, loading, pagination.currentPage]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
@@ -320,11 +337,11 @@ export default function TicketList({
           })
         )}
 
-        {pagination.currentPage < pagination.totalPages && (
-          <div className="flex justify-center mt-4">
-            <Button onClick={handleLoadMore} disabled={loading}>
-              {loading ? "Loading..." : "Load More"}
-            </Button>
+        {hasMoreTickets && (
+          <div ref={sentinelRef} className="flex justify-center mt-4 py-6">
+            {loading && (
+              <span className="text-sm text-muted-foreground">Loading more…</span>
+            )}
           </div>
         )}
       </Card>

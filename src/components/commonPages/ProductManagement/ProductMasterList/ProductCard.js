@@ -1,5 +1,5 @@
 import { Card } from "@/components/common/ui/cards/card";
-import { Edit2, EyeIcon } from "lucide-react";
+import { Edit2, ExternalLinkIcon, EyeIcon, ImageOff } from "lucide-react";
 import React from "react";
 import { Checkbox } from "@/components/common/ui/checkbox";
 import { RiDeleteBinFill } from "@remixicon/react";
@@ -11,6 +11,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/common/ui/tooltip";
+
+const STOREFRONT_URL =
+  process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
 
 const ProductCard = ({
   id,
@@ -24,6 +27,7 @@ const ProductCard = ({
   collection,
   gender,
   active,
+  has_media,
   onClick,
   onEdit,
   onDelete,
@@ -34,7 +38,7 @@ const ProductCard = ({
   SelectCard,
 }) => {
   return (
-    <Card className="shadow-none mb-5">
+    <Card className="shadow-none mb-5" data-row-id={id}>
       <div className="rounded-t-xl relative p-[17px] w-auto h-[196px] bg-[#FCFCFC]">
         {SelectCard && (
           <div className="absolute left-[17px]">
@@ -59,11 +63,32 @@ const ProductCard = ({
             />
           </div>
         )}
-        <img
-          src={product_image}
-          alt="product"
-          className="h-[163px] w-[163px] mx-auto object-cover"
-        />
+        {!has_media && (
+          <div className="absolute left-[17px] bottom-[10px]">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="text-[11px] font-medium px-2 py-1 rounded bg-amber-100 text-amber-800 border border-amber-200 cursor-default">
+                  No media
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                Hidden from the storefront until at least one photo is
+                uploaded — Active status alone isn&apos;t enough.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
+        {product_image ? (
+          <img
+            src={product_image}
+            alt="product"
+            className="h-[163px] w-[163px] mx-auto object-cover"
+          />
+        ) : (
+          <div className="h-[163px] w-[163px] mx-auto flex items-center justify-center bg-muted rounded">
+            <ImageOff className="h-8 w-8 text-muted-foreground" />
+          </div>
+        )}
       </div>
       <div className="card-border card-rounded-b px-3.5 pt-5 pb-3.5 ">
         <div className="grid grid-cols-2 items-center gap-4">
@@ -169,6 +194,16 @@ const ProductCard = ({
             <span className="text-2sm text-secondary-foreground font-normal">
               View
             </span>
+          </Button>
+          <Button variant="outline" mode="icon" asChild title="View on Storefront">
+            <a
+              href={`${STOREFRONT_URL}/product/${id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLinkIcon className="h-4 w-4" />
+            </a>
           </Button>
           {onEdit && (
             <Button

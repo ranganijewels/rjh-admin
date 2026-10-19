@@ -15,6 +15,7 @@ const StandardMenuEditor = ({ content, onChange }) => {
 
   const colList = makeListHelpers(columns, (next) => onChange({ ...content, columns: next }), () => ({
     title: "",
+    link: "",
     items: [],
   }));
 
@@ -37,7 +38,13 @@ const StandardMenuEditor = ({ content, onChange }) => {
                   <Input
                     value={col.title || ""}
                     onChange={(e) => colList.update(colIdx, { title: e.target.value })}
-                    placeholder="Column title (e.g. SHOP BY STYLE)"
+                    placeholder="Column title (e.g. Shop by Style)"
+                    className="flex-1"
+                  />
+                  <Input
+                    value={col.link || ""}
+                    onChange={(e) => colList.update(colIdx, { link: e.target.value })}
+                    placeholder="Title link (optional)"
                     className="flex-1"
                   />
                   <Button variant="outline" mode="icon" size="sm" onClick={() => colList.move(colIdx, -1)} disabled={colIdx === 0}>

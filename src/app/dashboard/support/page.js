@@ -52,8 +52,8 @@
 // //           setAssigneeSearchQuery={() => {}}
 // //           updateTicketStatus={() => {}}
 // //           getStatusColor={() => "default"}
-// //           getPriorityColor={() => "bg-gray-500"}
-// //           getAssigneeStatusColor={() => "text-gray-500"}
+// //           getPriorityColor={() => "bg-gray-500 dark:bg-muted-foreground"}
+// //           getAssigneeStatusColor={() => "text-gray-500 dark:text-muted-foreground"}
 // //           newReply=""
 // //           setNewReply={() => {}}
 // //           replyFiles={[]}
@@ -140,8 +140,8 @@
 //           setAssigneeSearchQuery={() => {}}
 //           updateTicketStatus={() => {}}
 //           getStatusColor={() => "default"}
-//           getPriorityColor={() => "bg-gray-500"}
-//           getAssigneeStatusColor={() => "text-gray-500"}
+//           getPriorityColor={() => "bg-gray-500 dark:bg-muted-foreground"}
+//           getAssigneeStatusColor={() => "text-gray-500 dark:text-muted-foreground"}
 //           newReply=""
 //           setNewReply={() => {}}
 //           replyFiles={[]}

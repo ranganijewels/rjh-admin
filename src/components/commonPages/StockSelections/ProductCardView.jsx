@@ -337,7 +337,7 @@ const ProductCardView = ({ open, closeProductDetailSheet, product }) => {
                   <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6 mt-6">
                     {/* Left: Chart */}
                       <div className="flex flex-col">
-                        <div className="space-y-4 bg-white p-6  flex flex-wrap justify-between">
+                        <div className="space-y-4 bg-white dark:bg-card p-6  flex flex-wrap justify-between">
                           <h2 className="text-base font-semibold">Trend Graph</h2>
                           <Button variant="outline" onClick={handleButtonClick}>
                             30 Jan 2025

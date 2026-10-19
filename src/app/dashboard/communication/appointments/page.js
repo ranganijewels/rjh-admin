@@ -20,9 +20,9 @@ const badge = (s) =>
     pending: "bg-amber-100 text-amber-800",
     confirmed: "bg-green-100 text-green-700",
     completed: "bg-blue-100 text-blue-700",
-    cancelled: "bg-gray-200 text-gray-600",
+    cancelled: "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground",
     no_show: "bg-red-100 text-red-700",
-  }[s] || "bg-gray-100 text-gray-600");
+  }[s] || "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground");
 
 // Expert-consultation bookings from the storefront "Speak to an Expert" modal.
 export default function AppointmentsPage() {
@@ -103,7 +103,7 @@ export default function AppointmentsPage() {
               <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No appointments yet.</td></tr>
             ) : (
               rows.map((r, i) => (
-                <tr key={r.id} className={i % 2 ? "bg-gray-50" : "bg-white"}>
+                <tr key={r.id} className={i % 2 ? "bg-gray-50 dark:bg-muted" : "bg-white dark:bg-card"}>
                   <td className="px-4 py-2.5 whitespace-nowrap font-medium">
                     {r.preferredDate ? String(r.preferredDate).slice(0, 10) : "—"}
                     {r.preferredTime ? ` · ${String(r.preferredTime).slice(0, 5)}` : ""}

@@ -13,7 +13,7 @@ export const useStockSelections = ({ onClick, onView }) => {
   return useMemo(
     () => [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
@@ -130,7 +130,7 @@ export const useStockSelections = ({ onClick, onView }) => {
                     row.original.product_id || row.original.variant_id || row.id
                   }-${index}`}
                   title={color}
-                  className="w-[18px] h-[18px] rounded-sm border border-gray-300"
+                  className="w-[18px] h-[18px] rounded-sm border border-gray-300 dark:border-border"
                   style={{
                     background: getBackground(color),
                   }}

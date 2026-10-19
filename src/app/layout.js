@@ -30,9 +30,27 @@ export const metadata = {
   description: "Rangani Jewelry House business management platform.",
 };
 
+// Runs before paint so the page never flashes light-then-dark (or vice
+// versa) while React hydrates — SettingsProvider takes over from here.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var stored = localStorage.getItem('app_settings_theme.mode');
+    var mode = stored ? JSON.parse(stored) : null;
+    if (!mode) {
+      mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    if (mode === 'dark') document.documentElement.classList.add('dark');
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className={`${inter.variable} ${montserrat.variable} ${cormorant.variable} antialiased`}>
         {" "}
         <Providers>{children}</Providers>

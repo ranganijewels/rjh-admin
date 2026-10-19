@@ -83,7 +83,7 @@ export default function MediaManager({ color, items, onChange }) {
         }
         const json = await res.json().catch(() => null);
         if (!res.ok || !json?.url) throw new Error(json?.error || "Upload failed");
-        added.push({ url: json.url, type: detectType(json.url), role: "gallery" });
+        added.push({ url: json.url, type: detectType(json.url), role: "gallery", seoAltText: "" });
       }
       onChange([...items, ...added]);
       toast.success(`${added.length} file(s) uploaded`);
@@ -106,18 +106,22 @@ export default function MediaManager({ color, items, onChange }) {
     onChange(next);
   };
 
+  const setAltText = (i, seoAltText) => {
+    onChange(items.map((it, idx) => (idx === i ? { ...it, seoAltText } : it)));
+  };
+
   const remove = (i) => onChange(items.filter((_, idx) => idx !== i));
 
   // Swatch + label per metal colour. Silver/Platinum are their own metals (not
   // "… Gold"), so label them by colour name and give them a neutral swatch.
   const SWATCHES = {
-    White: "bg-gray-200",
+    White: "bg-gray-200 dark:bg-secondary",
     Yellow: "bg-yellow-300",
     Rose: "bg-[#e6b8a2]",
-    Silver: "bg-gray-300",
+    Silver: "bg-gray-300 dark:bg-secondary",
     Platinum: "bg-slate-300",
   };
-  const swatch = SWATCHES[color] || "bg-gray-200";
+  const swatch = SWATCHES[color] || "bg-gray-200 dark:bg-secondary";
   // Gold colours read naturally as "White Gold"; Silver/Platinum stand alone.
   const label = ["White", "Yellow", "Rose"].includes(color) ? `${color} Gold` : color;
 
@@ -179,6 +183,14 @@ export default function MediaManager({ color, items, onChange }) {
                   </option>
                 ))}
               </select>
+              <input
+                type="text"
+                value={it.seoAltText || ""}
+                onChange={(e) => setAltText(i, e.target.value)}
+                placeholder="Alt text (SEO)"
+                title="Describes the image for search engines and screen readers"
+                className="w-full text-xs border-t border-border px-1.5 py-1 bg-background placeholder:text-muted-foreground/70"
+              />
             </div>
           ))}
         </div>

@@ -7,6 +7,7 @@ import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { useCrudList } from "@/hooks/useCrudList";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import AddRoleModel from "./AddRoleModel";
 import { userRolesData } from "./hooks/userRolesData";
 
@@ -25,6 +26,7 @@ const Roles = () => {
     fetchData,
     handleDelete,
   } = useCrudList("/api/users-roles");
+  const { remove } = useCrudApi("/api/users-roles");
 
   const columns = userRolesData({
     onEdit: (item) => {
@@ -56,6 +58,20 @@ const Roles = () => {
         columns={columns}
         resizableColumns
         filterFunction={filterFunction}
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected role(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => remove(r.id)));
+              fetchData();
+            },
+          },
+        ]}
         createBtn={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />

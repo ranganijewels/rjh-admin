@@ -93,6 +93,10 @@
 
 import { useMemo } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { Edit2Icon, EyeIcon } from "lucide-react";
@@ -108,24 +112,14 @@ export const useSelectionColumns = ({
 }) => {
   const columns = useMemo(
     () => [
-      // {
-      //   id: "checkboxes",
-      //   header: ({ column }) => (
-      //     <DataGridColumnHeader title="Checkboxes" column={column} />
-      //   ),
-      //   accessorFn: (row) => row.checkboxes,
-      //   cell: ({ row }) => (
-      //     <div className="flex items-center justify-center">
-      //       <input
-      //         type="checkbox"
-      //         className="h-4 w-4 cursor-pointer"
-      //         checked={row.original.checkboxes}
-      //         onChange={() => handleCheckboxChange(row.original)}
-      //       />
-      //     </div>
-      //   ),
-      //   size: 110,
-      // },
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "id",
         header: ({ column }) => (

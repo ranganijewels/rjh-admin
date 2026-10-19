@@ -12,14 +12,14 @@ import { RiDeleteBin5Line } from "@remixicon/react";
 export const userDepartments = ({ onEdit, onDelete }) => {
   return useMemo(
     () => [
-      // {
-      //   accessorKey: "select",
-      //   header: () => <DataGridTableRowSelectAll />,
-      //   cell: ({ row }) => <DataGridTableRowSelect row={row} />,
-      //   enableSorting: false,
-      //   enableHiding: false,
-      //   size: 30,
-      // },
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "id",
         header: ({ column }) => (

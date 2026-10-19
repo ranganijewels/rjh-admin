@@ -7,12 +7,13 @@ import { Alert, AlertDescription } from "@/components/common/ui/alert";
 import { Plus } from "lucide-react";
 
 import { useCrudList } from "@/hooks/useCrudList";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import BlogPostModel from "./BlogPostModel";
 import { useBlogPostColumns } from "./hooks/useBlogPostColumns";
 
-const BlogPosts = ({ storeId }) => {
+const BlogPosts = ({ storeId = "default" }) => {
   const {
     list,
     loading,
@@ -27,7 +28,8 @@ const BlogPosts = ({ storeId }) => {
     fetchData,
     handleDelete,
     fetchById,
-  } = useCrudList(`/api/cms/blog/5/posts`);
+  } = useCrudList(`/api/cms/blog/${storeId}/posts`);
+  const { remove } = useCrudApi(`/api/cms/blog/${storeId}/posts`);
 
   const [selectedPostId, setSelectedPostId] = useState(null);
 
@@ -79,6 +81,20 @@ const BlogPosts = ({ storeId }) => {
         data={list}
         columns={columns}
         filterFunction={filterOptions}
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected blog post(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => remove(r.id)));
+              fetchData();
+            },
+          },
+        ]}
         createBtn={
           <Button
             onClick={() => {

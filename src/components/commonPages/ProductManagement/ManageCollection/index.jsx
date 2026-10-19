@@ -33,7 +33,7 @@ const slugify = (s) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
 
-const EMPTY = { name: "", slug: "", description: "", heroImage: "", sortOrder: 0, status: "active" };
+const EMPTY = { name: "", slug: "", description: "", heroImage: "", sortOrder: 0, status: "active", variantMode: false };
 
 export default function ManageCollection() {
   const [rows, setRows] = useState([]);
@@ -49,6 +49,12 @@ export default function ManageCollection() {
   // delete
   const [deleteId, setDeleteId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // bulk row-select on the collections table (distinct from the product
+  // assignment dialog's own `selectedIds` below)
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // product assignment dialog
   const [assignFor, setAssignFor] = useState(null); // collection row
@@ -68,6 +74,7 @@ export default function ManageCollection() {
       const json = await res.json();
       const list = Array.isArray(json) ? json : json?.data || [];
       setRows(list);
+      setSelectedCollectionIds(new Set());
     } catch {
       toast.error("Failed to load collections");
     } finally {
@@ -78,6 +85,44 @@ export default function ManageCollection() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const toggleSelectAllCollections = () => {
+    setSelectedCollectionIds((prev) =>
+      prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))
+    );
+  };
+  const toggleSelectCollectionRow = (id) => {
+    setSelectedCollectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDeleteCollections = async () => {
+    setBulkDeleting(true);
+    try {
+      await Promise.all(
+        [...selectedCollectionIds].map((id) =>
+          fetch(`/api/product-management/manage-collection/${id}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          })
+        )
+      );
+      toast.success(
+        `${selectedCollectionIds.size} collection(s) deleted (products were kept)`
+      );
+      setSelectedCollectionIds(new Set());
+      load();
+    } catch (e) {
+      toast.error(e.message || "Failed to delete selected collections");
+    } finally {
+      setBulkDeleting(false);
+      setBulkConfirmOpen(false);
+    }
+  };
 
   const openAdd = () => {
     setEditingId(null);
@@ -95,6 +140,7 @@ export default function ManageCollection() {
       heroImage: row.heroImage || "",
       sortOrder: row.sortOrder ?? 0,
       status: row.status || "active",
+      variantMode: !!row.variantMode,
     });
     setSlugTouched(true);
     setPanelOpen(true);
@@ -128,6 +174,7 @@ export default function ManageCollection() {
           heroImage: form.heroImage || "",
           sortOrder: Number(form.sortOrder) || 0,
           status: form.status,
+          variantMode: !!form.variantMode,
         }),
       });
       if (!res.ok) {
@@ -318,6 +365,23 @@ export default function ManageCollection() {
                 <option value="inactive">Inactive (hidden)</option>
               </select>
             </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Variant Mode</label>
+              <select
+                value={form.variantMode ? "true" : "false"}
+                onChange={(e) => setField("variantMode", e.target.value === "true")}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
+              >
+                <option value="false">Off — normal collection</option>
+                <option value="true">On — products are variants of each other</option>
+              </select>
+              <p className="text-[11px] text-muted-foreground">
+                On treats every product here as a variant of every other (e.g. an Initials
+                collection where A/B/C/... are one family) — each product&apos;s page then
+                shows a switcher to jump between siblings. Set each product&apos;s &quot;Variant
+                Label&quot; in the Product Form to control what shows on the switcher.
+              </p>
+            </div>
             <div className="space-y-1.5 md:col-span-2">
               <label className="text-xs font-medium text-muted-foreground">
                 Description
@@ -351,11 +415,37 @@ export default function ManageCollection() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {selectedCollectionIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
+          <span className="text-sm font-medium">
+            {selectedCollectionIds.size} selected
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ms-auto text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => setBulkConfirmOpen(true)}
+          >
+            Delete
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-[#162640] text-white text-left">
+              <th className="px-4 py-2.5 font-medium w-10">
+                <input
+                  type="checkbox"
+                  checked={rows.length > 0 && selectedCollectionIds.size === rows.length}
+                  onChange={toggleSelectAllCollections}
+                  className="h-4 w-4 cursor-pointer"
+                  aria-label="Select all"
+                />
+              </th>
               <th className="px-4 py-2.5 font-medium">Collection</th>
               <th className="px-4 py-2.5 font-medium">Page (slug)</th>
               <th className="px-4 py-2.5 font-medium">Products</th>
@@ -366,19 +456,28 @@ export default function ManageCollection() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                   No collections yet — click “New Collection”.
                 </td>
               </tr>
             ) : (
               rows.map((row, i) => (
-                <tr key={row.id} className={i % 2 ? "bg-gray-50" : "bg-white"}>
+                <tr key={row.id} className={i % 2 ? "bg-gray-50 dark:bg-muted" : "bg-white dark:bg-card"}>
+                  <td className="px-4 py-2.5">
+                    <input
+                      type="checkbox"
+                      checked={selectedCollectionIds.has(row.id)}
+                      onChange={() => toggleSelectCollectionRow(row.id)}
+                      className="h-4 w-4 cursor-pointer"
+                      aria-label="Select row"
+                    />
+                  </td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2.5">
                       {row.heroImage ? (
@@ -424,7 +523,7 @@ export default function ManageCollection() {
                     <span
                       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                         row.status === "inactive"
-                          ? "bg-gray-200 text-gray-600"
+                          ? "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground"
                           : "bg-green-100 text-green-700"
                       }`}
                     >
@@ -553,6 +652,15 @@ export default function ManageCollection() {
         onConfirm={handleDelete}
         title="Delete Collection"
         message="Delete this collection? Its products are kept (only detached)."
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleBulkDeleteCollections}
+        title="Delete selected collections"
+        message={`Delete ${selectedCollectionIds.size} selected collection(s)? Their products are kept (only detached).`}
+        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
     </div>
   );

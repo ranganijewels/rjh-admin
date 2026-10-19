@@ -7,7 +7,7 @@ const Login = () => {
   return (
     <div className="grid lg:grid-cols-2 grow h-screen">
       <div
-        className="lg:rounded-xl lg:border lg:border-gray-200 lg:m-5 order-1  bg-top xxl:bg-center xl:bg-cover bg-no-repeat"
+        className="lg:rounded-xl lg:border lg:border-gray-200 dark:border-border lg:m-5 order-1  bg-top xxl:bg-center xl:bg-cover bg-no-repeat"
         style={{
           backgroundImage: "url('/images/login/signin-bg.png')",
         }}
@@ -25,10 +25,10 @@ const Login = () => {
           </div>
 
           <div className="flex flex-col gap-3">
-            <h3 className="text-2xl font-semibold text-gray-900">
+            <h3 className="text-2xl font-semibold text-gray-900 dark:text-foreground">
               Rangani Jewelry House
             </h3>
-            <div className="text-base font-medium text-gray-600">
+            <div className="text-base font-medium text-gray-600 dark:text-muted-foreground">
               Your complete jewelry business management platform. <br />
               Manage products, orders, pricing, and more — <br />
               all in one place.

@@ -6,10 +6,13 @@ import { Input } from "@/components/common/ui/input";
 import { Textarea } from "@/components/common/ui/textarea";
 import { Button } from "@/components/common/ui/button";
 import { toast } from "sonner";
-import { Plus, Trash2, ArrowLeft, Save, ChevronDown } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, Save, ChevronDown, ExternalLink } from "lucide-react";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ImageUpload from "./ImageUpload";
 import MediaManager, { detectType } from "./MediaManager";
+
+const STOREFRONT_URL =
+  process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
 
 const authHeaders = () => {
   const token =
@@ -86,7 +89,25 @@ const EMPTY = {
   seo_title: "", seo_description: "", seo_keywords: "", seo_og_image: "",
   shopping_availability: "", google_product_category: "",
   display_discount_percent: "",
+  display_discount_ends_at: "",
+  production_time: "",
+  engraving_enabled: null, // null = category default (rings on)
+  badges: [],
+  // ── GEO/AEO: AI-answer-engine content, token-aware like the descriptions ──
+  aeo_summary: "",
+  faqs: [],
+  // Shown on the PDP variant switcher when this product's Collection has
+  // Variant Mode on (see Manage Collection) — e.g. "A" for an Initials collection.
+  variant_label: "",
 };
+
+// Tokens the AI generator and storefront both understand — {{karat}} etc
+// resolve live to whatever metal/diamond option the shopper has selected.
+const DYNAMIC_TOKENS = [
+  "{{metal_type}}", "{{karat}}", "{{metal_color}}",
+  "{{diamond_shape}}", "{{diamond_weight}}", "{{diamond_clarity}}", "{{diamond_color}}",
+];
+const emptyFaq = () => ({ question: "", answer: "" });
 
 // Material row — mirrors the ERP "Material Added In Design" table.
 const MATERIAL_TYPES = ["Metal", "Diamond", "Stone", "Misc", "Finding"];
@@ -246,14 +267,15 @@ export default function ProductForm({ id }) {
   const [diamondShapeOptions, setDiamondShapeOptions] = useState([]);
   const [diamondQualityOptions, setDiamondQualityOptions] = useState([]);
   const [settingTypeOptions, setSettingTypeOptions] = useState([]);
+  const [badgeOptions, setBadgeOptions] = useState([]);
   useEffect(() => {
     (async () => {
       try {
-        const [types, purities, colors, ptypes, cats, styles, cols, components, stones, diaColors, shapes, qualities, settings] = await Promise.all(
+        const [types, purities, colors, ptypes, cats, styles, cols, components, stones, diaColors, shapes, qualities, settings, badges] = await Promise.all(
           [
             "metal_type", "metal_purity", "metal_color", "product_type",
             "category", "style", "collection", "component_type", "stone_type", "diamond_color",
-            "diamond_shape", "diamond_quality", "setting_type",
+            "diamond_shape", "diamond_quality", "setting_type", "product_badge",
           ].map((k) =>
             fetch(`/api/catalog/masters?kind=${k}`, { cache: "no-store" }).then((r) =>
               r.ok ? r.json() : []
@@ -302,6 +324,8 @@ export default function ProductForm({ id }) {
         if (Array.isArray(shapes) && shapes.length) setDiamondShapeOptions([...shapes].sort(bySort).map((s) => s.name));
         if (Array.isArray(qualities) && qualities.length) setDiamondQualityOptions([...qualities].sort(bySort).map((q) => q.name));
         if (Array.isArray(settings) && settings.length) setSettingTypeOptions([...settings].sort(bySort).map((s) => s.name));
+        if (Array.isArray(badges) && badges.length)
+          setBadgeOptions([...badges].sort(bySort).map((b) => ({ code: b.code, name: b.name, hex: b.metadata?.hex })));
       } catch {
         /* keep the static fallbacks */
       }
@@ -422,6 +446,13 @@ export default function ProductForm({ id }) {
           shopping_availability: p.metadata?.shopping?.availability ?? "",
           google_product_category: p.metadata?.shopping?.googleProductCategory ?? "",
           display_discount_percent: p.metadata?.displayDiscountPercent ?? "",
+          display_discount_ends_at: p.metadata?.displayDiscountEndsAt ? String(p.metadata.displayDiscountEndsAt).slice(0, 10) : "",
+          production_time: p.metadata?.productionTime ?? "",
+          engraving_enabled: typeof p.metadata?.engravingEnabled === "boolean" ? p.metadata.engravingEnabled : null,
+          badges: Array.isArray(p.metadata?.badges) ? p.metadata.badges : [],
+          aeo_summary: p.metadata?.aeoSummary ?? "",
+          faqs: Array.isArray(p.metadata?.faqs) ? p.metadata.faqs : [],
+          variant_label: p.metadata?.variantLabel ?? "",
         });
         // Hydrate "pairs well with" titles from the stored ids.
         const pairIds = Array.isArray(p.metadata?.pairsWith) ? p.metadata.pairsWith : [];
@@ -448,7 +479,8 @@ export default function ProductForm({ id }) {
             : "gallery";
           const type =
             m.mediaType && m.mediaType !== "image" ? m.mediaType : detectType(url);
-          if (color) (cm[color] = cm[color] || []).push({ id: m.id, url, type, role });
+          const seoAltText = m.seoAltText ?? m.seo_alt_text ?? "";
+          if (color) (cm[color] = cm[color] || []).push({ id: m.id, url, type, role, seoAltText });
           if (m.id) ids.push(m.id);
         });
         setColorMedia(cm);
@@ -462,6 +494,75 @@ export default function ProductForm({ id }) {
   }, [id, isEdit]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const [aiModel, setAiModel] = useState("haiku");
+  const [aiLoading, setAiLoading] = useState(false);
+  // Shared by the single-product button and the bulk modal (ProductMasterList)
+  // — sends the FULL metal option set (every purity/color, not just the
+  // first), so the prompt can tell a genuinely variable attribute from a
+  // fixed one and knows when to write a {{token}} instead of one literal value.
+  const buildAiPayload = (f, d, model) => ({
+    productName: f.title || undefined,
+    category: f.category || undefined,
+    subCategory: f.design_style || f.subcategory || undefined,
+    collectionName: f.collection || undefined,
+    occasion: f.occasion || undefined,
+    gender: f.gender || undefined,
+    metalOptions: (f.metal_options || []).map((m) => ({
+      type: m.type || undefined,
+      purities: m.purities || [],
+      colors: m.colors || [],
+    })),
+    diamondShape: d.shape || undefined,
+    diamondQuality: d.quality || undefined,
+    diamondColor: d.color || f.diamond_color || undefined,
+    diamondClarity: d.clarity || f.diamond_clarity || undefined,
+    diamondCut: f.diamond_cut || undefined,
+    diamondCount: d.diamondPcs ? Number(d.diamondPcs) : undefined,
+    diamondWeightCt: d.diamondWeightCt ? Number(d.diamondWeightCt) : undefined,
+    // Every carat the configurator offers (the storefront's "Center Diamond
+    // Weight" chips) — when there's more than one, weight is shopper-
+    // selectable just like metal purity/color, so the prompt should use a
+    // {{diamond_weight}} token instead of naming one fixed carat.
+    diamondWeightOptions: (f.weight_matrix || [])
+      .map((r) => Number(r.carat))
+      .filter((n) => Number.isFinite(n) && n > 0),
+    centerStoneShape: d.hasCenterStone ? d.shape : undefined,
+    centerStoneWeightCt: d.hasCenterStone ? Number(d.centerStoneWeightCt) : undefined,
+    style: f.design_style || undefined,
+    brand: f.brand || undefined,
+    model,
+  });
+
+  const generateWithAI = async () => {
+    const payload = buildAiPayload(form, derived, aiModel);
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/ai/generate-listing", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.message || "Failed to generate listing copy");
+      const copy = json.data || json;
+      setForm((f) => ({
+        ...f,
+        title: copy.productName || f.title,
+        short_description: copy.shortDescription || f.short_description,
+        description: copy.description || f.description,
+        seo_title: copy.seoTitle || f.seo_title,
+        seo_description: copy.seoDescription || f.seo_description,
+        seo_keywords: copy.keywords || f.seo_keywords,
+        aeo_summary: copy.aeoSummary || f.aeo_summary,
+        faqs: Array.isArray(copy.faqs) && copy.faqs.length ? copy.faqs : f.faqs,
+      }));
+      toast.success("AI listing copy generated — review before saving");
+    } catch (e) {
+      toast.error(e.message || "Failed to generate listing copy");
+    } finally {
+      setAiLoading(false);
+    }
+  };
   const addMaterial = () => setMaterials((m) => [...m, { ...EMPTY_MATERIAL }]);
   const removeMaterial = (i) => setMaterials((m) => m.filter((_, idx) => idx !== i));
   const setMaterial = (i, k, v) =>
@@ -553,10 +654,6 @@ export default function ProductForm({ id }) {
   };
 
   const save = async () => {
-    if (!form.title?.trim()) {
-      toast.error("Product name is required");
-      return;
-    }
     setSaving(true);
     try {
       // Clean the metal options + weight matrix and derive the primary scalar
@@ -633,7 +730,13 @@ export default function ProductForm({ id }) {
       if (productId) {
         let order = 0;
         let mediaFailures = 0;
-        for (const color of coverColors) {
+        // Union of configured colors AND every color that currently has media
+        // loaded — using coverColors (Metals-Offered-only) here would silently
+        // drop and then hard-delete any color's images that aren't in the
+        // current Metals Offered selection (e.g. legacy Yellow/Rose media on a
+        // product now configured as White-only).
+        const saveColors = Array.from(new Set([...availableColors, ...Object.keys(colorMedia)]));
+        for (const color of saveColors) {
           for (const item of colorMedia[color] || []) {
             if (!item.url) continue;
             order++;
@@ -651,6 +754,7 @@ export default function ProductForm({ id }) {
                   sortOrder: order,
                   title: form.title,
                   altText: item.role || "gallery", // main | rollover | gallery
+                  seoAltText: item.seoAltText || undefined,
                 }),
               });
               if (!r.ok) mediaFailures++;
@@ -701,12 +805,19 @@ export default function ProductForm({ id }) {
             </p>
           </div>
         </div>
+        {isEdit && id && (
+          <Button variant="outline" size="sm" asChild>
+            <a href={`${STOREFRONT_URL}/product/${id}`} target="_blank" rel="noopener noreferrer">
+              <ExternalLink className="w-4 h-4 mr-1.5" /> View on Storefront
+            </a>
+          </Button>
+        )}
       </div>
 
       {/* Section: Design Info */}
       <Section title="Design Info & Classification">
         <Grid>
-          <Field label="Product Name *">
+          <Field label="Product Name" hint={`Supports dynamic tokens: ${DYNAMIC_TOKENS.join(" ")}`}>
             <Input value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="e.g. Round Solitaire Ring" />
           </Field>
           <Field label="Design No">
@@ -723,6 +834,9 @@ export default function ProductForm({ id }) {
           </Field>
           <Field label="Collection">
             <SelectWithAdd value={form.collection} onValueChange={(v) => set("collection", v)} options={withCurrent(collectionOptions, form.collection)} kind="collection" onOptionsChange={setCollectionOptions} />
+          </Field>
+          <Field label="Variant Label" hint="Only used when this Collection has Variant Mode on (set in Manage Collection) — e.g. 'A' for an Initials collection. Shown as a switcher button on the PDP so shoppers can jump between sibling products.">
+            <Input value={form.variant_label} onChange={(e) => set("variant_label", e.target.value)} placeholder="e.g. A" />
           </Field>
           <Field label="Gender">
             <Select value={form.gender} onChange={(e) => set("gender", e.target.value)} options={GENDERS} />
@@ -749,12 +863,49 @@ export default function ProductForm({ id }) {
             <Input value={form.design_package} onChange={(e) => set("design_package", e.target.value)} placeholder="Package" />
           </Field>
         </Grid>
+        <div className="flex items-center gap-2 mb-3 p-2.5 rounded-md border border-dashed border-border bg-muted/30">
+          <div className="w-28 shrink-0">
+            <Select value={aiModel} onChange={(e) => setAiModel(e.target.value)} options={["haiku", "sonnet"]} />
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={generateWithAI} disabled={aiLoading}>
+            {aiLoading ? "Generating…" : "✨ Generate with AI"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            Fills Name / Short Description / Description / SEO fields / AEO Summary / FAQs below from the metal, diamond, category and style you've set above — using {"{{tokens}}"} (see below) for any attribute with more than one option, so copy stays accurate no matter what the shopper picks. Haiku for everyday products, Sonnet for the best copy on a hero piece.
+          </p>
+        </div>
+        <TokenHint />
         <Field label="Short Description" full hint="1-2 line teaser shown on the PDP buy box and product cards — separate from the full Description below.">
           <Textarea value={form.short_description} onChange={(e) => set("short_description", e.target.value)} rows={2} maxLength={160} placeholder="e.g. A sleek half bezel cradles a round brilliant — architectural, modern, unmistakable." />
           <p className="text-[11px] text-muted-foreground">{(form.short_description || "").length}/160</p>
         </Field>
         <Field label="Description" full>
           <Textarea value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Product description" />
+        </Field>
+        <Field label="Badges" full hint="Shown on the product card and product page on the storefront. Manage the list in Catalog → Product Badges.">
+          <div className="flex flex-wrap gap-1.5">
+            {badgeOptions.length === 0 && (
+              <p className="text-xs text-muted-foreground">No badges configured yet — add some in Catalog → Product Badges.</p>
+            )}
+            {badgeOptions.map((b) => {
+              const selected = (form.badges || []).includes(b.code);
+              return (
+                <button
+                  type="button"
+                  key={b.code}
+                  onClick={() => set("badges", toggleInList(form.badges || [], b.code))}
+                  className={`px-2.5 py-1 rounded-full text-xs border inline-flex items-center gap-1.5 ${
+                    selected
+                      ? "text-white border-transparent"
+                      : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-input"
+                  }`}
+                  style={selected ? { backgroundColor: b.hex || "#162640" } : undefined}
+                >
+                  {b.name}
+                </button>
+              );
+            })}
+          </div>
         </Field>
         <Field label="Remarks" full>
           <Input value={form.remarks} onChange={(e) => set("remarks", e.target.value)} placeholder="Internal remarks (not shown on storefront)" />
@@ -805,7 +956,7 @@ export default function ProductForm({ id }) {
                       onChange={(e) =>
                         setMetalOption(i, { type: e.target.value, purities: [], colors: [] })
                       }
-                      className="border border-input rounded-md px-2.5 py-1.5 text-sm bg-white"
+                      className="border border-input rounded-md px-2.5 py-1.5 text-sm bg-white dark:bg-card"
                     >
                       {metalTypeOptions.map((t) => (
                         <option key={t} value={t}>{t}</option>
@@ -836,7 +987,7 @@ export default function ProductForm({ id }) {
                           className={`px-2.5 py-1 rounded-full text-xs border ${
                             opt.purities.includes(p)
                               ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-white text-gray-600 border-input"
+                              : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-input"
                           }`}
                         >
                           {p}
@@ -857,7 +1008,7 @@ export default function ProductForm({ id }) {
                             className={`px-2.5 py-1 rounded-full text-xs border inline-flex items-center gap-1.5 ${
                               opt.colors.includes(c)
                                 ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-white text-gray-600 border-input"
+                                : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-input"
                             }`}
                           >
                             {sw?.hex && (
@@ -1069,7 +1220,7 @@ export default function ProductForm({ id }) {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={url} alt="" className="w-20 h-20 object-cover rounded border border-border" />
                 <button type="button" onClick={() => set("production_images", form.production_images.filter((_, idx) => idx !== i))}
-                  className="absolute -top-2 -right-2 bg-white border border-border rounded-full p-0.5 text-red-500">
+                  className="absolute -top-2 -right-2 bg-white dark:bg-card border border-border rounded-full p-0.5 text-red-500">
                   <Trash2 className="size-3" />
                 </button>
               </div>
@@ -1182,7 +1333,7 @@ export default function ProductForm({ id }) {
                     )}
                   </td>
                   <td className="p-1">
-                    <Input type="number" step="0.01" className="h-8 text-xs min-w-[62px]" value={row.size ?? ""} onChange={(e) => setMaterial(i, "size", e.target.value)} />
+                    <Input type="text" className="h-8 text-xs min-w-[62px]" value={row.size ?? ""} onChange={(e) => setMaterial(i, "size", e.target.value)} placeholder="e.g. 8 x 6" />
                   </td>
                   <td className="p-1">
                     <MatSelect
@@ -1234,7 +1385,7 @@ export default function ProductForm({ id }) {
             <Input value={form.seo_title} onChange={(e) => set("seo_title", e.target.value)} placeholder={form.title || "defaults to product name"} maxLength={70} />
             <p className="text-[11px] text-muted-foreground">{(form.seo_title || "").length}/70</p>
           </Field>
-          <Field label="Keywords (comma separated)">
+          <Field label="Keywords (comma separated)" hint="Plain literal text only — dynamic tokens are not supported here, name one representative option instead.">
             <Input value={form.seo_keywords} onChange={(e) => set("seo_keywords", e.target.value)} placeholder="lab grown diamond ring, 14k gold…" />
           </Field>
           <Field label="Availability (Google)">
@@ -1251,13 +1402,27 @@ export default function ProductForm({ id }) {
           <Field label="Google Product Category" hint="Auto: Rings 200 · Necklaces 196 · Earrings 194 · Bracelets 191 · Pendants 193">
             <Input value={form.google_product_category} onChange={(e) => set("google_product_category", e.target.value)} placeholder="auto from category" />
           </Field>
-          <Field label="Display Discount % (promo)" hint="Storefront shows strikethrough + 'Save X%' + ENDS SOON. Charged price stays the real price. Blank = no promo badge.">
+          <Field label="Display Discount % (promo)" hint="Storefront shows strikethrough + 'Save X%'. Charged price stays the real price. Blank = no promo badge.">
             <Input type="number" min="0" max="89" value={form.display_discount_percent} onChange={(e) => set("display_discount_percent", e.target.value)} placeholder="e.g. 30" />
           </Field>
+          <Field label="Offer ends on (optional)" hint="Shows 'Ends <date>' and hides the promo after this date. Blank = no urgency wording.">
+            <Input type="date" value={form.display_discount_ends_at} onChange={(e) => set("display_discount_ends_at", e.target.value)} />
+          </Field>
+          <Field label="Engraving" hint="On by default for rings. When ticked, the product page shows a free engraving field (max 20 characters).">
+            <label className="flex items-center gap-2 text-sm h-9">
+              <input type="checkbox" checked={form.engraving_enabled ?? /^(ring|wedding|band)/i.test(form.category || "")} onChange={(e) => set("engraving_enabled", e.target.checked)} />
+              Offer engraving on this product
+            </label>
+          </Field>
+          <Field label="Dispatch time (optional)" hint="Shown on the product page and order email. Blank = store default (5–6 business days).">
+            <Input value={form.production_time} onChange={(e) => set("production_time", e.target.value)} placeholder="e.g. 2–3 business days (ready to ship)" />
+          </Field>
         </Grid>
+        <TokenHint />
         <Field label="Meta Description" full>
           <Textarea value={form.seo_description} onChange={(e) => set("seo_description", e.target.value)} rows={3} maxLength={320} placeholder="155–160 characters shown in Google results" />
           <p className="text-[11px] text-muted-foreground">{(form.seo_description || "").length}/320 · 155–160 recommended for Google</p>
+          <p className="text-[10px] text-muted-foreground italic">Note: Meta Title/Description are rendered once per page load for search engines, so any token here resolves to the product's default metal/diamond option — not the shopper's live click.</p>
         </Field>
         <div className="mb-3">
           <label className="text-xs font-medium text-muted-foreground">Pairs Well With (max 4) — shown under the FAQs on the product page</label>
@@ -1299,6 +1464,55 @@ export default function ProductForm({ id }) {
             <div>Item group (shape variants): {form.design_group || "—"}</div>
             <div>No barcode (identifier_exists = no) · Feed: /api/v1/feeds/google.xml</div>
           </div>
+        </div>
+      </Section>
+
+      {/* Section: GEO/AEO — content shaped for AI answer engines (ChatGPT, Perplexity, Google AI Overviews) */}
+      <Section title="GEO / AEO — AI Answer Engine Content">
+        <p className="text-xs text-muted-foreground mb-3">
+          Separate from Google search SEO above — this is content shaped for AI answer engines to read
+          and quote directly. Generated by the same "✨ Generate with AI" button in Content &amp; Description.
+        </p>
+        <TokenHint />
+        <Field label="AEO Summary" full hint="A short, plain, factual answer-style summary — what the product IS, no marketing adjectives. This is what an AI answer engine is most likely to quote verbatim.">
+          <Textarea value={form.aeo_summary} onChange={(e) => set("aeo_summary", e.target.value)} rows={3} placeholder="e.g. This is a 14K gold engagement ring featuring a round lab-grown center diamond in a solitaire setting." />
+        </Field>
+        <div className="mb-2 flex items-center justify-between">
+          <label className="text-xs font-medium text-muted-foreground">FAQs (3-5 recommended)</label>
+          <Button type="button" variant="outline" size="sm" onClick={() => set("faqs", [...(form.faqs || []), emptyFaq()])}>
+            + Add FAQ
+          </Button>
+        </div>
+        <div className="space-y-3">
+          {(form.faqs || []).map((faq, i) => (
+            <div key={i} className="rounded-md border border-border p-3 space-y-2 relative">
+              <button
+                type="button"
+                className="absolute top-2 right-2 text-red-500 text-xs"
+                onClick={() => set("faqs", form.faqs.filter((_, idx) => idx !== i))}
+              >
+                Remove
+              </button>
+              <Field label="Question">
+                <Input
+                  value={faq.question}
+                  onChange={(e) => set("faqs", form.faqs.map((f, idx) => (idx === i ? { ...f, question: e.target.value } : f)))}
+                  placeholder="e.g. What metal options is this ring available in?"
+                />
+              </Field>
+              <Field label="Answer">
+                <Textarea
+                  value={faq.answer}
+                  onChange={(e) => set("faqs", form.faqs.map((f, idx) => (idx === i ? { ...f, answer: e.target.value } : f)))}
+                  rows={2}
+                  placeholder="e.g. This ring is available in {{metal_color}} at {{karat}}."
+                />
+              </Field>
+            </div>
+          ))}
+          {!(form.faqs || []).length && (
+            <p className="text-xs text-muted-foreground italic">No FAQs yet — add one manually or generate with AI above.</p>
+          )}
         </div>
       </Section>
 
@@ -1398,6 +1612,18 @@ const Grid = ({ children }) => (
   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
     {children}
   </div>
+);
+
+// Available in Title / Short Description / Description / Meta Title / Meta
+// Description / AEO Summary / FAQ answers — resolved live on the storefront
+// to whichever metal/diamond option the shopper has selected.
+const TokenHint = () => (
+  <p className="text-[11px] text-muted-foreground mb-2 -mt-1">
+    Dynamic tokens (resolve live to the shopper's selection):{" "}
+    {DYNAMIC_TOKENS.map((t) => (
+      <code key={t} className="mx-0.5 px-1 py-0.5 rounded bg-muted font-mono">{t}</code>
+    ))}
+  </p>
 );
 
 const Field = ({ label, children, full }) => (

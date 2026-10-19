@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { Edit2Icon } from "lucide-react";
@@ -8,6 +12,14 @@ import { RiDeleteBin5Line } from "@remixicon/react";
 export const userRolesData = ({ onEdit, onDelete }) => {
   return useMemo(
     () => [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "id",
         header: ({ column }) => (

@@ -120,6 +120,36 @@ const SelectionProducts = () => {
         columns={columns}
         loading={loading}
         resizableColumns
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "addToCollection",
+            label: "Add to Collection",
+            onRun: async (rows) => {
+              if (!storeId || !collectionId) {
+                toast.error("Store ID or Collection ID is missing!");
+                return;
+              }
+              await Promise.all(
+                rows.map((r) =>
+                  create({
+                    store_id: storeId,
+                    collection_id: collectionId,
+                    product_ids: [r.id],
+                  })
+                )
+              );
+              const ids = rows.map((r) => r.id);
+              setSelectedIds((prev) => [...new Set([...prev, ...ids])]);
+              setProducts((prev) =>
+                prev.map((p) =>
+                  ids.includes(p.id) ? { ...p, checkboxes: true } : p
+                )
+              );
+              toast.success("Selected products added to collection!");
+            },
+          },
+        ]}
       />
     </div>
   );

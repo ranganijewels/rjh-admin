@@ -259,7 +259,7 @@ export default function EntityManager({ cfg }) {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-200 overflow-x-auto">
+      <div className="rounded-xl border border-gray-200 dark:border-border overflow-x-auto">
         <table className="w-full text-sm" aria-label={`${entityLabel} records`}>
           <thead>
             <tr className="bg-primary text-primary-foreground text-left">
@@ -288,7 +288,7 @@ export default function EntityManager({ cfg }) {
               </tr>
             ) : (
               rows.map((row) => (
-                <tr key={row.id} className="border-t border-gray-100 even:bg-gray-50 hover:bg-primary/5 focus-within:bg-primary/5">
+                <tr key={row.id} className="border-t border-gray-100 dark:border-border even:bg-gray-50 dark:bg-muted hover:bg-primary/5 focus-within:bg-primary/5">
                   {columns.map((c) => (
                     <td key={c.key} className="px-4 py-2.5">{fmtCell(row, c)}</td>
                   ))}

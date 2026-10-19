@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardHeader } from "@/components/common/ui/cards/card";
 import { useStockSelections } from "@/components/commonPages/StockSelections/hooks/useStockSelections";
-import { useFilteredStoreData } from "@/components/commonPages/StockSelections/hooks/useFilteredData";
 import { Button } from "@/components/common/ui/button";
 import { ShoppingCart } from "lucide-react";
 import Link from "next/link";
@@ -139,6 +138,23 @@ const BrowseProducts = () => {
   };
 
   const handleVariantSelection = (variants) => setSelectedVariants(variants);
+
+  const handleBulkAddToBag = async (rows) => {
+    const payload = {
+      items: rows.map((r) => ({
+        product_id: r.product_id,
+        variant_id: r.variant_id,
+        price: parseFloat(r.selling_price || 0),
+        category_id: selectedCategory,
+      })),
+    };
+    const res = await create(payload);
+    if (res?.status || res?.status === 200) {
+      toast.success(res?.message || "Variants added to bag successfully!");
+    } else {
+      toast.error(res?.message || "Failed to add to bag.");
+    }
+  };
 
   const columns = useStockSelections({
     onClick: handleAddToBag,
@@ -306,9 +322,16 @@ const BrowseProducts = () => {
                     title="Select Variants"
                     data={product?.variants}
                     columns={columns}
-                    useFilteredData={useFilteredStoreData}
                     // onSelectionChange={handleVariantSelection}
                     onSelectionChange={setSelectedVariants}
+                    infiniteScroll
+                    bulkActions={[
+                      {
+                        key: "addToBag",
+                        label: "Add to Bag",
+                        onRun: handleBulkAddToBag,
+                      },
+                    ]}
                   />
                 </div>
               </div>
@@ -318,7 +341,7 @@ const BrowseProducts = () => {
       {/* Selected Variants Card */}
       {!loading && (
         <Card className="w-full mt-4 sticky bottom-0 z-50">
-          <CardHeader className="bg-white py-5 px-6 shadow-sm border rounded-md">
+          <CardHeader className="bg-white dark:bg-card py-5 px-6 shadow-sm border rounded-md">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4 w-full">
               <span className="flex items-center gap-x-2 text-sm font-normal text-secondary-foreground">
                 Variants Selected: {selectedVariants.length} /{" "}

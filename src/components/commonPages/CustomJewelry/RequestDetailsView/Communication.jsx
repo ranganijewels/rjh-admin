@@ -96,7 +96,7 @@ export function Communication() {
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-md border border-border w-full flex flex-col h-[600px]">
+    <div className="bg-white dark:bg-card rounded-xl shadow-md border border-border w-full flex flex-col h-[600px]">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border">
         <div className="max-w-4xl">
@@ -170,7 +170,7 @@ export function Communication() {
       </div>
       {/* Messages */}
       <div
-        className="flex-1 overflow-y-auto px-0 py-3 space-y-3.5 bg-white"
+        className="flex-1 overflow-y-auto px-0 py-3 space-y-3.5 bg-white dark:bg-card"
         aria-live="polite"
       >
         {messages.map((message, index) =>

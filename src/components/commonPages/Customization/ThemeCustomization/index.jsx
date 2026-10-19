@@ -86,7 +86,7 @@ export const ThemeCustomization = () => {
                     className="w-full h-full object-cover absolute inset-0"
                   />
                 </div>
-                <div className="p-4 bg-white border border-gray-200 rounded-b-lg">
+                <div className="p-4 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-b-lg">
                   <Button mode="link" className="w-full justify-center">
                     <span className="text-sm font-medium text-foreground flex items-center flex-col">
                       {work.logo && (
@@ -109,7 +109,7 @@ export const ThemeCustomization = () => {
       )}
       {showBannerModal && bannerPreviewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full relative">
+          <div className="bg-white dark:bg-card p-4 rounded-lg max-w-2xl w-full relative">
             <button
               onClick={() => setShowBannerModal(false)}
               onKeyDown={(e) => {
@@ -117,7 +117,7 @@ export const ThemeCustomization = () => {
               }}
               aria-label="Close banner preview"
               title="Close (Esc)"
-              className="absolute top-2 right-2 text-gray-600 hover:text-black text-2xl font-bold"
+              className="absolute top-2 right-2 text-gray-600 dark:text-muted-foreground hover:text-black text-2xl font-bold"
             >
               &times;
             </button>
@@ -205,7 +205,7 @@ export const ThemeCustomization = () => {
                     className="w-full h-full object-fill absolute"
                   />
                 </div>
-                <div className="p-4 bg-white border border-gray-200 rounded-b-lg">
+                <div className="p-4 bg-white dark:bg-card border border-gray-200 dark:border-border rounded-b-lg">
                   <Button mode="link" className="w-full justify-center">
                     <span className="text-sm font-medium text-foreground flex items-center flex-col">
                       {work.logo && (
@@ -228,7 +228,7 @@ export const ThemeCustomization = () => {
       )}
       {showProductModal && productPreviewImage && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-4 rounded-lg max-w-2xl w-full relative">
+          <div className="bg-white dark:bg-card p-4 rounded-lg max-w-2xl w-full relative">
             <button
               onClick={() => setShowProductModal(false)}
               onKeyDown={(e) => {
@@ -236,7 +236,7 @@ export const ThemeCustomization = () => {
               }}
               aria-label="Close product display preview"
               title="Close (Esc)"
-              className="absolute top-2 right-2 text-gray-600 hover:text-black text-2xl font-bold"
+              className="absolute top-2 right-2 text-gray-600 dark:text-muted-foreground hover:text-black text-2xl font-bold"
             >
               &times;
             </button>

@@ -20,7 +20,7 @@ export const useBlogPostColumns = ({ onEdit, onDelete, storeId }) => {
   return useMemo(() => {
     return [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,
@@ -34,17 +34,15 @@ export const useBlogPostColumns = ({ onEdit, onDelete, storeId }) => {
         ),
         accessorFn: (row) => row?.title || "Untitled",
         cell: ({ row }) => {
-          const plainTextDescription = row?.original?.description
-            ? row.original.description.replace(/<[^>]+>/g, "")
-            : "";
+          const excerpt = row?.original?.excerpt || "";
 
           return (
             <div className="flex flex-col">
-              <span className="font-medium text-sm text-gray-900">
+              <span className="font-medium text-sm text-gray-900 dark:text-foreground">
                 {row?.original?.title || "Untitled"}
               </span>
               <span className="text-sm text-muted-foreground truncate max-w-[250px]">
-                {plainTextDescription || "No description"}
+                {excerpt || "No excerpt"}
               </span>
             </div>
           );
@@ -61,13 +59,13 @@ export const useBlogPostColumns = ({ onEdit, onDelete, storeId }) => {
         },
       },
       {
-        id: "category",
+        id: "tags",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Category" column={column} />
+          <DataGridColumnHeader title="Category / Tags" column={column} />
         ),
-        accessorFn: (row) => row?.blog_category?.title || "-",
-        cell: ({ row }) => row?.original?.blog_category?.title || "-",
-        size: 120,
+        accessorFn: (row) => (row?.tags || []).join(", ") || "-",
+        cell: ({ row }) => (row?.original?.tags || []).join(", ") || "-",
+        size: 160,
       },
       {
         id: "author",
@@ -79,15 +77,15 @@ export const useBlogPostColumns = ({ onEdit, onDelete, storeId }) => {
         size: 120,
       },
       {
-        id: "is_active",
+        id: "isPublished",
         header: ({ column }) => (
-          <DataGridColumnHeader title="Active" column={column} />
+          <DataGridColumnHeader title="Published" column={column} />
         ),
-        accessorFn: (row) => row?.is_active ?? false,
+        accessorFn: (row) => row?.isPublished ?? false,
         cell: ({ row }) => (
           <ActiveToggleCell
             id={row?.original?.id}
-            isActive={row?.original?.is_active ?? false}
+            isActive={row?.original?.isPublished ?? false}
             toggleStatus={toggleStatus}
           />
         ),
@@ -98,9 +96,9 @@ export const useBlogPostColumns = ({ onEdit, onDelete, storeId }) => {
         header: ({ column }) => (
           <DataGridColumnHeader title="Date" column={column} />
         ),
-        accessorFn: (row) => row?.created_at || "-",
+        accessorFn: (row) => row?.publishedAt || row?.createdAt || "-",
         cell: ({ row }) => {
-          const value = row?.original?.created_at;
+          const value = row?.original?.publishedAt || row?.original?.createdAt;
           if (!value) return "-";
 
           const date = new Date(value);

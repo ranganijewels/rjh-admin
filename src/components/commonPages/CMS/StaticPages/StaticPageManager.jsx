@@ -20,6 +20,7 @@ const StaticPageManager = () => {
     list,
     pagination,
     fetchData,
+    remove,
     setDeleteId,
     setConfirmOpen,
     confirmOpen,
@@ -62,6 +63,20 @@ const StaticPageManager = () => {
         totalCount={pagination?.total || list.length}
         paginationLinks={pagination?.links}
         serverSidePagination={false}
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected page(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => remove(r.id)));
+              fetchData({ page: 1, pageSize: pageInfo.pageSize });
+            },
+          },
+        ]}
         searchQuery={searchQuery}
         onSearchChange={(query) => setSearchQuery(query)}
         createBtn={

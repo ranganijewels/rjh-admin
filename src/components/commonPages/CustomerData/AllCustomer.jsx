@@ -68,6 +68,7 @@ const AllCustomer = () => {
       useFilteredData={null}
       loading={loading}
       resizableColumns
+      infiniteScroll
     />
   );
 };

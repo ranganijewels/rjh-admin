@@ -20,14 +20,14 @@ const useCouponsList = ({ onEdit, onDelete }) => {
     // const renderDate = (dateStr) => new Date(dateStr).toLocaleDateString();
 
     return [
-      // {
-      //   accessorKey: "id",
-      //   header: () => <DataGridTableRowSelectAll />,
-      //   cell: ({ row }) => <DataGridTableRowSelect row={row} />,
-      //   enableSorting: false,
-      //   enableHiding: false,
-      //   size: 48,
-      // },
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "coupon_id",
         header: ({ column }) => (

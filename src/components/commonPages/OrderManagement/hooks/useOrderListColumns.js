@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
 import {
   DataGridTableRowSelect,
@@ -8,17 +8,52 @@ import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { EyeIcon } from "lucide-react";
 
+// Test orders stay in the list for the audit trail but are excluded from
+// revenue/dashboard reporting. Click the chip to flag or unflag.
+const TestFlag = ({ order }) => {
+  const [isTest, setIsTest] = useState(!!order.is_test);
+  const [busy, setBusy] = useState(false);
+  const toggle = async (e) => {
+    e.stopPropagation();
+    setBusy(true);
+    try {
+      const token = localStorage.getItem("authTokenStoreAdmin");
+      const res = await fetch(`/api/order-management/${order.id}/test`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+        body: JSON.stringify({ isTest: !isTest }),
+      });
+      if (res.ok) setIsTest(!isTest);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      disabled={busy}
+      title={isTest ? "Test order — excluded from reports. Click to mark as real." : "Mark as test order (exclude from reports)"}
+      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
+        isTest ? "bg-amber-100 text-amber-800" : "text-muted-foreground/50 hover:text-amber-700"
+      }`}
+    >
+      {isTest ? "Test" : "· test?"}
+    </button>
+  );
+};
+
 export const useOrderListColumns = ({ onEdit, onView }) => {
   return useMemo(
     () => [
-      // {
-      //   accessorKey: "id",
-      //   header: () => <DataGridTableRowSelectAll />,
-      //   cell: ({ row }) => <DataGridTableRowSelect row={row} />,
-      //   enableSorting: false,
-      //   enableHiding: false,
-      //   size: 48,
-      // },
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "orderId",
         header: ({ column }) => (
@@ -35,6 +70,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
           return (
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">{label}</span>
+              <TestFlag order={o} />
             </div>
           );
         },

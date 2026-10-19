@@ -41,7 +41,7 @@ const EMPTY = {
 
 const ACTIVE_STATUS_MAP = {
   active: "bg-green-100 text-green-700",
-  off: "bg-gray-100 text-gray-500",
+  off: "bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground",
 };
 
 const CurrencyManagement = () => {
@@ -54,6 +54,9 @@ const CurrencyManagement = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -63,12 +66,49 @@ const CurrencyManagement = () => {
       });
       const json = await res.json();
       setList(json?.data || []);
+      setSelectedIds(new Set());
     } catch (e) {
       toast.error("Failed to load currencies");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === list.length ? new Set() : new Set(list.map((c) => c.id))
+    );
+  };
+  const toggleSelectRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) =>
+          fetch(`/api/currency-management/${id}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          })
+        )
+      );
+      toast.success(`${selectedIds.size} currenc(ies) removed`);
+      setSelectedIds(new Set());
+      fetchData();
+    } catch {
+      toast.error("Failed to delete selected currencies");
+    } finally {
+      setBulkDeleting(false);
+      setBulkConfirmOpen(false);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -221,10 +261,33 @@ const CurrencyManagement = () => {
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ms-auto text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => setBulkConfirmOpen(true)}
+          >
+            Delete
+          </Button>
+        </div>
+      )}
+
       <div className="overflow-x-auto border border-border rounded-lg">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
+              <th scope="col" className="p-3 font-medium w-10">
+                <input
+                  type="checkbox"
+                  checked={list.length > 0 && selectedIds.size === list.length}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 cursor-pointer"
+                  aria-label="Select all"
+                />
+              </th>
               <th scope="col" className="p-3 font-medium">Country</th>
               <th scope="col" className="p-3 font-medium">Code</th>
               <th scope="col" className="p-3 font-medium">Currency</th>
@@ -238,6 +301,15 @@ const CurrencyManagement = () => {
           <tbody>
             {list.map((c) => (
               <tr key={c.id} className="border-t border-border">
+                <td className="p-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(c.id)}
+                    onChange={() => toggleSelectRow(c.id)}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select row"
+                  />
+                </td>
                 <td className="p-3">{c.countryName}</td>
                 <td className="p-3">{c.countryCode}</td>
                 <td className="p-3">{c.currencyCode}</td>
@@ -283,7 +355,7 @@ const CurrencyManagement = () => {
                       className={`h-4 w-4 mx-auto ${
                         c.isDefault
                           ? "fill-yellow-500 text-yellow-700"
-                          : "text-gray-300"
+                          : "text-gray-300 dark:text-muted-foreground"
                       }`}
                     />
                   </button>
@@ -313,7 +385,7 @@ const CurrencyManagement = () => {
             ))}
             {list.length === 0 && (
               <tr>
-                <td colSpan={8} className="p-6 text-center text-muted-foreground">
+                <td colSpan={9} className="p-6 text-center text-muted-foreground">
                   No currencies configured yet.
                 </td>
               </tr>
@@ -412,6 +484,15 @@ const CurrencyManagement = () => {
         onConfirm={doDelete}
         title="Delete Currency"
         message="Remove this country/currency from the storefront? This cannot be undone."
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete selected currencies"
+        message={`Remove ${selectedIds.size} selected currenc(ies) from the storefront? This cannot be undone.`}
+        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
     </div>
   );

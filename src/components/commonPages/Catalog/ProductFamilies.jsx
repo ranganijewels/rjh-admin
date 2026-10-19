@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   Section,
@@ -121,6 +121,22 @@ export default function ProductFamilies() {
   }, [statusFilter]);
 
   const loadMore = () => load(offset + PAGE_SIZE, { append: true });
+
+  // Auto-load the next page as the sentinel scrolls into view, instead of
+  // requiring a manual "Load more" click.
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasMore && !loadingMore) loadMore();
+      },
+      { rootMargin: "400px" }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, offset]);
 
   const [formErrors, setFormErrors] = useState({});
 
@@ -400,7 +416,7 @@ export default function ProductFamilies() {
             </div>
 
             {(!form.axes || form.axes.length === 0) && (
-              <div className="rounded-md border border-dashed border-gray-300 p-4 text-center text-xs text-muted-foreground">
+              <div className="rounded-md border border-dashed border-gray-300 dark:border-border p-4 text-center text-xs text-muted-foreground">
                 No axes yet. Click “Add Axis” to define one.
               </div>
             )}
@@ -409,7 +425,7 @@ export default function ProductFamilies() {
               {form.axes.map((axis, idx) => (
                 <div
                   key={idx}
-                  className="rounded-lg border border-gray-200 bg-muted/30 p-3"
+                  className="rounded-lg border border-gray-200 dark:border-border bg-muted/30 p-3"
                 >
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-12">
                     <div className="sm:col-span-3">
@@ -532,7 +548,7 @@ export default function ProductFamilies() {
       )}
 
       {/* Table (md and up) */}
-      <div className="hidden overflow-hidden rounded-xl border border-gray-200 md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-gray-200 dark:border-border md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
@@ -584,7 +600,7 @@ export default function ProductFamilies() {
                 families.map((fam, i) => (
                   <tr
                     key={fam.id ?? fam.familyCode ?? i}
-                    className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    className={i % 2 === 0 ? "bg-white dark:bg-card" : "bg-gray-50 dark:bg-muted"}
                   >
                     <td className="px-4 py-3 font-medium text-[#162640]">
                       {fam.familyCode || "—"}
@@ -627,19 +643,19 @@ export default function ProductFamilies() {
       {/* Card layout (below md) */}
       <div className="flex flex-col gap-3 md:hidden">
         {loading && (
-          <div className="rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border border-gray-200 dark:border-border px-4 py-8 text-center text-sm text-muted-foreground">
             Loading families…
           </div>
         )}
 
         {!loading && error && (
-          <div className="rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-rose-600">
+          <div className="rounded-xl border border-gray-200 dark:border-border px-4 py-8 text-center text-sm text-rose-600">
             {error}
           </div>
         )}
 
         {!loading && !error && families.length === 0 && (
-          <div className="rounded-xl border border-gray-200 px-4 py-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-xl border border-gray-200 dark:border-border px-4 py-8 text-center text-sm text-muted-foreground">
             No product families yet. Tap “New Family” to create one.
           </div>
         )}
@@ -649,7 +665,7 @@ export default function ProductFamilies() {
           families.map((fam, i) => (
             <div
               key={fam.id ?? fam.familyCode ?? i}
-              className="rounded-xl border border-gray-200 bg-white p-4"
+              className="rounded-xl border border-gray-200 dark:border-border bg-white dark:bg-card p-4"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
@@ -693,17 +709,10 @@ export default function ProductFamilies() {
       </div>
 
       {!loading && !error && hasMore && (
-        <div className="mt-4 flex justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            size="md"
-            onClick={loadMore}
-            disabled={loadingMore}
-            aria-busy={loadingMore}
-          >
-            {loadingMore ? "Loading…" : "Load more"}
-          </Button>
+        <div ref={sentinelRef} className="mt-4 flex justify-center py-6">
+          {loadingMore && (
+            <span className="text-sm text-muted-foreground">Loading more…</span>
+          )}
         </div>
       )}
     </div>

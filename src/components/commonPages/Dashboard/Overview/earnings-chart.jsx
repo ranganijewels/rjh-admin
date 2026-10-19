@@ -190,7 +190,7 @@ const EarningsChart = () => {
         <CardHeader>
           <CardTitle>Earnings</CardTitle>
           <div className="flex gap-5">
-            <div className="space-y-4 bg-white p-6  flex flex-wrap justify-between">
+            <div className="space-y-4 bg-white dark:bg-card p-6  flex flex-wrap justify-between">
               <Button variant="outline" onClick={handleButtonClick}>
                 9 Jan 2023 - 7 Feb 2023
                 <CalendarRangeIcon />

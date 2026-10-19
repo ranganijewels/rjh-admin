@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Upload, Download, Loader2, ArrowUp, ArrowDown, ArrowUpDown, X } from "lucide-react";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
@@ -27,6 +27,80 @@ const fmt = (v, type) => {
   if (type === "csv-list") return String(v).split(",").map((s) => s.trim()).filter(Boolean).join(", ");
   return String(v);
 };
+
+// ── CSV export/import — generic across every pricing master, driven by the
+// same `fields` config each master already uses for its Add/Edit form. ─────
+
+function csvCell(v) {
+  const s = v === null || v === undefined ? "" : String(v);
+  // Quote whenever the value could otherwise be misread — a comma (multiselect
+  // fields like Color/Clarity store "D,E,F"), a quote, or a newline.
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function buildCsv(fields, list) {
+  const header = ["status", ...fields.map((f) => f.label)];
+  const rows = list.map((row) => [
+    row.status ?? "active",
+    ...fields.map((f) => {
+      const v = row[f.key];
+      if (f.type === "date" && v) return new Date(v).toISOString().slice(0, 10);
+      return v ?? "";
+    }),
+  ]);
+  return [header, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+}
+
+// Same quote-aware parser used by the product CSV importer (see
+// app/api/product-management/import-csv/route.js) — kept as a small local
+// copy since this one runs client-side in the browser, not in a route.
+function parseCsvText(text) {
+  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n").filter((l) => l.trim());
+  if (lines.length < 2) return [];
+  const parseRow = (line) => {
+    const out = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === "," && !inQ) {
+        out.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    return out;
+  };
+  const headers = parseRow(lines[0]).map((h) => h.trim());
+  return lines.slice(1).map((line) => {
+    const vals = parseRow(line);
+    return Object.fromEntries(headers.map((h, i) => [h, (vals[i] ?? "").trim()]));
+  });
+}
+
+// CSV headers are matched case-insensitively against a field's label OR key,
+// so a hand-edited sheet using either convention still imports correctly.
+function rowsToItems(csvRows, fields) {
+  const lookup = (rowLower, field) => {
+    if (field.label.toLowerCase() in rowLower) return rowLower[field.label.toLowerCase()];
+    if (field.key.toLowerCase() in rowLower) return rowLower[field.key.toLowerCase()];
+    return undefined;
+  };
+  return csvRows.map((row) => {
+    const rowLower = Object.fromEntries(Object.entries(row).map(([k, v]) => [k.toLowerCase(), v]));
+    const item = {};
+    if ("status" in rowLower && rowLower.status) item.status = rowLower.status;
+    fields.forEach((f) => {
+      const raw = lookup(rowLower, f);
+      if (raw === undefined || raw === "") return;
+      item[f.key] = f.type === "number" ? Number(raw) : raw;
+    });
+    return item;
+  });
+}
 
 // Toggle-chip multi-select, backed by a comma-separated string in form state
 // (the DB column is a single string; the pricing engine matches "any of").
@@ -75,8 +149,13 @@ export default function RateMasterManager({ title, description, resource, column
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [touched, setTouched] = useState({});
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [catalogOptions, setCatalogOptions] = useState({}); // { [kind]: string[] }
   const [catalogLoading, setCatalogLoading] = useState({}); // { [kind]: boolean }
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Fetch Catalog Master values for any field sourced from a kind (e.g.
   // "diamond_quality"), once per kind used by this master's fields.
@@ -88,7 +167,10 @@ export default function RateMasterManager({ title, description, resource, column
         const res = await fetch(`/api/catalog/masters?kind=${encodeURIComponent(kind)}`, { headers: authHeaders() });
         const json = await res.json();
         const rows = Array.isArray(json) ? json : json?.data || [];
-        setCatalogOptions((s) => ({ ...s, [kind]: rows.map((r) => r.code || r.name).filter(Boolean) }));
+        // Prefer .name — that's what product forms store for these same
+        // catalog values (diamond shape/quality etc.), so rate masters have
+        // to match on the same string or the pricing engine never finds them.
+        setCatalogOptions((s) => ({ ...s, [kind]: rows.map((r) => r.name || r.code).filter(Boolean) }));
       } catch {
         setCatalogOptions((s) => ({ ...s, [kind]: [] }));
       } finally {
@@ -104,6 +186,7 @@ export default function RateMasterManager({ title, description, resource, column
       const res = await fetch(`/api/pricing-master/${resource}`, { headers: authHeaders() });
       const json = await res.json();
       setList(json?.data || []);
+      setSelectedIds(new Set());
     } catch {
       toast.error("Failed to load");
     } finally {
@@ -112,6 +195,99 @@ export default function RateMasterManager({ title, description, resource, column
   }, [resource]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ── Filters + sorting (client-side; masters are at most a few thousand rows)
+  const [filters, setFilters] = useState({ search: "", status: "", carat: "" });
+  const [sort, setSort] = useState({ key: null, dir: "asc" });
+  const hasCaratBand = columns.some((c) => c.key === "minCarat") && columns.some((c) => c.key === "maxCarat");
+  const splitVals = (v) => String(v ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+  // Dropdown filters for text-like columns, with the distinct values present.
+  const filterCols = useMemo(
+    () =>
+      columns
+        .filter((c) => !["money", "date", "number", "percent"].includes(c.type) && !["minCarat", "maxCarat", "rateValue"].includes(c.key))
+        .map((c) => ({
+          ...c,
+          values: [...new Set(list.flatMap((r) => splitVals(r[c.key])))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+        }))
+        .filter((c) => c.values.length > 1),
+    [columns, list]
+  );
+  const visible = useMemo(() => {
+    const q = filters.search.trim().toLowerCase();
+    const ct = Number(filters.carat);
+    let rows = list.filter((r) => {
+      if (filters.status && r.status !== filters.status) return false;
+      if (q && !columns.some((c) => String(r[c.key] ?? "").toLowerCase().includes(q))) return false;
+      if (hasCaratBand && filters.carat !== "" && Number.isFinite(ct) && !(ct >= Number(r.minCarat) && ct <= Number(r.maxCarat))) return false;
+      for (const c of filterCols) {
+        const want = filters[c.key];
+        // A blank master value is a wildcard, so it matches any filter value.
+        if (want && splitVals(r[c.key]).length && !splitVals(r[c.key]).map((x) => x.toLowerCase()).includes(want.toLowerCase())) return false;
+      }
+      return true;
+    });
+    if (sort.key) {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      rows = [...rows].sort((a, b) => {
+        const av = a[sort.key], bv = b[sort.key];
+        const an = Number(av), bn = Number(bv);
+        if (av !== "" && bv !== "" && av != null && bv != null && Number.isFinite(an) && Number.isFinite(bn)) return (an - bn) * dir;
+        return String(av ?? "").localeCompare(String(bv ?? ""), undefined, { numeric: true }) * dir;
+      });
+    }
+    return rows;
+  }, [list, filters, sort, columns, filterCols, hasCaratBand]);
+  const toggleSort = (key) =>
+    setSort((s) => (s.key !== key ? { key, dir: "asc" } : s.dir === "asc" ? { key, dir: "desc" } : { key: null, dir: "asc" }));
+  const filtersActive = filters.search || filters.status || filters.carat !== "" || filterCols.some((c) => filters[c.key]);
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === visible.length ? new Set() : new Set(visible.map((r) => r.id))
+    );
+  };
+  const toggleSelectRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    const ids = [...selectedIds];
+    try {
+      // One request, deleted server-side in a single query — firing one
+      // DELETE per row (the old approach) fanned a large selection out into
+      // that many concurrent requests, which exhausted the DB connection
+      // pool, failed silently, and never refreshed the list to show it.
+      const res = await fetch(`/api/pricing-master/${resource}/bulk-delete`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ ids }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          Array.isArray(json?.message) ? json.message.join(", ") : json?.message || "Delete failed"
+        );
+      }
+      const deleted = json?.data?.deleted ?? ids.length;
+      toast.success(`${deleted} rate(s) deleted`);
+      setSelectedIds(new Set());
+    } catch (e) {
+      toast.error(e.message || "Failed to delete selected rates");
+    } finally {
+      // Always refresh, even on failure — a partial delete (or none at all)
+      // should still show the admin the current, real state of the table.
+      fetchData();
+      setBulkDeleting(false);
+      setBulkConfirmOpen(false);
+    }
+  };
 
   const blank = () =>
     fields.reduce((a, f) => ({ ...a, [f.key]: f.default ?? "" }), { status: "active" });
@@ -176,6 +352,51 @@ export default function RateMasterManager({ title, description, resource, column
     } catch { toast.error("Delete failed"); }
   };
 
+  const handleExportCsv = () => {
+    if (!list.length) {
+      toast.error("Nothing to export — this master has no rows yet");
+      return;
+    }
+    const csv = buildCsv(fields, list);
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${resource}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const handleImportFile = async (file) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const csvRows = parseCsvText(text);
+      if (!csvRows.length) throw new Error("No rows found in that file");
+      const items = rowsToItems(csvRows, fields);
+
+      const res = await fetch(`/api/pricing-master/${resource}/bulk`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ items }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          Array.isArray(json?.message) ? json.message.join(", ") : json?.message || "Import failed"
+        );
+      }
+      const created = Array.isArray(json?.data) ? json.data.length : items.length;
+      toast.success(`Imported ${created} row${created === 1 ? "" : "s"} — live immediately`);
+      fetchData();
+    } catch (e) {
+      toast.error(e.message || "Import failed — check the file and try again");
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   if (loading) return <ContentLoader />;
 
   return (
@@ -185,23 +406,137 @@ export default function RateMasterManager({ title, description, resource, column
           <h1 className="text-xl font-semibold">{title}</h1>
           {description && <p className="text-sm text-muted-foreground">{description}</p>}
         </div>
-        <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> Add Rate</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportCsv}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+            {importing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Upload className="h-4 w-4 mr-1" />}
+            {importing ? "Importing…" : "Import CSV"}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => handleImportFile(e.target.files?.[0])}
+          />
+          <Button onClick={openAdd}><Plus className="h-4 w-4 mr-1" /> Add Rate</Button>
+        </div>
+      </div>
+
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
+          <span className="text-sm font-medium">{selectedIds.size} selected</span>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ms-auto text-red-600 border-red-200 hover:bg-red-50"
+            onClick={() => setBulkConfirmOpen(true)}
+          >
+            Delete
+          </Button>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-end gap-2">
+        <Input
+          placeholder="Search…"
+          value={filters.search}
+          onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+          className="w-48"
+        />
+        {hasCaratBand && (
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Carat (e.g. 0.03)"
+            value={filters.carat}
+            onChange={(e) => setFilters((f) => ({ ...f, carat: e.target.value }))}
+            className="w-40"
+            title="Show rows whose carat band contains this weight"
+          />
+        )}
+        {filterCols.map((c) => (
+          <select
+            key={c.key}
+            value={filters[c.key] || ""}
+            onChange={(e) => setFilters((f) => ({ ...f, [c.key]: e.target.value }))}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            aria-label={`Filter by ${c.label}`}
+          >
+            <option value="">All {c.label}</option>
+            {c.values.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+        ))}
+        <select
+          value={filters.status}
+          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+          className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          aria-label="Filter by status"
+        >
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        {filtersActive && (
+          <Button variant="ghost" size="sm" onClick={() => setFilters({ search: "", status: "", carat: "" })}>
+            <X className="h-4 w-4 mr-1" /> Clear
+          </Button>
+        )}
+        <span className="ms-auto text-xs text-muted-foreground">
+          Showing {visible.length} of {list.length}
+        </span>
       </div>
 
       <div className="overflow-x-auto border border-border rounded-lg">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr className="text-left">
+              <th className="p-3 font-medium w-10">
+                <input
+                  type="checkbox"
+                  checked={visible.length > 0 && selectedIds.size === visible.length}
+                  onChange={toggleSelectAll}
+                  className="h-4 w-4 cursor-pointer"
+                  aria-label="Select all"
+                />
+              </th>
               {columns.map((c) => (
-                <th key={c.key} className="p-3 font-medium whitespace-nowrap">{c.label}</th>
+                <th key={c.key} className="p-3 font-medium whitespace-nowrap">
+                  <button type="button" onClick={() => toggleSort(c.key)} className="inline-flex items-center gap-1 hover:text-foreground">
+                    {c.label}
+                    {sort.key === c.key ? (
+                      sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-40" />
+                    )}
+                  </button>
+                </th>
               ))}
-              <th className="p-3 font-medium text-center">Status</th>
+              <th className="p-3 font-medium text-center">
+                <button type="button" onClick={() => toggleSort("status")} className="inline-flex items-center gap-1">
+                  Status {sort.key === "status" ? (sort.dir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                </button>
+              </th>
               <th className="p-3 font-medium text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {list.map((row) => (
+            {visible.map((row) => (
               <tr key={row.id} className="border-t border-border">
+                <td className="p-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(row.id)}
+                    onChange={() => toggleSelectRow(row.id)}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select row"
+                  />
+                </td>
                 {columns.map((c) => (
                   <td key={c.key} className="p-3 whitespace-nowrap">{fmt(row[c.key], c.type)}</td>
                 ))}
@@ -222,8 +557,10 @@ export default function RateMasterManager({ title, description, resource, column
                 </td>
               </tr>
             ))}
-            {list.length === 0 && (
-              <tr><td colSpan={columns.length + 2} className="p-6 text-center text-muted-foreground">No rates configured yet.</td></tr>
+            {visible.length === 0 && (
+              <tr><td colSpan={columns.length + 3} className="p-6 text-center text-muted-foreground">
+                {list.length ? "No rates match these filters." : "No rates configured yet."}
+              </td></tr>
             )}
           </tbody>
         </table>
@@ -254,9 +591,14 @@ export default function RateMasterManager({ title, description, resource, column
                         </SelectTrigger>
                         <SelectContent>
                           {f.optional && <SelectItem value="__any__">Any</SelectItem>}
-                          {f.options.filter((o) => o !== "").map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                          {(f.optionsKind ? catalogOptions[f.optionsKind] || [] : f.options)
+                            .filter((o) => o !== "")
+                            .map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                         </SelectContent>
                       </Select>
+                      {f.optionsKind && catalogLoading[f.optionsKind] && (
+                        <p className="text-[11px] text-muted-foreground">Loading options…</p>
+                      )}
                       {invalid && (
                         <p className="text-xs text-destructive">{f.label} is required</p>
                       )}
@@ -315,6 +657,15 @@ export default function RateMasterManager({ title, description, resource, column
         onConfirm={doDelete}
         title="Delete Rate"
         message="Remove this rate? History is preserved by effective dates; deleting removes the row entirely."
+      />
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete selected rates"
+        message={`Delete ${selectedIds.size} selected rate(s)? This cannot be undone.`}
+        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
       />
     </div>
   );

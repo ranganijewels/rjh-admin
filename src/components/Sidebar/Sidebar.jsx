@@ -7,6 +7,7 @@ import { ScrollspyMenu } from "./ScrollspyMenu";
 import { cn } from "@/lib/utils";
 import SidebarMenu from "./SidebarMenu";
 import SidebarHeader from "./SidebarHeader";
+import ThemeToggle from "./ThemeToggle";
 
 // Layout notes (scroll bug fix):
 // - The <aside> itself must NOT be the scroll container: the collapse chevron
@@ -52,6 +53,7 @@ export function Sidebar({ sideBarMenus, dashboardSidebar }) {
               <SidebarMenu />
             </div>
           </div>
+          <ThemeToggle />
         </>
       ) : (
         <>

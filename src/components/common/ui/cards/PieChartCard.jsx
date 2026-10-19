@@ -16,7 +16,7 @@ export default function PieChartCard({ title, value, data }) {
         <div className="flex items-center gap-4">
           {Chart && <Chart {...data.chart.props} />}
 
-          <div className="flex flex-col gap-2 text-sm font-medium text-gray-600 flex-1">
+          <div className="flex flex-col gap-2 text-sm font-medium text-gray-600 dark:text-muted-foreground flex-1">
             {data.items?.map((item, index) => (
               <div className="flex items-center gap-2" key={index}>
                 <span
@@ -24,7 +24,7 @@ export default function PieChartCard({ title, value, data }) {
                   style={{ backgroundColor: item.color }}
                 />
                 <span className="flex-1 truncate">{item.label}</span>
-                <span className="ml-auto font-semibold text-gray-900">
+                <span className="ml-auto font-semibold text-gray-900 dark:text-foreground">
                   {item.value}
                 </span>
               </div>

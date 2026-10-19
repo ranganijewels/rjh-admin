@@ -1,72 +1,3 @@
-// "use client";
-
-// import React, { useState } from "react";
-// import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
-// import { Button } from "@/components/common/ui/button";
-// import { BLOG_CATEGORIES_DATA } from "../../constant";
-// import { useBlogCategoriesColumns } from "./hooks/useBlogCategoriesColumns";
-// import { Plus } from "lucide-react";
-// import BlogCategoriesModel from "./BlogCategoriesModel";
-
-// const BlogCategories = ({ storeId }) => {
-//   const {
-//     list,
-//     loading,
-//     editData,
-//     setEditData,
-//     setDeleteId,
-//     dialogOpen,
-//     setDialogOpen,
-//     confirmOpen,
-//     setConfirmOpen,
-//     fetchData,
-//     handleDelete,
-//     fetchById,
-//   } = useCrudList(`/api/cms/blog/${storeId}/categories`);
-
-//   const columns = useBlogCategoriesColumns({
-//     onEdit: (item) => {
-//       setEditData(item);
-//       setDialogOpen(true);
-//     },
-//     onDelete: (id) => console.log("Delete category ID:", id),
-//   });
-
-//   return (
-//     <>
-//       <ListWithCardToggle
-//         title="Blog Categories"
-//         description="Manage your blog categories here."
-//         data={BLOG_CATEGORIES_DATA}
-//         columns={columns}
-//         createBtn={
-//           <Button
-//             onClick={() => {
-//               setEditData(null); // reset edit data for Add mode
-//               setDialogOpen(true);
-//             }}
-//           >
-//             <Plus className="mr-2 h-4 w-4" />
-//             Add Category
-//           </Button>
-//         }
-//       />
-
-//       {/* Modal */}
-//       <BlogCategoriesModel
-//         open={dialogOpen}
-//         onClose={() => setDialogOpen(false)}
-//         editData={editData}
-//         onSuccess={() => {
-//           console.log("Category saved successfully!");
-//         }}
-//       />
-//     </>
-//   );
-// };
-
-// export default BlogCategories;
-
 "use client";
 
 import React, { useState } from "react";
@@ -74,13 +5,14 @@ import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { Button } from "@/components/common/ui/button";
 import { Plus } from "lucide-react";
 import { useCrudList } from "@/hooks/useCrudList";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 
 import BlogCategoriesModel from "./BlogCategoriesModel";
 import { useBlogCategoriesColumns } from "./hooks/useBlogCategoriesColumns";
 
-const BlogCategories = ({ storeId }) => {
+const BlogCategories = ({ storeId = "default" }) => {
   const {
     list,
     loading,
@@ -95,7 +27,8 @@ const BlogCategories = ({ storeId }) => {
     fetchData,
     handleDelete,
     fetchById,
-  } = useCrudList(`/api/cms/blog/5/categories`);
+  } = useCrudList(`/api/cms/blog/${storeId}/categories`);
+  const { remove } = useCrudApi(`/api/cms/blog/${storeId}/categories`);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
 
@@ -120,7 +53,7 @@ const BlogCategories = ({ storeId }) => {
 
   const filterOptions = (data, query) => {
     const q = query.toLowerCase();
-    return data.filter((item) => item?.title?.toLowerCase().includes(q));
+    return data.filter((item) => item?.valueLabel?.toLowerCase().includes(q));
   };
 
   if (loading) return <ContentLoader />;
@@ -135,6 +68,20 @@ const BlogCategories = ({ storeId }) => {
         columns={columns}
         resizableColumns
         filterFunction={filterOptions}
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected categor(ies)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => remove(r.id)));
+              fetchData();
+            },
+          },
+        ]}
         createBtn={
           <Button
             onClick={() => {

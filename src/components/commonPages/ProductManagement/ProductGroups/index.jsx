@@ -14,7 +14,7 @@ const authHeaders = () => {
 };
 
 const swatch = (c) =>
-  c === "White" ? "bg-gray-200" : c === "Yellow" ? "bg-yellow-300" : c === "Rose" ? "bg-[#e6b8a2]" : "bg-muted";
+  c === "White" ? "bg-gray-200 dark:bg-secondary" : c === "Yellow" ? "bg-yellow-300" : c === "Rose" ? "bg-[#e6b8a2]" : "bg-muted";
 
 // Manage product "design groups" — one design sold in multiple diamond shapes,
 // each shape being its own product, linked by a shared group code.
@@ -106,7 +106,7 @@ export default function ProductGroups() {
                             {p.metalColor}
                           </span>
                         )}
-                        <span className={`px-1.5 rounded-full text-[10px] ${p.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                        <span className={`px-1.5 rounded-full text-[10px] ${p.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground"}`}>
                           {p.status}
                         </span>
                       </div>

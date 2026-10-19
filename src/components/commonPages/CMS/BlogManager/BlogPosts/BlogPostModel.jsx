@@ -10,6 +10,7 @@ import {
   FormMessage,
 } from "@/components/common/ui/form";
 import { Input } from "@/components/common/ui/input";
+import { Textarea } from "@/components/common/ui/textarea";
 import { toast } from "sonner";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import BaseEditModal from "@/components/common/ui/BaseEditModal";
@@ -21,128 +22,96 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/common/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/common/ui/popover";
-import { Button } from "@/components/common/ui/button";
-import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { Calendar } from "@/components/common/ui/calendar";
+import { Switch } from "@/components/common/ui/switch";
 import RichTextEditor from "@/components/common/RichTextEditor";
-import { CalendarDays, ImageIcon } from "lucide-react";
+import { ImageIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
 
-const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
+const defaultValues = {
+  title: "",
+  excerpt: "",
+  content: "",
+  author: "RJ House",
+  category: "",
+  featuredImageUrl: "",
+  isPublished: true,
+};
+
+// Matches the real CmsBlog entity (title/excerpt/content/featuredImageUrl/
+// tags/author/isPublished) — there's no dedicated category relation on a
+// blog post, so "Category" here just sets the post's first tag, which is
+// also how the storefront's category filter reads it back.
+const BlogPostModel = ({ open, onClose, onSuccess, editData, storeId, postId }) => {
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [categories, setCategories] = useState([]);
   const fileRef = useRef(null);
 
-  // CRUD API hook
-  const { create, update } = useCrudApi("/api/cms/blog/5/posts");
-  const { fetchAll: fetchCategories } = useCrudApi(
-    "/api/cms/blog/5/categories"
-  );
+  const { create, update } = useCrudApi(`/api/cms/blog/${storeId}/posts`);
+  const { fetchAll: fetchCategories } = useCrudApi(`/api/cms/blog/${storeId}/categories`);
 
-  const form = useForm({
-    defaultValues: {
-      title: "",
-      author: "",
-      category: "",
-      description: "",
-      file: [],
-      is_active: true,
-      publishedDate: null,
-    },
-  });
-
+  const form = useForm({ defaultValues });
   const { setValue } = form;
 
   useEffect(() => {
     if (editData?.id) {
       form.reset({
-        category: editData.blog_category_id
-          ? String(editData.blog_category_id)
-          : "",
         title: editData.title || "",
-        author: editData.author || "",
-        description: editData.description || "",
-        file: editData.file ? [{ file: editData.file }] : [],
-        is_active: Boolean(editData.is_active),
-        publishedDate: editData.publishedDate
-          ? new Date(editData.publishedDate)
-          : null,
+        excerpt: editData.excerpt || "",
+        content: editData.content || "",
+        author: editData.author || "RJ House",
+        category: editData.tags?.[0] || "",
+        featuredImageUrl: editData.featuredImageUrl || "",
+        isPublished: editData.isPublished ?? true,
       });
     } else {
-      form.reset({
-        title: "",
-        author: "",
-        category: "",
-        description: "",
-        file: [],
-        is_active: true,
-        publishedDate: null,
-      });
+      form.reset(defaultValues);
     }
-  }, [editData]);
+  }, [editData, form]);
 
-  const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files || []);
-    const mapped = await Promise.all(
-      files.map(async (file) => {
-        const base64 = await fileToBase64(file);
-        return { file: base64 };
-      })
-    );
-    setValue("file", mapped);
-  };
-
-  // Load categories for select dropdown
   useEffect(() => {
-    const loadCategories = async () => {
-      const res = await fetchCategories();
-
-      const list = Array.isArray(res)
-        ? res
-        : Array.isArray(res?.data)
-        ? res.data
-        : [];
-
-      setCategories(list);
-    };
-
-    loadCategories();
+    fetchCategories()
+      .then((res) => setCategories(Array.isArray(res?.data) ? res.data : []))
+      .catch(() => setCategories([]));
   }, [fetchCategories]);
 
-  // Local helper: convert a File object to Base64
-  const fileToBase64 = (file) =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (error) => reject(error);
-    });
+  const handleFileClick = () => fileRef.current?.click();
 
-  const handleFileClick = () => {
-    fileRef.current?.click();
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const token = localStorage.getItem("authTokenStoreAdmin");
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/media/upload?bucket=cms-media&prefix=blog", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.url) throw new Error(json.error || "Upload failed");
+      setValue("featuredImageUrl", json.url);
+    } catch (err) {
+      toast.error(err.message || "Image upload failed");
+    } finally {
+      setUploading(false);
+    }
   };
 
-  // Submit Handler
   const handleSubmit = async (values) => {
     setLoading(true);
     try {
+      const category = categories.find((c) => c.valueKey === values.category);
       const payload = {
-        store_id: 5,
-        blog_category_id: Number(values.category),
         title: values.title,
-        author: values.author,
-        description: values.description,
-        file: values.file?.[0]?.file || null,
-        status: values.is_active ? 1 : 0,
-        publishedDate: values.publishedDate
-          ? format(new Date(values.publishedDate), "yyyy-MM-dd")
-          : null,
+        excerpt: values.excerpt,
+        content: values.content,
+        author: values.author || "RJ House",
+        featuredImageUrl: values.featuredImageUrl || null,
+        tags: category ? [category.valueLabel] : [],
+        isPublished: values.isPublished,
       };
 
       if (editData) {
@@ -161,6 +130,8 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
       setLoading(false);
     }
   };
+
+  const featuredImageUrl = form.watch("featuredImageUrl");
 
   return (
     <BaseEditModal
@@ -182,24 +153,22 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
                 <FormControl>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select a Category" />
+                      <SelectValue placeholder="Select a category (optional)" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectGroup>
                         {categories.length === 0 ? (
-                          <div className="text-center text-xs text-gray-500">
-                            No categories available
+                          <div className="text-center text-xs text-gray-500 dark:text-muted-foreground py-2">
+                            No categories yet — add one in the Categories tab
                           </div>
                         ) : (
                           categories
-                            .filter((e) => e.is_active)
-                            .map((cat) => {
-                              return (
-                                <SelectItem key={cat.id} value={String(cat.id)}>
-                                  {cat.title}
-                                </SelectItem>
-                              );
-                            })
+                            .filter((c) => c.isActive)
+                            .map((cat) => (
+                              <SelectItem key={cat.id} value={cat.valueKey}>
+                                {cat.valueLabel}
+                              </SelectItem>
+                            ))
                         )}
                       </SelectGroup>
                     </SelectContent>
@@ -214,6 +183,7 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
           <FormField
             control={form.control}
             name="title"
+            rules={{ required: "Title is required" }}
             render={({ field }) => (
               <FormItem className="mb-4">
                 <FormLabel>Title</FormLabel>
@@ -240,18 +210,17 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
             )}
           />
 
-          {/* Description */}
+          {/* Excerpt */}
           <FormField
             control={form.control}
-            name="description"
+            name="excerpt"
             render={({ field }) => (
               <FormItem className="mb-4">
-                <FormLabel>Description</FormLabel>
+                <FormLabel>Excerpt</FormLabel>
                 <FormControl>
-                  <RichTextEditor
-                    value={field.value}
-                    onChange={field.onChange}
-                    placeholder="Write your blog description..."
+                  <Textarea
+                    placeholder="Short summary shown on the blog listing card"
+                    {...field}
                   />
                 </FormControl>
                 <FormMessage />
@@ -259,59 +228,66 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
             )}
           />
 
-          {/* Image / Video Upload */}
+          {/* Content */}
           <FormField
             control={form.control}
-            name="file"
+            name="content"
+            rules={{ required: "Content is required" }}
+            render={({ field }) => (
+              <FormItem className="mb-4">
+                <FormLabel>Content</FormLabel>
+                <FormControl>
+                  <RichTextEditor
+                    value={field.value}
+                    onChange={field.onChange}
+                    placeholder="Write the full article..."
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Featured Image */}
+          <FormField
+            control={form.control}
+            name="featuredImageUrl"
             render={() => (
               <FormItem className="mb-4">
-                <FormLabel>Image / Video</FormLabel>
+                <FormLabel>Featured Image</FormLabel>
                 <div className="flex gap-6 h-[140px]">
                   <div
                     className="flex flex-col items-center justify-center w-full max-w-[300px] p-6 border border-dashed rounded-xl cursor-pointer"
                     onClick={handleFileClick}
                   >
-                    <ImageIcon className="text-primary mb-2" />
+                    {uploading ? (
+                      <Loader2 className="text-primary mb-2 animate-spin" />
+                    ) : (
+                      <ImageIcon className="text-primary mb-2" />
+                    )}
                     <div className="text-xs font-medium">
-                      Click or Drag & Drop
+                      {uploading ? "Uploading…" : "Click to upload"}
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      JPG, PNG, MP4 (max. 800×400)
-                    </span>
+                    <span className="text-xs text-muted-foreground">JPG, PNG, WEBP</span>
                     <input
                       type="file"
-                      accept="image/*,video/*"
-                      multiple
+                      accept="image/*"
                       ref={fileRef}
                       onChange={handleFileChange}
                       className="hidden"
                     />
                   </div>
 
-                  {(Array.isArray(form.watch("file"))
-                    ? form.watch("file")
-                    : []
-                  ).map((m, i) =>
-                    m.file.startsWith("data:video") ||
-                    m.file.endsWith(".mp4") ? (
-                      <video
-                        key={i}
-                        src={m.file}
-                        controls
-                        className="h-[140px] w-[160px] rounded"
-                      />
-                    ) : (
-                      <Image
-                        key={i}
-                        src={m.file}
-                        alt={`Preview ${i + 1}`}
-                        width={160}
-                        height={140}
-                        sizes="160px"
-                        unoptimized={m.file.startsWith("data:")}
-                        className="aspect-[160/140] h-[140px] w-[160px] rounded object-cover"
-                      />
-                    )
+                  {featuredImageUrl && (
+                    <Image
+                      src={featuredImageUrl}
+                      alt="Featured"
+                      width={160}
+                      height={140}
+                      sizes="160px"
+                      unoptimized
+                      className="aspect-[160/140] h-[140px] w-[160px] rounded object-cover"
+                    />
                   )}
                 </div>
                 <FormMessage />
@@ -319,73 +295,15 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData }) => {
             )}
           />
 
-          {/* Active Toggle */}
+          {/* Published Toggle */}
           <FormField
             control={form.control}
-            name="is_active"
+            name="isPublished"
             render={({ field }) => (
-              <FormItem className="mb-5">
-                <FormLabel>Status</FormLabel>
+              <FormItem className="mb-4 flex items-center justify-between">
+                <FormLabel className="!mb-0">Published</FormLabel>
                 <FormControl>
-                  <Select
-                    onValueChange={(val) => field.onChange(val === "true")}
-                    value={String(field.value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectItem value="true">Active</SelectItem>
-                        <SelectItem value="false">Inactive</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Published Date */}
-          <FormField
-            control={form.control}
-            name="publishedDate"
-            render={({ field }) => (
-              <FormItem className="mb-4">
-                <FormLabel>Published Date</FormLabel>
-                <FormControl>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        mode="input"
-                        variant="outline"
-                        id="date"
-                        className={cn(
-                          "w-full justify-start text-left",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarDays className="mr-2" />
-                        {field.value
-                          ? format(new Date(field.value), "LLL dd, y")
-                          : "Pick a date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        initialFocus
-                        mode="single"
-                        selected={
-                          field.value ? new Date(field.value) : undefined
-                        }
-                        onSelect={(val) =>
-                          field.onChange(val?.toISOString() ?? null)
-                        }
-                        numberOfMonths={1}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

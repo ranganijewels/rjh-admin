@@ -3,8 +3,10 @@ const METALS = ["Gold", "Silver", "Platinum"];
 // Gold day-to-day needs ONLY a 24K row — 22/18/14/10K derive automatically from
 // the KT master factors (24K × factor ÷ 99.9). Explicit rows here override.
 const PURITIES = ["24K", "22K", "18K", "14K", "10K", "999", "925", "800", "950", "900", "Custom"];
-const SHAPES = ["Round", "Princess", "Cushion", "Oval", "Emerald", "Pear", "Marquise", "Custom"];
 const CATEGORIES = ["Rings", "Necklaces", "Wedding Bands", "Bracelets", "Earrings", "Pendants"];
+// Diamond Shape used to be this fixed list — any shape added later in Catalog
+// Masters (Advanced > Catalog & Configurator) never showed up here. It's now
+// sourced live from there (kind: "diamond_shape", see optionsKind below).
 
 export const PRICING_MASTERS = {
   "metal-rates": {
@@ -32,7 +34,7 @@ export const PRICING_MASTERS = {
       { key: "shape", label: "Shape" },
       { key: "minCarat", label: "Min Ct" },
       { key: "maxCarat", label: "Max Ct" },
-      { key: "color", label: "Color" },
+      { key: "color", label: "Color", type: "csv-list" },
       // Was "qualityGrade" — a separate field that's basically never filled
       // in; the values admins actually enter (VVS1, VS1, …) live in
       // "clarity", so the list showed "—" for every row. See fields below.
@@ -41,10 +43,15 @@ export const PRICING_MASTERS = {
       { key: "effectiveDate", label: "Effective", type: "date" },
     ],
     fields: [
-      { key: "shape", label: "Diamond Shape", type: "select", options: SHAPES, optional: true },
+      { key: "shape", label: "Diamond Shape", type: "select", optionsKind: "diamond_shape", optional: true },
       { key: "minCarat", label: "Min Carat", type: "number", default: 0 },
       { key: "maxCarat", label: "Max Carat", type: "number", default: 99 },
-      { key: "color", label: "Color", type: "text", placeholder: "e.g. EF (optional)" },
+      // Was free text ("e.g. EF") — a product can only ever HAVE one grade
+      // (its Materials row Color is a single-select from this same D–M
+      // catalog), so "EF" typed as one literal string could never match
+      // anything; the intent ("D or E") needs the comma-separated multi form
+      // the matcher already understands, same as Quality (Clarity) below.
+      { key: "color", label: "Color", type: "multiselect", optionsKind: "diamond_color" },
       // Sourced from Catalog Master → Diamond Qualities (VVS1/VVS2/VS1/VS2…).
       // Select one or several — a rate matches if the product's quality is
       // ANY of the selected values. Leave empty to match any quality.

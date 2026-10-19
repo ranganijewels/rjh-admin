@@ -1,6 +1,11 @@
 export const APP_SETTINGS = {
   layout: '',
   container: 'fixed',
+  theme: {
+    // Overwritten on first visit by the OS preference (see SettingsProvider);
+    // any explicit toggle after that always wins.
+    mode: 'light',
+  },
   layouts: {
     demo1: {
       sidebarCollapse: false,

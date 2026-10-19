@@ -12,14 +12,14 @@ import { EyeIcon } from "lucide-react";
 const useCustomRequestColumn = ({ onView } = {}) => {
   return useMemo(
     () => [
-      // {
-      //   accessorKey: "id",
-      //   header: () => <DataGridTableRowSelectAll />,
-      //   cell: ({ row }) => <DataGridTableRowSelect row={row} />,
-      //   enableSorting: false,
-      //   enableHiding: false,
-      //   size: 48,
-      // },
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+      },
       {
         id: "request_id",
         header: ({ column }) => (

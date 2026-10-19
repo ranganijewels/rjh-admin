@@ -256,6 +256,7 @@ function DataGridTableBodyRow({ children, row, dndRef, dndStyle }) {
     <tr
       ref={dndRef}
       style={{ ...(dndStyle ? dndStyle : null) }}
+      data-row-id={row.original?.id ?? undefined}
       data-state={
         table.options.enableRowSelection && row.getIsSelected()
           ? 'selected'

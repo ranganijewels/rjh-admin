@@ -7,19 +7,118 @@ import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Button } from "@/components/common/ui/button";
-import { Plus, X, Upload, Download, FileDown, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, X, Upload, Download, FileDown, CheckCircle, AlertCircle, Loader2, Images } from "lucide-react";
 import { useCrudListWithPagination } from "@/hooks/useCrudListWithPagination";
+import { useCrudApi } from "@/hooks/useCrudApi";
+import { toast } from "sonner";
 import { toTitleCase } from "@/lib/utils";
+import { PRODUCT_CSV_HEADERS } from "@/lib/csvSubTables";
 
 /* ── Example CSV template ──────────────────────────────────────── */
-// Header matches ALL columns in export-csv/route.js HEADERS array.
+// Column order is PRODUCT_CSV_HEADERS itself (see src/lib/csvSubTables.js) —
+// the SAME list export-csv/route.js and import-csv/route.js use, so this
+// template can never silently drift out of sync with what actually round-trips.
 // Image naming: upload files as {productCode}-{metalColor}-main.jpg (gallery: -gallery-1.jpg etc.)
 // OR paste a direct URL in the mainImageUrl column.
-const EXAMPLE_CSV = `productName,productCode,shopifySku,category,subCategory,collectionName,metalType,metalPurity,metalColor,diamondShape,diamondQuality,diamondType,diamondCount,diamondWeightCt,centerStoneShape,centerStoneWeightCt,sideStoneDetails,grossWeightG,netWeightG,lengthMm,widthMm,heightMm,ringSize,gender,mainImageUrl,description,shortDescription,longDescription,seoTitle,seoDescription,shopifyTags,status,isReadyForQc,isReadyForShopify,variantType,variantValue
-Solitaire Diamond Ring,RJ-RING-001,,Rings,Solitaire,Bridal Collection,Gold,18K,Yellow,Round,VS1-F,Lab Grown Diamond,1,0.5,Round,0.5,,4.2,3.8,,,, 7,Women,,Classic 4-prong solitaire engagement ring in 18K yellow gold,Solitaire ring in 18K gold,,Solitaire Diamond Ring — 18K Gold,,diamond ring solitaire gold,active,false,false,,
-Halo Diamond Pendant,RJ-PEND-001,,Pendants,Halo,Everyday Luxury,Gold,18K,White,Oval,VS2-G,Lab Grown Diamond,12,0.75,Oval,0.25,12 round side stones,3.1,2.9,,,,, Women,,Oval center stone surrounded by a halo of round diamonds,Halo pendant in 18K white gold,,,,,active,false,false,,
-Diamond Tennis Bracelet,RJ-BRAC-001,,Bracelets,Tennis,Heritage,Gold,14K,Rose,Round,SI1-H,Lab Grown Diamond,24,2.0,,,24 round brilliant diamonds,8.5,7.8,185,5,4,,Women,,Elegant tennis bracelet with 24 round diamonds set in 14K rose gold,Tennis bracelet in 14K rose gold,,,,,active,false,false,,
-Silver Solitaire Ring,RJ-RING-S01,,Rings,Solitaire,Silver Collection,Silver,925 (Silver),White,Round,VS2-G,Lab Grown Diamond,1,0.25,Round,0.25,,2.8,2.5,,,, 6,Women,,Classic solitaire in 925 silver — great entry-level piece,925 silver solitaire ring,,,,,active,false,false,,`;
+//
+// Repeatable sub-tables (materials, weightMatrix, metalOptions, sizeWeightDiff,
+// molds, faqs) go in ONE cell each: `;` separates rows, `|` separates fields
+// within a row — there's no fixed row count, just add more `;`-separated
+// groups for as many rows as you need. See the two example rows below.
+const csvValueFor = {
+  productName: "Solitaire Diamond Ring",
+  productCode: "RJ-RING-001",
+  category: "Rings",
+  subCategory: "Solitaire",
+  collectionName: "Bridal Collection",
+  metalType: "Gold",
+  metalPurity: "18K",
+  metalColor: "Yellow",
+  diamondShape: "Round",
+  diamondQuality: "VS1",
+  diamondType: "Lab Grown Diamond",
+  diamondCount: "1",
+  diamondWeightCt: "1.5",
+  diamondCut: "Excellent",
+  diamondColor: "F",
+  diamondClarity: "VS1",
+  diamondCertLab: "IGI",
+  diamondCertNumber: "123456789",
+  centerStoneShape: "Round",
+  centerStoneWeightCt: "1.5",
+  grossWeightG: "4.2",
+  netWeightG: "3.8",
+  ringSize: "7",
+  gender: "Women",
+  description: "Classic 4-prong solitaire engagement ring featuring a brilliant round diamond.",
+  shortDescription: "Solitaire ring in 18K gold with a round center diamond.",
+  seoTitle: "Solitaire Diamond Ring — 18K Gold",
+  seoDescription: "Classic round solitaire engagement ring in 18K gold, certified lab-grown diamond.",
+  shopifyTags: "diamond ring, solitaire, gold, engagement",
+  status: "active",
+  isReadyForQc: "false",
+  isReadyForShopify: "false",
+  designGroup: "RJ-RING-001",
+  productType: "Ring",
+  style: "Solitaire",
+  occasion: "Engagement",
+  brand: "Rangani",
+  badges: "NEW,BESTSELLER",
+  variantLabel: "A",
+  aeoSummary: "This is a solitaire engagement ring crafted in 18K gold featuring a round lab-grown diamond.",
+  // Materials (BOM) — one row per material: metal + diamond in this example
+  materials:
+    "Center Stone|Diamond|Diamond|Round|VS1|F||Prong|1|1.5|true;Band|Metal|Gold|||White|||1|3.8|false",
+  // Metal options — this product is offered in 2 karats and 3 colors
+  metalOptions: "Gold|18K,14K|White,Yellow,Rose",
+  // Carat -> metal weight matrix — 6 selectable carat sizes
+  weightMatrix: "1|2.5;1.5|2.7;2|2.9;3|3.3;4|3.7;5|4.1",
+  faqs:
+    "What metal options are available?|Available in 14K and 18K gold, in White, Yellow, or Rose.;Is the diamond certified?|Yes, IGI certified.",
+};
+
+function buildExampleRow(overrides = {}) {
+  const merged = { ...csvValueFor, ...overrides };
+  return PRODUCT_CSV_HEADERS.map((h) => {
+    const v = merged[h] ?? "";
+    const s = String(v);
+    return s.includes(",") || s.includes('"') || s.includes("\n")
+      ? `"${s.replace(/"/g, '""')}"`
+      : s;
+  }).join(",");
+}
+
+const EXAMPLE_CSV = [
+  PRODUCT_CSV_HEADERS.join(","),
+  buildExampleRow(),
+  buildExampleRow({
+    productName: "Halo Diamond Pendant",
+    productCode: "RJ-PEND-001",
+    category: "Pendants",
+    subCategory: "Halo",
+    collectionName: "Everyday Luxury",
+    metalColor: "White",
+    diamondShape: "Oval",
+    diamondCount: "12",
+    diamondWeightCt: "0.75",
+    centerStoneShape: "Oval",
+    centerStoneWeightCt: "0.25",
+    sideStoneDetails: "12 round side stones",
+    grossWeightG: "3.1",
+    netWeightG: "2.9",
+    description: "Oval center stone surrounded by a halo of round diamonds.",
+    shortDescription: "Halo pendant in 18K white gold.",
+    designGroup: "RJ-PEND-001",
+    productType: "Pendant",
+    style: "Halo",
+    badges: "",
+    variantLabel: "B",
+    materials: "Center Stone|Diamond|Diamond|Oval|VS2|G||Prong|1|0.25|true;Halo|Diamond|Diamond|Round|VS2|G||Pave|12|0.5|false",
+    metalOptions: "Gold|18K|White,Yellow",
+    weightMatrix: "0.5|2.2;0.75|2.4;1|2.6",
+    faqs: "",
+  }),
+].join("\r\n");
 
 function downloadExampleCsv() {
   const blob = new Blob([EXAMPLE_CSV], { type: "text/csv" });
@@ -64,10 +163,10 @@ const ImportModal = ({ open, onClose, onImported }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Import Products from CSV</h2>
-          <button onClick={handleClose} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-muted-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         {status === "idle" || status === "loading" ? (
@@ -77,15 +176,15 @@ const ImportModal = ({ open, onClose, onImported }) => {
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.name.endsWith(".csv")) setFile(f); }}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-orange-400 transition-colors"
+              className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-8 text-center cursor-pointer hover:border-orange-400 transition-colors"
             >
-              <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+              <Upload className="w-8 h-8 text-gray-400 dark:text-muted-foreground mx-auto mb-2" />
               {file ? (
-                <p className="text-sm font-medium text-gray-700">{file.name} <span className="text-gray-400">({(file.size / 1024).toFixed(1)} KB)</span></p>
+                <p className="text-sm font-medium text-gray-700 dark:text-foreground">{file.name} <span className="text-gray-400 dark:text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span></p>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-gray-700">Click or drag & drop a CSV file</p>
-                  <p className="text-xs text-gray-400 mt-1">Only .csv files accepted</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-foreground">Click or drag & drop a CSV file</p>
+                  <p className="text-xs text-gray-400 dark:text-muted-foreground mt-1">Only .csv files accepted</p>
                 </>
               )}
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => setFile(e.target.files[0])} />
@@ -100,12 +199,12 @@ const ImportModal = ({ open, onClose, onImported }) => {
             </button>
 
             {/* CSV column reference */}
-            <details className="mt-3 text-xs text-gray-500">
-              <summary className="cursor-pointer font-medium text-gray-600 hover:text-gray-800">Required columns</summary>
-              <div className="mt-2 font-mono bg-gray-50 rounded p-2 leading-5 break-all">
+            <details className="mt-3 text-xs text-gray-500 dark:text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:text-foreground">Required columns</summary>
+              <div className="mt-2 font-mono bg-gray-50 dark:bg-muted rounded p-2 leading-5 break-all">
                 productName*, productCode, category, subCategory, metalType, metalPurity, metalColor, diamondShape, diamondQuality, diamondType, diamondCount, diamondWeightCt, grossWeightG, netWeightG, ringSize, collectionName, gender, description, status, makingCharge
               </div>
-              <p className="mt-1 text-gray-400">* required · all others optional</p>
+              <p className="mt-1 text-gray-400 dark:text-muted-foreground">* required · all others optional</p>
             </details>
 
             <div className="flex gap-2 mt-5">
@@ -119,11 +218,11 @@ const ImportModal = ({ open, onClose, onImported }) => {
           <>
             <div className="text-center py-4">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-lg font-semibold text-gray-800">Import Complete</p>
+              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Import Complete</p>
               <div className="flex justify-center gap-6 mt-4 text-sm">
-                <div className="text-center"><p className="text-2xl font-bold text-green-600">{result.created}</p><p className="text-gray-500">Created</p></div>
-                <div className="text-center"><p className="text-2xl font-bold text-gray-800">{result.total}</p><p className="text-gray-500">Total rows</p></div>
-                {result.failed > 0 && <div className="text-center"><p className="text-2xl font-bold text-red-500">{result.failed}</p><p className="text-gray-500">Failed</p></div>}
+                <div className="text-center"><p className="text-2xl font-bold text-green-600">{result.created}</p><p className="text-gray-500 dark:text-muted-foreground">Created</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-gray-800 dark:text-foreground">{result.total}</p><p className="text-gray-500 dark:text-muted-foreground">Total rows</p></div>
+                {result.failed > 0 && <div className="text-center"><p className="text-2xl font-bold text-red-500">{result.failed}</p><p className="text-gray-500 dark:text-muted-foreground">Failed</p></div>}
               </div>
             </div>
             {result.errors?.length > 0 && (
@@ -137,13 +236,341 @@ const ImportModal = ({ open, onClose, onImported }) => {
           <>
             <div className="text-center py-4">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-lg font-semibold text-gray-800">Import Failed</p>
+              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Import Failed</p>
               <p className="text-sm text-red-600 mt-2">{result?.error}</p>
             </div>
             <div className="flex gap-2 mt-5">
               <Button variant="outline" className="flex-1" onClick={handleClose}>Close</Button>
               <Button className="flex-1 bg-primary hover:bg-primary/90 text-white" onClick={reset}>Try Again</Button>
             </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Bulk image upload modal ─────────────────────────────────────
+   Matches a folder of real product photos to existing products by
+   filename — no internet image search, just your own photos. */
+const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
+  const fileRef = useRef(null);
+  const [files, setFiles] = useState([]);
+  const [altTextTemplate, setAltTextTemplate] = useState("{productName} - {color}");
+  const [status, setStatus] = useState("idle"); // idle | loading | done | error
+  const [result, setResult] = useState(null);
+
+  const reset = () => { setFiles([]); setStatus("idle"); setResult(null); };
+  const handleClose = () => { reset(); onClose(); };
+
+  const addFiles = (fileList) => {
+    const media = Array.from(fileList || []).filter(
+      (f) => f.type.startsWith("image/") || f.type.startsWith("video/")
+    );
+    setFiles((prev) => [...prev, ...media]);
+  };
+
+  const handleUpload = async () => {
+    if (!files.length) return;
+    setStatus("loading");
+    const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+    form.append("altTextTemplate", altTextTemplate);
+    try {
+      const res = await fetch("/api/product-management/bulk-upload-images", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const json = await res.json();
+      if (json.error) { setResult({ error: json.error }); setStatus("error"); }
+      else { setResult(json); setStatus("done"); onUploaded?.(); }
+    } catch (e) {
+      setResult({ error: e.message });
+      setStatus("error");
+    }
+  };
+
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Bulk Upload Product Media</h2>
+          <button onClick={handleClose} className="text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-muted-foreground"><X className="w-5 h-5" /></button>
+        </div>
+
+        {status === "idle" || status === "loading" ? (
+          <>
+            {/* Drop zone */}
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
+              className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-8 text-center cursor-pointer hover:border-orange-400 transition-colors"
+            >
+              <Images className="w-8 h-8 text-gray-400 dark:text-muted-foreground mx-auto mb-2" />
+              {files.length ? (
+                <p className="text-sm font-medium text-gray-700 dark:text-foreground">
+                  {files.length} file{files.length > 1 ? "s" : ""} selected
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm font-medium text-gray-700 dark:text-foreground">Click or drag & drop your product photos or videos</p>
+                  <p className="text-xs text-gray-400 dark:text-muted-foreground mt-1">jpg, png, webp, gif, mp4, mov, webm — matched by filename</p>
+                </>
+              )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                className="hidden"
+                onChange={(e) => addFiles(e.target.files)}
+              />
+            </div>
+
+            {files.length > 0 && (
+              <div className="mt-3 max-h-28 overflow-y-auto text-xs text-gray-500 dark:text-muted-foreground space-y-0.5">
+                {files.map((f, i) => <p key={i} className="truncate">{f.name}</p>)}
+              </div>
+            )}
+
+            {/* Alt text template */}
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Alt text template (SEO, optional)</label>
+              <input
+                type="text"
+                value={altTextTemplate}
+                onChange={(e) => setAltTextTemplate(e.target.value)}
+                placeholder="{productName} - {color}"
+                className="mt-1 w-full text-xs border border-gray-300 dark:border-border rounded-md px-2 py-1.5"
+              />
+              <p className="mt-1 text-[11px] text-gray-400 dark:text-muted-foreground">
+                Applied to every matched file. Placeholders: {"{productName}"}, {"{color}"}, {"{role}"}. Leave blank to skip.
+              </p>
+            </div>
+
+            {/* Naming convention reference */}
+            <details className="mt-3 text-xs text-gray-500 dark:text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:text-foreground">How files get matched to products</summary>
+              <div className="mt-2 font-mono bg-gray-50 dark:bg-muted rounded p-2 leading-5 break-all space-y-1">
+                <p>{"{productCode}"}-main.jpg → cover image</p>
+                <p>{"{productCode}"}-{"{metalColor}"}-main.jpg → main image for that color</p>
+                <p>{"{productCode}"}-{"{metalColor}"}-rollover.jpg → hover-swap image for that color</p>
+                <p>{"{productCode}"}-{"{metalColor}"}-gallery-2.jpg → gallery image #2 for that color</p>
+                <p>{"{productCode}"}-White-Rose-main.jpg → the White/Rose two-tone variant's own photo</p>
+              </div>
+              <p className="mt-1 text-gray-400 dark:text-muted-foreground">
+                Every color needs its own file — colors are never shared or duplicated from one upload. productCode must match an existing product exactly (case-insensitive). metalColor is optional on single-color products (White/Yellow/Rose/Gold/Silver/Platinum), plus two-tone combos (White-Rose, White-Yellow, Yellow-Rose). Videos work the same way as images (mp4, mov, webm) — a video can be the "main" or "rollover" slot for a color too. Any image format works (jpg, png, webp, gif).
+              </p>
+            </details>
+
+            <div className="flex gap-2 mt-5">
+              <Button variant="outline" className="flex-1" onClick={handleClose} disabled={status === "loading"}>Cancel</Button>
+              <Button className="flex-1 bg-primary hover:bg-primary/90 text-white" onClick={handleUpload} disabled={!files.length || status === "loading"}>
+                {status === "loading" ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Uploading…</> : <><Upload className="w-4 h-4 mr-2" />Upload &amp; Match</>}
+              </Button>
+            </div>
+          </>
+        ) : status === "done" ? (
+          <>
+            <div className="text-center py-4">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Upload Complete</p>
+              <div className="flex justify-center gap-6 mt-4 text-sm">
+                <div className="text-center"><p className="text-2xl font-bold text-green-600">{result.uploaded}</p><p className="text-gray-500 dark:text-muted-foreground">Matched &amp; uploaded</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-gray-800 dark:text-foreground">{result.total}</p><p className="text-gray-500 dark:text-muted-foreground">Total files</p></div>
+                {result.unmatched?.length > 0 && <div className="text-center"><p className="text-2xl font-bold text-red-500">{result.unmatched.length}</p><p className="text-gray-500 dark:text-muted-foreground">Unmatched</p></div>}
+              </div>
+            </div>
+            {result.unmatched?.length > 0 && (
+              <div className="mt-4 max-h-32 overflow-y-auto bg-red-50 rounded p-3 text-xs text-red-700 space-y-1">
+                {result.unmatched.map((u, i) => <p key={i}><span className="font-medium">{u.fileName}:</span> {u.reason}</p>)}
+              </div>
+            )}
+            <Button className="w-full mt-5 bg-primary hover:bg-primary/90 text-white" onClick={handleClose}>Done</Button>
+          </>
+        ) : (
+          <>
+            <div className="text-center py-4">
+              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
+              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Upload Failed</p>
+              <p className="text-sm text-red-600 mt-2">{result?.error}</p>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <Button variant="outline" className="flex-1" onClick={handleClose}>Close</Button>
+              <Button className="flex-1 bg-primary hover:bg-primary/90 text-white" onClick={reset}>Try Again</Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/* ── Bulk AI listing generator ─────────────────────────────────── */
+// Runs one product at a time (not parallel): fetches the full product detail
+// (avoids the partial-PATCH-wipes-diamond-fields gotcha — see toProductBody()
+// in ../[id]/route.js), asks the AI for fresh title/descriptions/SEO copy from
+// that product's real attributes, merges just those fields in, and saves the
+// full object back so nothing else on the product is touched.
+const BulkAiGenerateModal = ({ open, onClose, rows, onDone }) => {
+  const [model, setModel] = useState("haiku");
+  const [status, setStatus] = useState("idle"); // idle | running | done
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
+  const [results, setResults] = useState([]);
+
+  const reset = () => { setStatus("idle"); setProgress({ done: 0, total: 0 }); setResults([]); };
+  const handleClose = () => { reset(); onClose(); };
+
+  const authHeaders = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+    return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
+  };
+
+  const runOne = async (row) => {
+    const detailRes = await fetch(`/api/product-management/${row.id}`, { headers: authHeaders() });
+    const detailJson = await detailRes.json();
+    const detail = detailJson.data || detailJson;
+    if (!detailRes.ok || !detail) throw new Error("Could not load full product detail");
+
+    // Send the FULL metal option set (every purity/color, not just one) so the
+    // prompt can tell a genuinely variable attribute from a fixed one and knows
+    // when to write a {{token}} instead of a single literal value — matches the
+    // per-product "Generate with AI" button's payload in ProductForm/index.jsx.
+    const metalOptions = Array.isArray(detail.metadata?.metalOptions) && detail.metadata.metalOptions.length
+      ? detail.metadata.metalOptions
+      : [{ type: detail.metal, purities: [detail.metal_purity].filter(Boolean), colors: [detail.metal_color].filter(Boolean) }];
+
+    const genRes = await fetch("/api/ai/generate-listing", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({
+        productName: detail.title,
+        category: detail.category,
+        subCategory: detail.style || detail.subcategory,
+        collectionName: detail.collection,
+        occasion: detail.occasion,
+        gender: detail.gender,
+        metalOptions: metalOptions.map((m) => ({
+          type: m.type || undefined,
+          purities: m.purities || [],
+          colors: m.colors || [],
+        })),
+        diamondShape: detail.shape,
+        diamondQuality: detail.diamond_quality,
+        diamondColor: detail.diamond_color,
+        diamondClarity: detail.diamond_clarity,
+        diamondCut: detail.diamond_cut,
+        diamondCount: detail.diamond_pcs ? Number(detail.diamond_pcs) : undefined,
+        diamondWeightCt: detail.diamond_wt ? Number(detail.diamond_wt) : undefined,
+        // Every carat the configurator offers — matches the same field in
+        // ProductForm/index.jsx's buildAiPayload (see comment there).
+        diamondWeightOptions: (Array.isArray(detail.metadata?.weightMatrix) ? detail.metadata.weightMatrix : [])
+          .map((r) => Number(r.carat))
+          .filter((n) => Number.isFinite(n) && n > 0),
+        centerStoneShape: detail.centerStoneShape || undefined,
+        centerStoneWeightCt: detail.centerStoneWeightCt ? Number(detail.centerStoneWeightCt) : undefined,
+        style: detail.metadata?.style,
+        brand: detail.brand,
+        model,
+      }),
+    });
+    const genJson = await genRes.json();
+    if (!genRes.ok) throw new Error(genJson?.message || "AI generation failed");
+    const copy = genJson.data || genJson;
+
+    const merged = {
+      ...detail,
+      title: copy.productName || detail.title,
+      short_description: copy.shortDescription || detail.short_description,
+      description: copy.description || detail.description,
+      seo_title: copy.seoTitle,
+      seo_description: copy.seoDescription,
+      seo_keywords: copy.keywords,
+      aeo_summary: copy.aeoSummary || detail.metadata?.aeoSummary,
+      faqs: Array.isArray(copy.faqs) && copy.faqs.length ? copy.faqs : detail.metadata?.faqs,
+    };
+
+    const saveRes = await fetch(`/api/product-management/${row.id}`, {
+      method: "PUT",
+      headers: authHeaders(),
+      body: JSON.stringify(merged),
+    });
+    const saveJson = await saveRes.json();
+    if (!saveRes.ok) throw new Error(saveJson?.message || "Failed to save generated copy");
+  };
+
+  const handleRun = async () => {
+    setStatus("running");
+    setProgress({ done: 0, total: rows.length });
+    const outcomes = [];
+    for (const row of rows) {
+      try {
+        await runOne(row);
+        outcomes.push({ id: row.id, title: row.title, ok: true });
+      } catch (e) {
+        outcomes.push({ id: row.id, title: row.title, ok: false, reason: e.message });
+      }
+      setProgress((p) => ({ ...p, done: p.done + 1 }));
+    }
+    setResults(outcomes);
+    setStatus("done");
+    onDone?.();
+  };
+
+  if (!open) return null;
+  const failed = results.filter((r) => !r.ok);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Generate AI Listing Copy</h2>
+          <button onClick={handleClose} className="text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-muted-foreground"><X className="w-5 h-5" /></button>
+        </div>
+
+        {status === "idle" ? (
+          <>
+            <p className="text-sm text-gray-600 dark:text-muted-foreground">
+              Rewrite Name, Short Description, Description and SEO fields for {rows.length} selected product{rows.length > 1 ? "s" : ""} from their existing metal, diamond, category and style attributes.
+            </p>
+            <div className="mt-3">
+              <label className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Model</label>
+              <select value={model} onChange={(e) => setModel(e.target.value)} className="mt-1 w-full text-sm border border-gray-300 dark:border-border rounded-md px-2 py-1.5">
+                <option value="haiku">Haiku 4.5 — fast, cheap, default</option>
+                <option value="sonnet">Sonnet 5 — best copy, higher cost</option>
+              </select>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <Button variant="outline" className="flex-1" onClick={handleClose}>Cancel</Button>
+              <Button className="flex-1 bg-primary hover:bg-primary/90 text-white" onClick={handleRun}>Generate</Button>
+            </div>
+          </>
+        ) : status === "running" ? (
+          <div className="text-center py-6">
+            <Loader2 className="w-8 h-8 text-primary mx-auto mb-3 animate-spin" />
+            <p className="text-sm font-medium text-gray-700 dark:text-foreground">Generating {progress.done} / {progress.total}…</p>
+          </div>
+        ) : (
+          <>
+            <div className="text-center py-4">
+              {failed.length === 0 ? (
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              ) : (
+                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+              )}
+              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">
+                {results.length - failed.length} / {results.length} generated
+              </p>
+            </div>
+            {failed.length > 0 && (
+              <div className="mt-2 max-h-32 overflow-y-auto bg-red-50 rounded p-3 text-xs text-red-700 space-y-1">
+                {failed.map((f) => <p key={f.id}><span className="font-medium">{f.title || f.id}:</span> {f.reason}</p>)}
+              </div>
+            )}
+            <Button className="w-full mt-5 bg-primary hover:bg-primary/90 text-white" onClick={handleClose}>Done</Button>
           </>
         )}
       </div>
@@ -167,6 +594,10 @@ const FilterSelect = ({ label, value, options, onChange }) => (
   </select>
 );
 
+// sessionStorage key the list stashes its "where was I" state under right
+// before navigating to Add/Edit, and consumes (then deletes) on the way back.
+const RESTORE_KEY = "product_master_list_restore";
+
 const CATEGORIES = ["Rings", "Necklaces", "Wedding Bands", "Bracelets", "Earrings", "Pendants", "Bangles"];
 const METAL_COLORS = ["White", "Yellow", "Rose"];
 const SHAPES = ["Round", "Oval", "Princess", "Emerald", "Cushion", "Pear", "Marquise", "Radiant", "Asscher", "Heart"];
@@ -183,6 +614,9 @@ const ProductMasterList = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [priceMap, setPriceMap] = useState({});
   const [importOpen, setImportOpen] = useState(false);
+  const [bulkImagesOpen, setBulkImagesOpen] = useState(false);
+  const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
+  const [aiGenerateRows, setAiGenerateRows] = useState([]);
   const [exporting, setExporting] = useState(false);
   const [filters, setFilters] = useState({
     category: "",
@@ -203,7 +637,92 @@ const ProductMasterList = () => {
     remove,
     fetchData,
     pagination,
-  } = useCrudListWithPagination("/api/product-management");
+  } = useCrudListWithPagination(
+    "/api/product-management",
+    {},
+    { skipInitialFetch: true }
+  );
+
+  const { toggleStatus: toggleStatusApi } = useCrudApi("/api/product-management");
+
+  // Shared by the card-view toggle, the table-view toggle, and bulk
+  // activate/deactivate — flips one product's status server-side, then
+  // patches `list` locally so every view (and the price/media rules that key
+  // off it) reflects the change immediately without a full refetch.
+  const toggleProductStatus = useCallback(
+    async (id, isActive) => {
+      await toggleStatusApi(id, isActive);
+      setList((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, status: isActive ? "active" : "inactive" } : item
+        )
+      );
+    },
+    [toggleStatusApi, setList]
+  );
+
+  // Edit/Add navigate to a separate route, which unmounts this whole page —
+  // losing the accumulated infinite-scroll pages and scroll position, so
+  // returning from a save always dumped the shopper back at page 1, top of
+  // list. handleEdit/handleAdd stash how much was loaded + where before
+  // leaving; this replays those same pages (not a giant single fetch, so
+  // `pagination`/`hasMore` end up exactly as if the shopper had clicked
+  // "Load More" that many times — Load More afterward continues normally)
+  // and scrolls the edited row back into view once the data is in.
+  const didInitialFetch = useRef(false);
+  useEffect(() => {
+    if (didInitialFetch.current) return;
+    didInitialFetch.current = true;
+
+    (async () => {
+      let restore = null;
+      try {
+        const raw = sessionStorage.getItem(RESTORE_KEY);
+        if (raw) restore = JSON.parse(raw);
+      } catch {
+        /* ignore malformed/blocked sessionStorage */
+      }
+
+      if (!restore) {
+        fetchData({ page: 1, pageSize: pageInfo.pageSize });
+        return;
+      }
+
+      sessionStorage.removeItem(RESTORE_KEY);
+      const restoredFilters = restore.filters || filters;
+      const restoredSearch = restore.searchQuery || "";
+      setFilters(restoredFilters);
+      setSearchQuery(restoredSearch);
+
+      const activeRestoreFilters = Object.fromEntries(
+        Object.entries(restoredFilters).filter(([, v]) => v)
+      );
+      const pagesToLoad = Math.max(
+        1,
+        Math.ceil((restore.itemsLoaded || pageInfo.pageSize) / pageInfo.pageSize)
+      );
+      for (let page = 1; page <= pagesToLoad; page++) {
+        await fetchData({
+          page,
+          pageSize: pageInfo.pageSize,
+          append: page > 1,
+          search: restoredSearch,
+          ...activeRestoreFilters,
+        });
+      }
+
+      if (restore.focusId) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            document
+              .querySelector(`[data-row-id="${restore.focusId}"]`)
+              ?.scrollIntoView({ block: "center" });
+          });
+        });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Products store no price — fetch the live engine price for the visible page.
   // Infinite scroll keeps appending to `list`, so only request prices for ids
@@ -263,6 +782,8 @@ const ProductMasterList = () => {
       live_price: priceMap[item.id],
       collection: item.collection,
       gender: item.gender,
+      active: item.status === "active",
+      has_media: !!item.has_media,
       created_at: item.created_at,
       updated_at: item.updated_at,
     })) ?? [];
@@ -289,7 +810,32 @@ const ProductMasterList = () => {
     [router]
   );
 
-  const handleAdd = () => router.push("/dashboard/product-management/add");
+  // Stash how much of the list was loaded, the active filters/search, and
+  // (for Edit) which row to scroll back to — consumed by the restore effect
+  // above once we're back on this page after Add/Edit navigates away.
+  const stashListRestoreState = useCallback(
+    (focusId) => {
+      try {
+        sessionStorage.setItem(
+          RESTORE_KEY,
+          JSON.stringify({
+            itemsLoaded: Math.max(list.length, pageInfo.pageSize),
+            filters,
+            searchQuery,
+            focusId: focusId ?? null,
+          })
+        );
+      } catch {
+        /* ignore blocked/unavailable sessionStorage — worst case, no restore */
+      }
+    },
+    [list.length, pageInfo.pageSize, filters, searchQuery]
+  );
+
+  const handleAdd = () => {
+    stashListRestoreState(null);
+    router.push("/dashboard/product-management/add");
+  };
 
   const handleExport = async () => {
     setExporting(true);
@@ -310,8 +856,11 @@ const ProductMasterList = () => {
   };
 
   const handleEdit = useCallback(
-    (product) => router.push(`/dashboard/product-management/edit/${product.id}`),
-    [router]
+    (product) => {
+      stashListRestoreState(product.id);
+      router.push(`/dashboard/product-management/edit/${product.id}`);
+    },
+    [router, stashListRestoreState]
   );
 
   const handleAskDelete = useCallback(
@@ -326,16 +875,21 @@ const ProductMasterList = () => {
   // behaviour, which would collapse the accumulated infinite-scroll list
   // back down to a single page.
   const handleConfirmDelete = async () => {
-    await remove(deleteId);
-    setList((prev) => prev.filter((item) => item.id !== deleteId));
-    setConfirmOpen(false);
-    setDeleteId(null);
+    try {
+      await remove(deleteId);
+      setList((prev) => prev.filter((item) => item.id !== deleteId));
+      setConfirmOpen(false);
+      setDeleteId(null);
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete product");
+    }
   };
 
   const { columns } = useProductListColumns({
     onView: handleView,
     onEdit: handleEdit,
     onDelete: handleAskDelete,
+    toggleStatus: toggleProductStatus,
   });
 
   const renderStoreCardsView = (item) => (
@@ -345,6 +899,7 @@ const ProductMasterList = () => {
       onClick={() => handleView(item)}
       onEdit={() => handleEdit(item)}
       onDelete={() => handleAskDelete(item.id)}
+      toggleStatus={toggleProductStatus}
     />
   );
 
@@ -385,7 +940,7 @@ const ProductMasterList = () => {
 
       <ListWithCardToggle
         title="Product Master List"
-        description="All products available in the store"
+        description={`All products available in the store · ${pagination?.total ?? list.length} total`}
         data={filteredRows}
         columns={columns}
         resizableColumns
@@ -398,6 +953,9 @@ const ProductMasterList = () => {
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
               {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Download className="mr-1.5 h-4 w-4" />}
               Export CSV
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setBulkImagesOpen(true)}>
+              <Images className="mr-1.5 h-4 w-4" /> Bulk Upload Images
             </Button>
             <Button onClick={handleAdd}>
               <Plus className="mr-2 h-4 w-4" /> Add Product
@@ -424,6 +982,70 @@ const ProductMasterList = () => {
         onLoadMore={handleLoadMore}
         hasMore={hasMore}
         loadingMore={loading && list.length > 0}
+        bulkActions={[
+          {
+            key: "ai-generate",
+            label: "Generate AI Listing",
+            onRun: async (rows) => {
+              setAiGenerateRows(rows);
+              setAiGenerateOpen(true);
+            },
+          },
+          {
+            key: "activate",
+            label: "Activate",
+            onRun: async (rows) => {
+              const results = await Promise.allSettled(
+                rows.map((r) => toggleProductStatus(r.id, true))
+              );
+              const failedCount = results.filter((r) => r.status === "rejected").length;
+              if (failedCount > 0) {
+                toast.error(`${failedCount} of ${rows.length} product(s) could not be activated`);
+              } else {
+                toast.success(`${rows.length} product(s) activated`);
+              }
+            },
+          },
+          {
+            key: "deactivate",
+            label: "Deactivate",
+            onRun: async (rows) => {
+              const results = await Promise.allSettled(
+                rows.map((r) => toggleProductStatus(r.id, false))
+              );
+              const failedCount = results.filter((r) => r.status === "rejected").length;
+              if (failedCount > 0) {
+                toast.error(`${failedCount} of ${rows.length} product(s) could not be deactivated`);
+              } else {
+                toast.success(`${rows.length} product(s) deactivated`);
+              }
+            },
+          },
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected product(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              const results = await Promise.allSettled(
+                rows.map((r) => remove(r.id).then(() => r.id))
+              );
+              const deletedIds = new Set(
+                results.filter((r) => r.status === "fulfilled").map((r) => r.value)
+              );
+              const failedCount = results.length - deletedIds.size;
+              setList((prev) => prev.filter((item) => !deletedIds.has(item.id)));
+              if (failedCount > 0) {
+                const firstError = results.find((r) => r.status === "rejected")?.reason;
+                toast.error(
+                  `${failedCount} of ${rows.length} product(s) could not be deleted` +
+                    (firstError?.message ? `: ${firstError.message}` : "")
+                );
+              }
+            },
+          },
+        ]}
         searchQuery={searchQuery}
         onSearchChange={(query) => {
           setSearchQuery(query);
@@ -443,6 +1065,19 @@ const ProductMasterList = () => {
         open={importOpen}
         onClose={() => setImportOpen(false)}
         onImported={() => fetchData({ page: 1, pageSize: pageInfo.pageSize })}
+      />
+
+      <BulkImageUploadModal
+        open={bulkImagesOpen}
+        onClose={() => setBulkImagesOpen(false)}
+        onUploaded={() => fetchData({ page: 1, pageSize: pageInfo.pageSize })}
+      />
+
+      <BulkAiGenerateModal
+        open={aiGenerateOpen}
+        onClose={() => setAiGenerateOpen(false)}
+        rows={aiGenerateRows}
+        onDone={() => fetchData({ page: 1, pageSize: pageInfo.pageSize })}
       />
     </>
   );

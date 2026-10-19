@@ -388,7 +388,7 @@ export default function TicketDetailView({ selectedTicket }) {
       case "low":
         return "bg-green-500";
       default:
-        return "bg-gray-500";
+        return "bg-gray-500 dark:bg-muted-foreground";
     }
   };
 

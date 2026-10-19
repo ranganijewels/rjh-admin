@@ -26,7 +26,16 @@ const LINK_TYPES = [
   { value: "static_page", label: "Static Page" },
 ];
 
-const EMPTY = { label: "", linkType: "custom", url: "", refValue: "", target: "_self", isActive: true };
+const EMPTY = {
+  label: "",
+  linkType: "custom",
+  url: "",
+  refValue: "",
+  target: "_self",
+  isActive: true,
+  hasMegaMenu: false,
+  megaMenuLayout: "columns",
+};
 
 // Add/edit modal for one navigation item. Link Type picks what the second
 // field offers (a Collection/Category/Style/Static Page picker, or a plain
@@ -74,6 +83,8 @@ const NavItemModel = ({ open, onClose, onSuccess, editData, parentId }) => {
         refValue: editData.metadata?.refValue || "",
         target: editData.target || "_self",
         isActive: editData.isActive ?? true,
+        hasMegaMenu: editData.metadata?.hasMegaMenu ?? false,
+        megaMenuLayout: editData.metadata?.megaMenuLayout || "columns",
       });
     } else {
       setForm(EMPTY);
@@ -109,13 +120,26 @@ const NavItemModel = ({ open, onClose, onSuccess, editData, parentId }) => {
     if (!form.url.trim()) { toast.error("A link is required"); return; }
     setSaving(true);
     try {
+      // Stable across renames — generated once when "Rich mega-menu" is first
+      // enabled, then reused on every subsequent save so the linked
+      // CmsSection content (keyed by this same string) never gets orphaned.
+      const megaMenuKey = form.hasMegaMenu
+        ? editData?.metadata?.megaMenuKey || crypto.randomUUID()
+        : undefined;
       const payload = {
         label: form.label.trim(),
         url: form.url.trim(),
         target: form.target,
         isActive: form.isActive,
         parentId: editData ? editData.parentId ?? null : parentId ?? null,
-        metadata: { linkType: form.linkType, refValue: form.refValue || undefined },
+        metadata: {
+          linkType: form.linkType,
+          refValue: form.refValue || undefined,
+          hasMegaMenu: isSubLink ? false : form.hasMegaMenu,
+          ...(megaMenuKey && !isSubLink
+            ? { megaMenuKey, megaMenuLayout: form.megaMenuLayout }
+            : {}),
+        },
       };
       if (editData) {
         await update(editData.id, payload);
@@ -196,6 +220,35 @@ const NavItemModel = ({ open, onClose, onSuccess, editData, parentId }) => {
               </label>
             </div>
           </div>
+
+          {!isSubLink && (
+            <div className="border-t border-border pt-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={form.hasMegaMenu}
+                  onChange={(e) => set("hasMegaMenu", e.target.checked)}
+                />
+                Rich mega-menu (images/columns/CTA)
+              </label>
+              {form.hasMegaMenu && (
+                <div className="mt-2">
+                  <label className="text-xs font-medium text-muted-foreground">Layout</label>
+                  <select
+                    value={form.megaMenuLayout}
+                    onChange={(e) => set("megaMenuLayout", e.target.value)}
+                    className={selectCls}
+                  >
+                    <option value="columns">Columns + CTA</option>
+                    <option value="tiles">Media Tiles</option>
+                  </select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Edit the actual columns/links/images in CMS → Mega Menu after saving.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <DialogFooter className="mt-2">
           <Button variant="outline" onClick={onClose}>Cancel</Button>

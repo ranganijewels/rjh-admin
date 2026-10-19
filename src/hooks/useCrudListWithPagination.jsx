@@ -2,7 +2,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useCrudApi } from "@/hooks/useCrudApi";
 
-export function useCrudListWithPagination(path, extraParams = {}) {
+export function useCrudListWithPagination(path, extraParams = {}, options = {}) {
+  // Lets a caller take over the very first fetch itself (e.g. to restore a
+  // previously-loaded multi-page list + scroll position instead of always
+  // starting over at page 1) instead of this hook's own default fetch.
+  const { skipInitialFetch = false } = options;
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,6 +56,7 @@ export function useCrudListWithPagination(path, extraParams = {}) {
   );
 
   useEffect(() => {
+    if (skipInitialFetch) return;
     fetchData({ page: 1, pageSize: 10 });
   }, []);
 

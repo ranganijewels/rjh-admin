@@ -20,7 +20,7 @@ export const useReturnRepairColumns = () => {
   return useMemo(
     () => [
       {
-        accessorKey: "id",
+        id: "select",
         header: () => <DataGridTableRowSelectAll />,
         cell: ({ row }) => <DataGridTableRowSelect row={row} />,
         enableSorting: false,

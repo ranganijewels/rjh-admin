@@ -303,7 +303,7 @@ const BusinessDetailsForm = () => {
                                 <SelectContent>
                                   <SelectGroup>
                                     {q.options?.length === 0 ? (
-                                      <div className="text-center text-gray-500">
+                                      <div className="text-center text-gray-500 dark:text-muted-foreground">
                                         No options available
                                       </div>
                                     ) : (

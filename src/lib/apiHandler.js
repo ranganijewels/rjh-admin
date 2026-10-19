@@ -169,8 +169,14 @@ export async function handleDELETE(apiPath, body = null, headers = {}) {
     });
     if (!res.ok) {
       const errorText = await res.text();
+      let message = "Failed to delete";
+      try {
+        message = JSON.parse(errorText)?.message || message;
+      } catch {
+        // upstream didn't return JSON — keep the generic message
+      }
       return NextResponse.json(
-        { error: "Failed to delete", details: errorText },
+        { error: "Failed to delete", message, details: errorText },
         { status: res.status }
       );
     }

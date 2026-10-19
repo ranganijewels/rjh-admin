@@ -2,6 +2,12 @@
 
 @import "../css/config.reui.css";
 
+/* Tailwind v4 has no config file here, so without this the `dark:` variant
+   would default to @media (prefers-color-scheme) — but the admin's dark
+   mode is a manual, persisted toggle (see SettingsProvider), driven by a
+   `.dark` class on <html>, not the OS setting alone. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @import "../css/components/image-input.css";
 /* @import "../css/components/apexcharts.css"; */
 /* @import "../css/components/leaflet.css"; */
@@ -10,7 +16,7 @@
 /* @import "../css/icon.style.css"; */
 
 :root {
-  --background: oklch(1 0 0); /* --color-white */
+  --background: #fbfbfb; /* off-white page background, distinct from white cards/popovers */
   --foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */
   --card: oklch(1 0 0); /* --color-white */
   --card-foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */
@@ -48,6 +54,36 @@
      rounded-{sm,md,lg,xl} utilities consistently instead of hardcoding
      radii elsewhere. */
   --radius: 0.5rem;
+}
+
+/* Dark mode — toggled by SettingsProvider adding/removing `.dark` on <html>
+   (see settings-provider.jsx + the blocking script in layout.js). Every
+   component already reads these as CSS variables (bg-background,
+   text-muted-foreground, border-border, ...), so overriding them here is
+   enough to re-theme the whole admin panel with no per-component changes. */
+.dark {
+  --background: oklch(0.145 0 0); /* near-black page background */
+  --foreground: oklch(0.985 0 0); /* near-white body text */
+  --card: oklch(0.205 0 0); /* --color-zinc-900, lighter than the page so cards still read as surfaces */
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: #3a5c8a; /* Rangani Navy, lightened — the base #162640 loses contrast on a near-black page */
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.269 0 0); /* --color-zinc-800 */
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0); /* --color-zinc-400, ~6:1 on the near-black background */
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216); /* brighter red — the light-mode red-600 reads muddy on dark */
+  --destructive-foreground: oklch(0.145 0 0);
+  --mono: oklch(0.985 0 0); /* inverted: mono stays the "opposite surface" in both themes */
+  --mono-foreground: oklch(0.145 0 0);
+
+  --border: oklch(1 0 0 / 10%); /* translucent white reads correctly against any dark surface */
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
 }
 
 @theme inline {

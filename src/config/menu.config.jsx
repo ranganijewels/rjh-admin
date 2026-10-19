@@ -165,41 +165,38 @@ export const MENU_SIDEBAR = [
         ],
       },
       {
-        title: "Sales & B2B",
-        icon: ShoppingCart,
-        children: [
-          { title: "B2B Accounts", path: "/dashboard/enterprise/accounts" },
-          { title: "Quotes", path: "/dashboard/enterprise/quotes" },
-        ],
-      },
-      {
-        title: "PIM · DAM · SEO",
+        title: "SEO & Reviews",
         icon: Network,
         children: [
-          { title: "PIM Attributes", path: "/dashboard/enterprise/pim-attributes" },
-          { title: "DAM Assets", path: "/dashboard/enterprise/dam-assets" },
           { title: "SEO Landing Pages", path: "/dashboard/enterprise/seo-pages" },
-        ],
-      },
-      {
-        title: "Manufacturing",
-        icon: Wrench,
-        children: [
-          { title: "Work Centers", path: "/dashboard/enterprise/work-centers" },
-          { title: "Production Orders", path: "/dashboard/enterprise/production-orders" },
-        ],
-      },
-      {
-        title: "After-Sales & Reviews",
-        icon: Shield,
-        children: [
-          { title: "Warranties", path: "/dashboard/enterprise/warranties" },
-          { title: "Service Requests", path: "/dashboard/enterprise/service-requests" },
-          { title: "Returns / RMA", path: "/dashboard/enterprise/returns" },
           { title: "Reviews Moderation", path: "/dashboard/enterprise/reviews" },
-          { title: "Event Log", path: "/dashboard/enterprise/events" },
         ],
       },
+      // B2B accounts, quotes, PIM, DAM, manufacturing (work centers / production
+      // orders), warranties, service requests, RMA and the event log are not in
+      // the D2C production scope: their pages still exist, but they are hidden
+      // from staff navigation until an owner and a tested flow exist. Set
+      // NEXT_PUBLIC_SHOW_ENTERPRISE_MODULES=1 to show them.
+      ...(process.env.NEXT_PUBLIC_SHOW_ENTERPRISE_MODULES === "1"
+        ? [
+            {
+              title: "Not in production use",
+              icon: Wrench,
+              children: [
+                { title: "B2B Accounts", path: "/dashboard/enterprise/accounts" },
+                { title: "Quotes", path: "/dashboard/enterprise/quotes" },
+                { title: "PIM Attributes", path: "/dashboard/enterprise/pim-attributes" },
+                { title: "DAM Assets", path: "/dashboard/enterprise/dam-assets" },
+                { title: "Work Centers", path: "/dashboard/enterprise/work-centers" },
+                { title: "Production Orders", path: "/dashboard/enterprise/production-orders" },
+                { title: "Warranties", path: "/dashboard/enterprise/warranties" },
+                { title: "Service Requests", path: "/dashboard/enterprise/service-requests" },
+                { title: "Returns / RMA", path: "/dashboard/enterprise/returns" },
+                { title: "Event Log", path: "/dashboard/enterprise/events" },
+              ],
+            },
+          ]
+        : []),
     ],
   },
 

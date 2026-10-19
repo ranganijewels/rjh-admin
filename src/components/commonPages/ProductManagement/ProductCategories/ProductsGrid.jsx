@@ -75,7 +75,7 @@ const ProductsGrid = ({
           >
             {/* Product Image */}
             <div
-              className="relative h-80 bg-gray-100 overflow-hidden"
+              className="relative h-80 bg-gray-100 dark:bg-muted overflow-hidden"
               onMouseEnter={() => setHoveredProduct(product.id)}
               onMouseLeave={() => setHoveredProduct(null)}
             >
@@ -87,7 +87,7 @@ const ProductsGrid = ({
 
               {/* Checkbox */}
               <div className="absolute top-3 left-3 z-20">
-                <div className="w-6 h-6 bg-white/95 rounded-lg shadow-lg flex items-center justify-center backdrop-blur-sm overflow-visible">
+                <div className="w-6 h-6 bg-white dark:bg-card/95 rounded-lg shadow-lg flex items-center justify-center backdrop-blur-sm overflow-visible">
                   <Checkbox
                     checked={selectedProducts.includes(product.id)}
                     onCheckedChange={() => handleProductSelect(product.id)}
@@ -101,7 +101,7 @@ const ProductsGrid = ({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="rounded-lg h-10 w-10 md:h-8 md:w-8 p-0 bg-white/90 hover:bg-white shadow-md"
+                  className="rounded-lg h-10 w-10 md:h-8 md:w-8 p-0 bg-white dark:bg-card/90 hover:bg-white dark:bg-card shadow-md"
                   aria-label="View product details"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -114,7 +114,7 @@ const ProductsGrid = ({
                 <Button
                   size="sm"
                   variant="secondary"
-                  className="rounded-lg h-10 w-10 md:h-8 md:w-8 p-0 bg-white/90 hover:bg-white shadow-md"
+                  className="rounded-lg h-10 w-10 md:h-8 md:w-8 p-0 bg-white dark:bg-card/90 hover:bg-white dark:bg-card shadow-md"
                   aria-label="Edit product"
                 >
                   <Edit className="w-4 h-4" />
@@ -123,7 +123,7 @@ const ProductsGrid = ({
 
               {/* Collection Badge */}
               <div className="absolute bottom-3 left-3 right-3 z-10">
-                <Badge className="bg-white/95 text-gray-900 border-0 backdrop-blur-sm shadow-lg text-xs">
+                <Badge className="bg-white dark:bg-card/95 text-gray-900 dark:text-foreground border-0 backdrop-blur-sm shadow-lg text-xs">
                   {product.collection}
                 </Badge>
               </div>
@@ -133,10 +133,10 @@ const ProductsGrid = ({
             <div className="p-4 space-y-3">
               {/* Title + Code */}
               <div>
-                <h3 className="text-gray-900 line-clamp-1 mb-1 text-[16px]">
+                <h3 className="text-gray-900 dark:text-foreground line-clamp-1 mb-1 text-[16px]">
                   {toTitleCase(product.title)}
                 </h3>
-                <code className="text-[12px] px-2 py-0.5 rounded-md border border-gray-300 bg-gray-50">
+                <code className="text-[12px] px-2 py-0.5 rounded-md border border-gray-300 dark:border-border bg-gray-50 dark:bg-muted">
                   {product.design_no}
                 </code>
               </div>
@@ -147,7 +147,7 @@ const ProductsGrid = ({
 
                 <span className="px-2 py-0.5">{product.style}</span>
 
-                <span className="px-2 py-0.5 rounded-md border border-gray-300 bg-gray-50">
+                <span className="px-2 py-0.5 rounded-md border border-gray-300 dark:border-border bg-gray-50 dark:bg-muted">
                   {product.category}
                 </span>
               </div>
@@ -160,7 +160,7 @@ const ProductsGrid = ({
                 {product?.metal_colors?.map((metal, index) => (
                   <span
                     key={index}
-                    className="text-[10px] px-2 py-0.5 rounded-md border border-gray-300 bg-gray-50"
+                    className="text-[10px] px-2 py-0.5 rounded-md border border-gray-300 dark:border-border bg-gray-50 dark:bg-muted"
                   >
                     {metal.replace("18K ", "").replace(" Gold", "")}
                   </span>
@@ -178,7 +178,7 @@ const ProductsGrid = ({
                         <span className="text-xs flex items-center gap-1">
                           MRP <Info className="w-2.5 h-2.5" />
                         </span>
-                        <span className="text-xs text-gray-900">
+                        <span className="text-xs text-gray-900 dark:text-foreground">
                           ${product.mrp}
                         </span>
                       </div>

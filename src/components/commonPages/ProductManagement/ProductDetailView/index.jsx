@@ -140,7 +140,7 @@ export default function ProductDetailView({ id }) {
             </div>
           )}
           <div className="mt-3 flex items-center gap-2 text-sm">
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${p.is_active ? "bg-green-100 text-green-700" : "bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground"}`}>
               {p.is_active ? "Active" : "Inactive"}
             </span>
           </div>

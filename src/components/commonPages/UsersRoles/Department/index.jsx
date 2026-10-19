@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { useCrudList } from "@/hooks/useCrudList";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import { userDepartments } from "./hooks/userDepartments";
 import AddDepartmentModel from "./AddDepartmentsModel";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
@@ -25,6 +26,7 @@ const Department = () => {
     fetchData,
     handleDelete,
   } = useCrudList("/api/departments");
+  const { remove } = useCrudApi("/api/departments");
   const columns = userDepartments({
     onEdit: (item) => {
       setEditData(item);
@@ -63,6 +65,20 @@ const Department = () => {
         columns={columns}
         resizableColumns
         filterFunction={filterOptions}
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected department(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => remove(r.id)));
+              fetchData();
+            },
+          },
+        ]}
         createBtn={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />

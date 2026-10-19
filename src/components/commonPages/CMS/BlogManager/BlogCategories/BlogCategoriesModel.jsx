@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   FormField,
@@ -10,104 +10,39 @@ import {
   FormMessage,
 } from "@/components/common/ui/form";
 import { Input } from "@/components/common/ui/input";
+import { Textarea } from "@/components/common/ui/textarea";
 import { toast } from "sonner";
-import { RiErrorWarningFill } from "@remixicon/react";
-import { Alert, AlertIcon, AlertTitle } from "@/components/common/ui/alert";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import BaseEditModal from "@/components/common/ui/BaseEditModal";
-import { Textarea } from "@/components/common/ui/textarea";
-import { ImageIcon } from "lucide-react";
-import { fileToBase64 } from "@/lib/utils";
 
 const defaultValues = {
-  title: "",
+  name: "",
   description: "",
-  heading: "",
-  file: [],
 };
 
-const BlogCategoriesModel = ({
-  open,
-  onClose,
-  onSuccess,
-  editData,
-  categoryId,
-  storeId,
-}) => {
+// A blog category is just a named master value (see masters/values on the
+// backend) — no image/heading/slug of its own, so this dialog is
+// deliberately simple.
+const BlogCategoriesModel = ({ open, onClose, onSuccess, editData, storeId }) => {
   const [loading, setLoading] = useState(false);
-  const { create, update } = useCrudApi(`/api/cms/blog/5/categories`);
-  const fileRefs = useRef({});
-  const form = useForm({
-    defaultValues,
-    mode: "onChange",
-  });
-
-  const { control, setValue } = form;
+  const { create, update } = useCrudApi(`/api/cms/blog/${storeId}/categories`);
+  const form = useForm({ defaultValues, mode: "onChange" });
 
   useEffect(() => {
     if (editData?.id) {
-      (async () => {
-        try {
-          form.reset({
-            title: editData.title || "",
-            description: editData.description || "",
-            heading: editData.heading || "",
-            file: editData.file ? [{ file: editData.file }] : [],
-          });
-        } catch (err) {
-          toast.custom(
-            () => (
-              <Alert variant="mono" icon="destructive" close={false}>
-                <AlertIcon>
-                  <RiErrorWarningFill />
-                </AlertIcon>
-                <AlertTitle>
-                  {err.message || "Failed to fetch section data"}
-                </AlertTitle>
-              </Alert>
-            ),
-            { position: "top-center" }
-          );
-        }
-      })();
+      form.reset({
+        name: editData.valueLabel || "",
+        description: editData.description || "",
+      });
     } else {
       form.reset(defaultValues);
     }
-  }, [editData, categoryId, form]);
-
-  const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files || []);
-
-    const mapped = await Promise.all(
-      files.map(async (file) => {
-        const base64 = await fileToBase64(file);
-        return {
-          file: base64,
-        };
-      })
-    );
-
-    setValue("file", mapped);
-  };
-
-  const handleFileClick = () => {
-    fileRefs.current?.click();
-  };
+  }, [editData, form]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
-
     try {
-      const payload = {
-        store_id: 5,
-        title: values.title,
-        description: values.description,
-        heading: values.heading || "",
-      };
-
-      if (values.file?.length > 0 && values.file[0]?.file) {
-        payload.file = values.file[0].file;
-      }
+      const payload = { name: values.name, description: values.description || undefined };
 
       if (editData) {
         await update(editData.id, payload);
@@ -138,12 +73,13 @@ const BlogCategoriesModel = ({
         <>
           <FormField
             control={form.control}
-            name="title"
+            name="name"
+            rules={{ required: "Category name is required" }}
             render={({ field }) => (
               <FormItem className="mb-4">
-                <FormLabel>Category Title</FormLabel>
+                <FormLabel>Category Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter Category" {...field} />
+                  <Input placeholder="e.g. Engagement" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -151,92 +87,18 @@ const BlogCategoriesModel = ({
           />
 
           <FormField
+            name="description"
             control={form.control}
-            name="heading"
             render={({ field }) => (
-              <FormItem className="mb-4">
-                <FormLabel>Heading</FormLabel>
+              <FormItem>
+                <FormLabel>Description (optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder="Enter Heading" {...field} />
+                  <Textarea placeholder="Shown to editors when picking a category" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-
-          {/* Description */}
-          <div className="mt-4">
-            <FormField
-              name="description"
-              control={control}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Description-example" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* Image Upload */}
-          <div className="mt-4">
-            <FormField
-              control={form.control}
-              name="file"
-              render={() => (
-                <FormItem>
-                  <FormLabel>Image / Video</FormLabel>
-                  <div className="flex gap-[50px] h-[140px] justify-between">
-                    <FormControl>
-                      <div
-                        className="flex flex-col items-center justify-center w-full max-w-[300px]  p-6 border border-dashed rounded-xl cursor-pointer"
-                        onClick={handleFileClick}
-                      >
-                        <ImageIcon className="text-xl text-primary mb-2" />
-                        <div className="text-xs font-medium">
-                          Click or Drag & Drop
-                        </div>
-                        <span className="text-xs text-secondary-foreground">
-                          JPG, PNG, MP4 (max. 800×400)
-                        </span>
-                        <input
-                          type="file"
-                          accept="image/*,video/*"
-                          multiple
-                          ref={fileRefs}
-                          onChange={handleFileChange}
-                          className="hidden"
-                        />
-                      </div>
-                    </FormControl>
-
-                    {(form.watch("file") || []).map((m, index) =>
-                      m.file.startsWith("data:video") ||
-                      m.file.endsWith(".mp4") ? (
-                        <video
-                          key={index}
-                          src={m.file}
-                          controls
-                          className="h-[140px] w-[160px] rounded "
-                        />
-                      ) : (
-                        <img
-                          key={index}
-                          src={m.file}
-                          alt={`Preview ${index + 1}`}
-                          className="h-[140px] w-[160px] rounded "
-                        />
-                      )
-                    )}
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
         </>
       }
     />

@@ -60,6 +60,34 @@ const AllOrders = () => {
     });
   }, []);
 
+  const hasMore = (pagination?.currentPage || 1) < (pagination?.totalPages || 1);
+  const handleLoadMore = () => {
+    if (loading || !hasMore) return;
+    fetchData({
+      page: (pagination?.currentPage || 1) + 1,
+      pageSize: pageInfo.pageSize,
+      search: searchQuery,
+      append: true,
+    });
+  };
+
+  // Reuses the exact single-order cancel mechanism from ViewOrders.jsx
+  // (PATCH /api/order-management/:id/status) — orders are never hard-deleted.
+  const cancelOrder = async (id) => {
+    const token =
+      typeof window !== "undefined"
+        ? localStorage.getItem("authTokenStoreAdmin")
+        : null;
+    await fetch(`/api/order-management/${id}/status`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+      body: JSON.stringify({ status: "Cancelled" }),
+    });
+  };
+
   const filterOptions = (data, query) => {
     const searchLower = query.toLowerCase();
 
@@ -140,6 +168,27 @@ const AllOrders = () => {
         totalCount={pagination?.total || 0}
         paginationLinks={pagination?.links}
         serverSidePagination
+        infiniteScroll
+        onLoadMore={handleLoadMore}
+        hasMore={hasMore}
+        loadingMore={loading && list.length > 0}
+        bulkActions={[
+          {
+            key: "cancel",
+            label: "Cancel Orders",
+            variant: "destructive",
+            confirmMessage:
+              "Cancel the selected order(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => cancelOrder(r.id)));
+              fetchData({
+                page: pageInfo.pageIndex + 1,
+                pageSize: pageInfo.pageSize,
+                search: searchQuery,
+              });
+            },
+          },
+        ]}
         searchQuery={searchQuery}
         onSearchChange={(query) => {
           setSearchQuery(query);

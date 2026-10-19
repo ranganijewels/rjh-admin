@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import {
   Section,
   Grid,
@@ -27,6 +28,7 @@ const KINDS = [
   { value: "component_type", label: "BOM Components" },
   { value: "stone_type", label: "Stone Types" },
   { value: "diamond_color", label: "Diamond Colors" },
+  { value: "product_badge", label: "Product Badges" },
 ];
 
 const METALS = ["GOLD", "SILVER", "PLATINUM"];
@@ -66,7 +68,7 @@ export function ColorSwatch({ hex, hex2, size = 22 }) {
     : { background: hex || "#ccc" };
   return (
     <span
-      className="inline-block rounded-full border border-gray-300 align-middle"
+      className="inline-block rounded-full border border-gray-300 dark:border-border align-middle"
       style={{ width: size, height: size, ...style }}
       title={hex2 ? `${hex} / ${hex2}` : hex}
     />
@@ -108,7 +110,7 @@ function IconUpload({ value, onChange }) {
     <div className="flex items-center gap-3">
       <div
         onClick={() => !uploading && inputRef.current?.click()}
-        className="w-14 h-14 rounded-md border border-dashed border-gray-300 bg-white flex items-center justify-center cursor-pointer overflow-hidden shrink-0"
+        className="w-14 h-14 rounded-md border border-dashed border-gray-300 dark:border-border bg-white dark:bg-card flex items-center justify-center cursor-pointer overflow-hidden shrink-0"
         title="Upload icon"
       >
         {uploading ? (
@@ -117,7 +119,7 @@ function IconUpload({ value, onChange }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={value} alt="icon" className="w-full h-full object-contain" />
         ) : (
-          <span className="text-xl text-gray-400">+</span>
+          <span className="text-xl text-gray-400 dark:text-muted-foreground">+</span>
         )}
       </div>
       <div className="flex-1 min-w-0">
@@ -160,7 +162,7 @@ function MetalChecks({ value, onChange }) {
           className={`px-2.5 py-1 rounded-full text-xs border ${
             value.includes(m)
               ? "bg-[#162640] text-white border-[#162640]"
-              : "bg-white text-gray-600 border-gray-300"
+              : "bg-white dark:bg-card text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border"
           }`}
         >
           {m.charAt(0) + m.slice(1).toLowerCase()}
@@ -175,6 +177,10 @@ export default function CatalogMasters() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [panelOpen, setPanelOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -210,7 +216,44 @@ export default function CatalogMasters() {
 
   useEffect(() => {
     loadList(kind);
+    setSelectedIds(new Set());
   }, [kind, loadList]);
+
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) =>
+      prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))
+    );
+  };
+  const toggleSelectRow = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkDeleting(true);
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) =>
+          fetch(`/api/catalog/masters/${id}`, {
+            method: "DELETE",
+            headers: authHeaders(),
+          })
+        )
+      );
+      toast.success(`${selectedIds.size} value(s) deleted.`);
+      setSelectedIds(new Set());
+      loadList(kind);
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete selected values.");
+    } finally {
+      setBulkDeleting(false);
+      setBulkConfirmOpen(false);
+    }
+  };
 
   const openAdd = () => {
     setEditingId(null);
@@ -288,6 +331,10 @@ export default function CatalogMasters() {
       if (form.iconUrl?.trim()) metadata.iconUrl = form.iconUrl.trim();
       else delete metadata.iconUrl;
     }
+    if (kind === "product_badge") {
+      if (form.hex) metadata.hex = form.hex;
+      else delete metadata.hex;
+    }
 
     const payload = {
       kind,
@@ -358,6 +405,14 @@ export default function CatalogMasters() {
         </div>
       );
     }
+    if (kind === "product_badge") {
+      return (
+        <div className="flex items-center gap-2">
+          <ColorSwatch hex={md.hex} />
+          <span className="text-xs text-muted-foreground">{md.hex || "no color"}</span>
+        </div>
+      );
+    }
     if (kind === "metal_purity") {
       return (
         <span className="text-xs text-muted-foreground">
@@ -376,7 +431,7 @@ export default function CatalogMasters() {
         <img
           src={md.iconUrl}
           alt={row.name}
-          className="h-8 w-8 object-contain rounded border border-gray-200 bg-white"
+          className="h-8 w-8 object-contain rounded border border-gray-200 dark:border-border bg-white dark:bg-card"
         />
       ) : (
         <span className="text-xs text-muted-foreground">no icon</span>
@@ -426,7 +481,7 @@ export default function CatalogMasters() {
       </div>
 
       {kind === "metal_purity" && (
-        <div className="mb-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-xs text-muted-foreground">
+        <div className="mb-4 rounded-lg border border-dashed border-gray-300 dark:border-border bg-gray-50 dark:bg-muted px-4 py-3 text-xs text-muted-foreground">
           <b className="text-foreground">How KT pricing works:</b> you enter only
           the <b>24KT gold rate</b> in Pricing → Metal Rates. Every other karat is
           priced automatically as <b>24K price × factor ÷ 99.9</b> — e.g. 18KT
@@ -452,7 +507,7 @@ export default function CatalogMasters() {
         {panelOpen && (
           <form
             onSubmit={handleSave}
-            className="mb-5 rounded-lg border border-gray-200 bg-gray-50/60 p-4"
+            className="mb-5 rounded-lg border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted/60 p-4"
           >
             <div className="mb-3 flex items-center justify-between">
               <h4 className="text-sm font-semibold" style={{ color: NAVY }}>
@@ -500,7 +555,7 @@ export default function CatalogMasters() {
                         type="color"
                         value={form.hex || "#cccccc"}
                         onChange={(e) => setField("hex")(e.target.value)}
-                        className="h-9 w-12 rounded border border-gray-300 bg-white p-0.5 cursor-pointer"
+                        className="h-9 w-12 rounded border border-gray-300 dark:border-border bg-white dark:bg-card p-0.5 cursor-pointer"
                       />
                       <Input
                         value={form.hex}
@@ -530,7 +585,7 @@ export default function CatalogMasters() {
                           type="color"
                           value={form.hex2 || "#cccccc"}
                           onChange={(e) => setField("hex2")(e.target.value)}
-                          className="h-9 w-12 rounded border border-gray-300 bg-white p-0.5 cursor-pointer"
+                          className="h-9 w-12 rounded border border-gray-300 dark:border-border bg-white dark:bg-card p-0.5 cursor-pointer"
                         />
                         <Input
                           value={form.hex2}
@@ -552,6 +607,21 @@ export default function CatalogMasters() {
                     />
                   </Field>
                 </>
+              )}
+
+              {kind === "product_badge" && (
+                <Field label="Badge Color" hint="Shown as the badge background on product cards and the PDP">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={form.hex || "#162640"}
+                      onChange={(e) => setField("hex")(e.target.value)}
+                      className="h-9 w-12 rounded border border-gray-300 dark:border-border bg-white dark:bg-card p-0.5 cursor-pointer"
+                    />
+                    <Input value={form.hex} onChange={setField("hex")} placeholder="#162640" />
+                    <ColorSwatch hex={form.hex} size={28} />
+                  </div>
+                </Field>
               )}
 
               {kind === "metal_purity" && (
@@ -635,7 +705,7 @@ export default function CatalogMasters() {
               <button
                 type="button"
                 onClick={closePanel}
-                className="rounded-md border border-gray-300 bg-white px-4 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="rounded-md border border-gray-300 dark:border-border bg-white dark:bg-card px-4 py-1.5 text-sm font-medium text-gray-700 dark:text-foreground hover:bg-gray-100 dark:bg-muted"
               >
                 Cancel
               </button>
@@ -643,11 +713,34 @@ export default function CatalogMasters() {
           </form>
         )}
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="mb-3 flex items-center gap-3 rounded-md border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted px-4 py-2.5">
+            <span className="text-sm font-medium">{selectedIds.size} selected</span>
+            <button
+              type="button"
+              onClick={() => setBulkConfirmOpen(true)}
+              className="ms-auto rounded-md border border-red-200 bg-white dark:bg-card px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+
         {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-[#162640] text-white text-left">
+                <th className="px-4 py-2.5 font-medium w-10">
+                  <input
+                    type="checkbox"
+                    checked={rows.length > 0 && selectedIds.size === rows.length}
+                    onChange={toggleSelectAll}
+                    className="h-4 w-4 cursor-pointer"
+                    aria-label="Select all"
+                  />
+                </th>
                 <th className="px-4 py-2.5 font-medium">Code</th>
                 <th className="px-4 py-2.5 font-medium">Name</th>
                 <th className="px-4 py-2.5 font-medium">Details</th>
@@ -660,7 +753,7 @@ export default function CatalogMasters() {
               {loading ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     Loading…
@@ -669,7 +762,7 @@ export default function CatalogMasters() {
               ) : error ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-red-600"
                   >
                     {error}
@@ -678,7 +771,7 @@ export default function CatalogMasters() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-8 text-center text-muted-foreground"
                   >
                     No values yet. Click “Add Value” to create one.
@@ -688,8 +781,17 @@ export default function CatalogMasters() {
                 rows.map((row, i) => (
                   <tr
                     key={row.id ?? `${row.code}-${i}`}
-                    className={i % 2 ? "bg-gray-50" : "bg-white"}
+                    className={i % 2 ? "bg-gray-50 dark:bg-muted" : "bg-white dark:bg-card"}
                   >
+                    <td className="px-4 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(row.id)}
+                        onChange={() => toggleSelectRow(row.id)}
+                        className="h-4 w-4 cursor-pointer"
+                        aria-label="Select row"
+                      />
+                    </td>
                     <td className="px-4 py-2.5 font-mono text-xs">
                       {row.code}
                     </td>
@@ -700,7 +802,7 @@ export default function CatalogMasters() {
                       <span
                         className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                           row.status === "inactive"
-                            ? "bg-gray-200 text-gray-600"
+                            ? "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground"
                             : "bg-green-100 text-green-700"
                         }`}
                       >
@@ -734,6 +836,15 @@ export default function CatalogMasters() {
           </table>
         </div>
       </Section>
+
+      <ConfirmDialog
+        open={bulkConfirmOpen}
+        onClose={() => setBulkConfirmOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Delete selected values"
+        message={`Delete ${selectedIds.size} selected value(s)? This cannot be undone.`}
+        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
+      />
     </div>
   );
 }

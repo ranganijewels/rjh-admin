@@ -3,7 +3,7 @@
 /** Colors **/
 :root {
   /** Base Colors **/
-  --background: oklch(1 0 0); /* --color-white */
+  --background: #fbfbfb; /* off-white page background — overridden again in globals.css, kept in sync here */
   --foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */
   --card: oklch(1 0 0); /* --color-white */
   --card-foreground: oklch(27.4% 0.006 286.033); /* --color-zinc-800 */

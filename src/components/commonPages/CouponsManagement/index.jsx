@@ -9,6 +9,7 @@ import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 // import { COUPONS_DATA } from "./constant";
 import CouponAddDialog from "./CouponAddDialog";
 import { useCrudList } from "@/hooks/useCrudList";
+import { useCrudApi } from "@/hooks/useCrudApi";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 
 const CouponsManagement = () => {
@@ -26,6 +27,7 @@ const CouponsManagement = () => {
     fetchData,
     handleDelete,
   } = useCrudList("/api/coupon-management");
+  const { remove } = useCrudApi("/api/coupon-management");
 
   const columns = useCouponsList({
     onEdit: (item) => {
@@ -57,6 +59,20 @@ const CouponsManagement = () => {
         columns={columns}
         filterFunction={filterOptions}
         resizableColumns
+        infiniteScroll
+        bulkActions={[
+          {
+            key: "delete",
+            label: "Delete",
+            variant: "destructive",
+            confirmMessage:
+              "Delete the selected coupon(s)? This cannot be undone.",
+            onRun: async (rows) => {
+              await Promise.all(rows.map((r) => remove(r.id)));
+              fetchData();
+            },
+          },
+        ]}
         createBtn={
           <Button onClick={() => setDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
