@@ -28,6 +28,10 @@
   --primary: #111827; /* graphite primary CTA (reference "Create order") */
   --primary-foreground: #ffffff;
   --brand-navy: #162640; /* Rangani Navy — logo / brand accents only */
+  /* The sign-in screen's brand panel is the house navy in BOTH themes: it is
+     a brand surface, not a themed one, so it is deliberately not lightened
+     in the dark palette below. */
+  --brand-navy-panel: #162640;
   --secondary: #f1f5f9;
   --secondary-foreground: #334155;
   --muted: #f1f5f9;
@@ -109,6 +113,7 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-panel: var(--brand-navy-panel);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);

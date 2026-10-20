@@ -62,12 +62,12 @@ const LoginForm = () => {
         onSubmit={form.handleSubmit(onSubmit)}
         className="block w-full space-y-5"
       >
-        <div className="space-y-1.5 pb-3 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        </div>
-
         {error && (
-          <p role="alert" aria-live="polite" className="text-destructive text-sm">
+          <p
+            role="alert"
+            aria-live="polite"
+            className="rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-sm text-destructive"
+          >
             {error}
           </p>
         )}
@@ -77,11 +77,14 @@ const LoginForm = () => {
           name="email"
           render={({ field, fieldState }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel className="text-muted-foreground">Email</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="Your email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@ranganijewelry.com"
                   aria-invalid={!!fieldState.error}
+                  className="h-11"
                   {...field}
                 />
               </FormControl>
@@ -95,22 +98,23 @@ const LoginForm = () => {
           name="password"
           render={({ field, fieldState }) => (
             <FormItem>
-              <div className="flex justify-between items-center gap-2.5">
-                <FormLabel>Password</FormLabel>
+              <div className="flex items-center justify-between gap-2.5">
+                <FormLabel className="text-muted-foreground">Password</FormLabel>
                 <button
                   type="button"
                   onClick={() => router.push("/reset-password")}
-                  className="text-sm font-semibold text-foreground hover:text-primary cursor-pointer"
+                  className="cursor-pointer text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                 >
-                  Forgot Password?
+                  Forgot password?
                 </button>
               </div>
               <div className="relative">
                 <Input
-                  placeholder="Your password"
+                  placeholder="••••••••"
                   autoComplete="current-password"
                   type={passwordVisible ? "text" : "password"}
                   aria-invalid={!!fieldState.error}
+                  className="h-11 pr-10"
                   {...field}
                 />
                 <Button
@@ -144,7 +148,7 @@ const LoginForm = () => {
               />
               <label
                 htmlFor="remember-me"
-                className="text-sm leading-none text-muted-foreground"
+                className="cursor-pointer text-sm leading-none text-muted-foreground"
               >
                 Remember me
               </label>
@@ -152,9 +156,9 @@ const LoginForm = () => {
           )}
         />
 
-        <div className="flex flex-col gap-2.5">
-          <Button type="submit">Sign In</Button>
-        </div>
+        <Button type="submit" size="lg" className="w-full">
+          Sign in
+        </Button>
       </form>
     </Form>
   );
