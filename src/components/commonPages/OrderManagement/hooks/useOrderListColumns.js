@@ -8,18 +8,34 @@ import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { StatusBadge } from "@/components/common/ui/badge";
 import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
-import { EyeIcon } from "lucide-react";
+import { EyeIcon, FlaskConical } from "lucide-react";
+import { getAuthToken } from "@/lib/auth-token";
 
 // Test orders stay in the list for the audit trail but are excluded from
-// revenue/dashboard reporting. Click the chip to flag or unflag.
-const TestFlag = ({ order }) => {
+// revenue/dashboard reporting.
+//
+// The marker only appears on a row that IS a test order. The affordance for
+// flagging one used to sit on every row as a grey "· test?" — which read as
+// stray text rather than a control, and it pushed the order number into an
+// ellipsis. It is now a button in the row actions, next to "view".
+const TestMarker = ({ isTest }) => {
+  if (!isTest) return null;
+  return (
+    <span className="shrink-0 rounded bg-warning/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
+      Test
+    </span>
+  );
+};
+
+const TestToggle = ({ order }) => {
   const [isTest, setIsTest] = useState(!!order.is_test);
   const [busy, setBusy] = useState(false);
+
   const toggle = async (e) => {
     e.stopPropagation();
     setBusy(true);
     try {
-      const token = localStorage.getItem("authTokenStoreAdmin");
+      const token = getAuthToken();
       const res = await fetch(`/api/order-management/${order.id}/test`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
@@ -30,18 +46,27 @@ const TestFlag = ({ order }) => {
       setBusy(false);
     }
   };
+
   return (
-    <button
-      type="button"
-      onClick={toggle}
+    <Button
+      mode="icon"
+      variant="outline"
       disabled={busy}
-      title={isTest ? "Test order — excluded from reports. Click to mark as real." : "Mark as test order (exclude from reports)"}
-      className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-        isTest ? "bg-warning/10 text-warning" : "text-muted-foreground/50 hover:text-warning"
-      }`}
+      aria-label={
+        isTest
+          ? `Mark order ${order.orderNumber || order.id || ""} as a real order`
+          : `Mark order ${order.orderNumber || order.id || ""} as a test order`
+      }
+      title={
+        isTest
+          ? "Test order — excluded from reports. Click to mark as real."
+          : "Mark as test order (excluded from reports)"
+      }
+      className={isTest ? "text-warning" : undefined}
+      onClick={toggle}
     >
-      {isTest ? "Test" : "· test?"}
-    </button>
+      <FlaskConical />
+    </Button>
   );
 };
 
@@ -74,19 +99,19 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
                 <span className="truncate text-sm font-medium" title={orderNumber}>
                   {orderNumber}
                 </span>
-                <TestFlag order={o} />
+                <TestMarker isTest={!!o.is_test} />
               </div>
             );
           }
           return (
             <div className="flex items-center gap-2">
               <ShortId value={o.id} length={10} label="Order ID" />
-              <TestFlag order={o} />
+              <TestMarker isTest={!!o.is_test} />
             </div>
           );
         },
         enableSorting: true,
-        size: 200,
+        size: 190,
         meta: {
           identity: true,
           headerTitle: "Order #",
@@ -103,7 +128,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
         cell: ({ row }) => (
           <TruncatedText value={row.original.customer_name} />
         ),
-        size: 140,
+        size: 130,
         meta: { headerTitle: "Customer Name", truncate: true },
       },
       {
@@ -120,7 +145,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
           ) : (
             <span className="text-muted-foreground">—</span>
           ),
-        size: 125,
+        size: 120,
         meta: { headerTitle: "Order Status" },
       },
       {
@@ -162,7 +187,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
         ),
         accessorFn: (row) => row.total_quantity,
         cell: ({ row }) => <span>{row.original.total_quantity}</span>,
-        size: 80,
+        size: 70,
         meta: { headerTitle: "Quantity" },
       },
       {
@@ -183,7 +208,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
 
           return formattedDate;
         },
-        size: 100,
+        size: 95,
         meta: { headerTitle: "Order Date" },
       },
       {
@@ -195,7 +220,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
         cell: ({ row }) => (
           <span className="capitalize">{row.original.payment_method || "—"}</span>
         ),
-        size: 90,
+        size: 130,
         meta: { headerTitle: "Order Channel" },
       },
       {
@@ -217,11 +242,12 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
             >
               <EyeIcon />
             </Button>
+            <TestToggle order={row.original} />
           </div>
         ),
         enableSorting: false,
         enableHiding: false,
-        size: 64,
+        size: 104,
         meta: { headerTitle: "Action" },
       },
     ],

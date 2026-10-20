@@ -1,5 +1,6 @@
+import { getAuthToken } from "@/lib/auth-token";
 export const apiGet = async (url) => {
-  const token = localStorage.getItem("authTokenStoreAdmin");
+  const token = getAuthToken();
   const storeId = localStorage.getItem("storeId");
 
   const res = await fetch(url, {
@@ -17,7 +18,7 @@ export const apiGet = async (url) => {
 };
 
 export const apiPost = async (url, body) => {
-  const token = localStorage.getItem("authTokenStoreAdmin");
+  const token = getAuthToken();
   const storeId = localStorage.getItem("storeId");
 
   const response = await fetch(url, {

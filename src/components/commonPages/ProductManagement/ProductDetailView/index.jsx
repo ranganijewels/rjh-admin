@@ -12,12 +12,11 @@ import { toTitleCase, formatDateLong } from "@/lib/utils";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { MediaPreview, detectType } from "../ProductForm/MediaManager";
 import { toast } from "sonner";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
   const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("authTokenStoreAdmin")
-      : null;
+    getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

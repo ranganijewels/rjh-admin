@@ -16,15 +16,14 @@ import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ImageUpload from "./ImageUpload";
 import MediaManager, { detectType } from "./MediaManager";
 import { SafeImage } from "@/components/common/ui/safe-image";
+import { getAuthToken } from "@/lib/auth-token";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
 
 const authHeaders = () => {
   const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("authTokenStoreAdmin")
-      : null;
+    getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

@@ -30,6 +30,7 @@ import {
 import { Download, Truck, TriangleAlert } from "lucide-react";
 import { formatDateShort } from "@/lib/utils";
 import OrderLineItems from "./OrderLineItems";
+import { getAuthToken } from "@/lib/auth-token";
 
 // Fulfillment pipeline — the operational lifecycle of a luxury order.
 const FULFILLMENT_STAGES = [
@@ -67,9 +68,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
     setSavedMsg("");
     try {
       const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("authTokenStoreAdmin")
-          : null;
+        getAuthToken();
       const res = await fetch(`/api/order-management/${orderRowId}/status`, {
         method: "PATCH",
         headers: {
@@ -117,9 +116,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
     setSavedMsg("");
     try {
       const token =
-        typeof window !== "undefined"
-          ? localStorage.getItem("authTokenStoreAdmin")
-          : null;
+        getAuthToken();
       const res = await fetch(`/api/order-management/${orderRowId}/status`, {
         method: "PATCH",
         headers: {

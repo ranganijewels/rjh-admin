@@ -4,10 +4,10 @@ import { UploadCloud, Trash2 } from "lucide-react";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
 import { SafeImage } from "@/components/common/ui/safe-image";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 

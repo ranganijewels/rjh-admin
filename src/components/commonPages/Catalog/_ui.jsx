@@ -3,10 +3,10 @@
 import { Input } from "@/components/common/ui/input";
 import { Textarea } from "@/components/common/ui/textarea";
 import { Button } from "@/components/common/ui/button";
+import { getAuthToken } from "@/lib/auth-token";
 
 export const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

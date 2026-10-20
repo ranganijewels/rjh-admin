@@ -27,10 +27,10 @@ import { Calculator, Grid3x3 } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/common/ui/select";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 

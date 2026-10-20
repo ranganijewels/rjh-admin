@@ -48,6 +48,7 @@ import {
 import CreateOrderDialog from "./CreateOrderDialog";
 import OrderCard from "./OrderCard";
 import ViewOrders from "./ViewOrders";
+import { getAuthToken } from "@/lib/auth-token";
 
 const fmtMoney = (n) =>
   "$" + Number(n || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
@@ -293,9 +294,7 @@ const AllOrders = () => {
   // (PATCH /api/order-management/:id/status) — orders are never hard-deleted.
   const cancelOrder = useCallback(async (id) => {
     const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("authTokenStoreAdmin")
-        : null;
+      getAuthToken();
     await fetch(`/api/order-management/${id}/status`, {
       method: "PATCH",
       headers: {

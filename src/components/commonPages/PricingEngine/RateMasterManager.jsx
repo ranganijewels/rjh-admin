@@ -32,10 +32,10 @@ import {
 } from "@/components/common/ui/select";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { usePermissions } from "@/provider/permission-provider";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 

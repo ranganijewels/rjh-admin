@@ -28,8 +28,12 @@ export const saveAuthState = (state) => {
 
     if (state?.token) {
       document.cookie = `token=${state.token}; path=/; secure; SameSite=Strict;`;
+      // Keep the key the API layer used to read in step with the persisted
+      // slice, so a restored session and a fresh login behave the same.
+      window.localStorage.setItem("authTokenStoreAdmin", state.token);
     } else {
       document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      window.localStorage.removeItem("authTokenStoreAdmin");
     }
   } catch (e) {
     console.error("Error saving auth state:", e);

@@ -26,6 +26,7 @@ import { Switch } from "@/components/common/ui/switch";
 import RichTextEditor from "@/components/common/RichTextEditor";
 import { ImageIcon, Loader2 } from "lucide-react";
 import Image from "next/image";
+import { getAuthToken } from "@/lib/auth-token";
 
 const defaultValues = {
   title: "",
@@ -82,7 +83,7 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData, storeId, postId }) 
     if (!file) return;
     setUploading(true);
     try {
-      const token = localStorage.getItem("authTokenStoreAdmin");
+      const token = getAuthToken();
       const form = new FormData();
       form.append("file", file);
       const res = await fetch("/api/media/upload?bucket=cms-media&prefix=blog", {

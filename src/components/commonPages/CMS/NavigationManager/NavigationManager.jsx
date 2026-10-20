@@ -21,10 +21,10 @@ import { useCrudList } from "@/hooks/useCrudList";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import NavItemModel from "./NavItemModel";
 import { cn } from "@/lib/utils";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 

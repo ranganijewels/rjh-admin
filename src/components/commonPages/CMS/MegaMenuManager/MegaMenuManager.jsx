@@ -13,11 +13,12 @@ import { PageHeader } from "@/components/common/ui/page";
 import { cn } from "@/lib/utils";
 import StandardMenuEditor from "./StandardMenuEditor";
 import CustomizeMenuEditor from "./CustomizeMenuEditor";
+import { getAuthToken } from "@/lib/auth-token";
 
 const PAGE_SLUG = "mega-menu";
 
 const authHeaders = () => {
-  const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 

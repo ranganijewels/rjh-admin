@@ -16,12 +16,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/common/ui/select";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
   const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("authTokenStoreAdmin")
-      : null;
+    getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

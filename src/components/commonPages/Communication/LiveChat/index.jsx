@@ -5,10 +5,10 @@ import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { MessageSquare, Send, CheckCheck, RefreshCw } from "lucide-react";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

@@ -16,10 +16,10 @@ import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { cn, toTitleCase } from "@/lib/utils";
 import { SafeImage } from "@/components/common/ui/safe-image";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 

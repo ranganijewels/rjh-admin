@@ -18,15 +18,14 @@ import { Button } from "@/components/common/ui/button";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import ImageUpload from "../ProductForm/ImageUpload";
 import { Plus, Pencil, Trash2, Boxes, ExternalLink, X, Search } from "lucide-react";
+import { getAuthToken } from "@/lib/auth-token";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
 
 const authHeaders = () => {
   const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("authTokenStoreAdmin")
-      : null;
+    getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

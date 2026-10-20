@@ -11,10 +11,10 @@ import {
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
 import { useCrudApi } from "@/hooks/useCrudApi";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 

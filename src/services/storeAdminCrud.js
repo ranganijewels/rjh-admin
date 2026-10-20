@@ -9,6 +9,7 @@
 // and SessionExpiredDialog decides what happens; the admin keeps their place
 // and their unsaved work until they choose to sign in again.
 import { SESSION_EXPIRED_EVENT } from "@/lib/session-events";
+import { getAuthToken } from "@/lib/auth-token";
 
 const handleSessionExpiry = (res) => {
   if (res.status !== 401 || typeof window === "undefined") return false;
@@ -18,10 +19,7 @@ const handleSessionExpiry = (res) => {
 
 export const storeAdminCrud = (baseUrl) => {
   const getAuthHeaders = () => {
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("authTokenStoreAdmin")
-        : null;
+    const token = getAuthToken();
     const storeId =
       typeof window !== "undefined" ? localStorage.getItem("store_id") : null;
 

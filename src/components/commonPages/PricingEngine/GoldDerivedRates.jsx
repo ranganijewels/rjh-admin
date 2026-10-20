@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getAuthToken } from "@/lib/auth-token";
 
 const authHeaders = () => {
   const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("authTokenStoreAdmin")
-      : null;
+    getAuthToken();
   return {
     "Content-Type": "application/json",
     ...(token && { Authorization: `Bearer ${token}` }),

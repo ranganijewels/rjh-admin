@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { toTitleCase } from "@/lib/utils";
 import { PRODUCT_CSV_HEADERS } from "@/lib/csvSubTables";
 import { usePermissions } from "@/provider/permission-provider";
+import { getAuthToken } from "@/lib/auth-token";
 
 /* ── Example CSV template ──────────────────────────────────────── */
 // Column order is PRODUCT_CSV_HEADERS itself (see src/lib/csvSubTables.js) —
@@ -144,7 +145,7 @@ const ImportModal = ({ open, onClose, onImported }) => {
   const handleImport = async () => {
     if (!file) return;
     setStatus("loading");
-    const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+    const token = getAuthToken();
     const form = new FormData();
     form.append("file", file);
     try {
@@ -275,7 +276,7 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
   const handleUpload = async () => {
     if (!files.length) return;
     setStatus("loading");
-    const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+    const token = getAuthToken();
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
     form.append("altTextTemplate", altTextTemplate);
@@ -428,7 +429,7 @@ const BulkAiGenerateModal = ({ open, onClose, rows, onDone }) => {
   const handleClose = () => { reset(); onClose(); };
 
   const authHeaders = () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+    const token = getAuthToken();
     return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
   };
 
@@ -589,8 +590,7 @@ const METAL_COLORS = ["White", "Yellow", "Rose"];
 const SHAPES = ["Round", "Oval", "Princess", "Emerald", "Cushion", "Pear", "Marquise", "Radiant", "Asscher", "Heart"];
 
 const authHeaders = () => {
-  const token =
-    typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+  const token = getAuthToken();
   return { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) };
 };
 
@@ -898,7 +898,7 @@ const ProductMasterList = () => {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const token = typeof window !== "undefined" ? localStorage.getItem("authTokenStoreAdmin") : null;
+      const token = getAuthToken();
       const res = await fetch("/api/product-management/export-csv", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
