@@ -4,66 +4,43 @@ import React from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
 
 import { Card } from "@/components/common/ui/cards/card";
+import { MiniChart } from "@/components/common/ui/mini-chart";
 import { cn } from "@/lib/utils";
 
 /**
- * Tiny inline SVG sparkline for a KPI tile.
+ * The KPI tile used by the dashboard and the orders page, so both read as
+ * one system: label + icon chip on top, the big value, an optional chart or
+ * progress bar, and a trend/sub line.
  *
- * Drawn by hand rather than with the chart library: a sparkline is a
- * decoration next to the number, not a chart, and it has to stay crisp at
- * 80×28. `aria-hidden` — the value itself carries the meaning.
+ * `chart` is a series for the mini chart (line, area or bar). `progress` is
+ * a { value, max } pair rendered as a bar — useful for the tiles that
+ * describe a share rather than a total (live products of the catalogue,
+ * for instance). A tile never shows both.
  */
-function Sparkline({ data = [], className }) {
-  const points = data.map(Number).filter((n) => Number.isFinite(n));
-  if (points.length < 2) return null;
-
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const range = max - min || 1;
-  const width = 100;
-  const height = 28;
-  const step = width / (points.length - 1);
-
-  const coords = points.map((value, index) => [
-    index * step,
-    height - ((value - min) / range) * (height - 4) - 2,
-  ]);
-  const line = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
-
-  return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="none"
-      className={cn("h-7 w-20 shrink-0", className)}
-      aria-hidden="true"
-      focusable="false"
-    >
-      <polygon points={`0,${height} ${line} ${width},${height}`} className="fill-primary/10" />
-      <polyline
-        points={line}
-        fill="none"
-        className="stroke-primary"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
-  );
-}
-
-// Shared KPI tile used by the dashboard and the orders page so both read as
-// one system: label + icon chip on top, big value, optional trend/sub line.
 export function KpiCard({
   label,
   value,
   icon: Icon,
   sub,
   trend,
-  sparkline,
+  chart,
+  chartVariant = "area",
+  chartTone = "primary",
+  progress,
+  progressLabel,
+  footer,
   className,
 }) {
-  const hasSparkline = Array.isArray(sparkline) && sparkline.length > 1;
+  const hasChart = Array.isArray(chart) && chart.length > 1;
+  const hasProgress =
+    progress && Number.isFinite(Number(progress.value)) && Number(progress.max) > 0;
+
+  const progressPct = hasProgress
+    ? Math.min(
+        100,
+        Math.max(0, (Number(progress.value) / Number(progress.max)) * 100)
+      )
+    : 0;
 
   return (
     <Card className={cn("p-5", className)}>
@@ -80,11 +57,36 @@ export function KpiCard({
         {value}
       </div>
 
-      {/* The sparkline sits under the number rather than beside it — the
-          tiles are narrow, and a long value would squeeze it into nothing. */}
-      {hasSparkline && <Sparkline data={sparkline} className="mt-3 h-6 w-full" />}
+      {/* The chart sits under the number rather than beside it — the tiles
+          are narrow, and a long value would squeeze it into nothing. */}
+      {hasChart && (
+        <MiniChart
+          data={chart}
+          variant={chartVariant}
+          tone={chartTone}
+          className="mt-3"
+        />
+      )}
 
-      {(sub || trend != null) && (
+      {hasProgress && (
+        <div className="mt-3">
+          <div
+            className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuenow={Math.round(progressPct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={progressLabel || label}
+          >
+            <span
+              className="block h-full rounded-full bg-primary"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {(sub || trend != null || footer) && (
         <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs">
           {trend != null && (
             <span
@@ -98,15 +100,15 @@ export function KpiCard({
               ) : (
                 <TrendingDown className="size-3.5" aria-hidden="true" />
               )}
-              {Math.abs(trend)}%
+              {Math.abs(Math.round(trend))}%
             </span>
           )}
           {sub && <span className="text-muted-foreground">{sub}</span>}
+          {footer}
         </div>
       )}
     </Card>
   );
 }
 
-export { Sparkline };
 export default KpiCard;

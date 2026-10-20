@@ -22,6 +22,11 @@ import { Card, CardContent, CardHeader } from "@/components/common/ui/cards/card
 import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
 import { KpiCard } from "@/components/common/ui/kpi-card";
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from "@/components/common/ui/toggle-group";
+import { TIME_RANGES } from "@/lib/timeseries";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { SafeImage } from "@/components/common/ui/safe-image";
@@ -70,6 +75,7 @@ function useChartTokens() {
   const [tokens, setTokens] = useState({
     series: "#111827",
     info: "#2563eb",
+    success: "#16a34a",
     grid: "#e5e7eb",
     label: "#64748b",
     surface: "#ffffff",
@@ -85,6 +91,7 @@ function useChartTokens() {
       setTokens({
         series: value("--primary", "#111827"),
         info: value("--info", "#2563eb"),
+        success: value("--success", "#16a34a"),
         grid: value("--border", "#e5e7eb"),
         label: value("--muted-foreground", "#64748b"),
         surface: value("--card", "#ffffff"),
@@ -138,6 +145,12 @@ const Overview = () => {
   const { user } = useSelector((state) => state.auth);
   const tokens = useChartTokens();
 
+  // The analytics endpoint only exposes a twelve month trend, so the day,
+  // week and year views come from the order list, bucketed in the admin.
+  const [range, setRange] = useState("month");
+  const [series, setSeries] = useState({ series: [], totals: null, truncated: false });
+  const [seriesLoading, setSeriesLoading] = useState(true);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -157,6 +170,38 @@ const Overview = () => {
     };
   }, []);
 
+  // The time series is fetched per period. A failure is not fatal — the
+  // dashboard falls back to the twelve month trend the analytics endpoint
+  // always provides.
+  useEffect(() => {
+    let alive = true;
+    setSeriesLoading(true);
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/analytics/timeseries?range=${range}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+        const json = await res.json();
+        if (alive) {
+          setSeries({
+            series: json?.series || [],
+            totals: json?.totals || null,
+            truncated: !!json?.truncated,
+          });
+        }
+      } catch {
+        if (alive) setSeries({ series: [], totals: null, truncated: false });
+      } finally {
+        if (alive) setSeriesLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [range]);
+
   const revenue = d?.revenue || {};
   const orders = d?.orders || {};
   const trend = d?.salesTrend || [];
@@ -171,6 +216,20 @@ const Overview = () => {
     [topProducts]
   );
 
+  // ─── Revenue by product ───────────────────────────────────────────────
+  const productRevenue = useMemo(
+    () =>
+      topProducts
+        .map((product) => ({
+          name: product.name || product.code || "Product",
+          revenue: Number(product.revenue) || 0,
+        }))
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 8),
+    [topProducts]
+  );
+
+
   const totalProducts = Number(products.total) || 0;
   const liveProducts = Number(products.live) || 0;
   const notLiveProducts = Math.max(totalProducts - liveProducts, 0);
@@ -183,9 +242,43 @@ const Overview = () => {
     [statusBreakdown]
   );
 
-  const newCustomerPct = customers.total
-    ? Math.round(((customers.newThisMonth || 0) / customers.total) * 100)
-    : 0;
+  // ─── The period series ───────────────────────────────────────────────
+  // The order-derived series is preferred; when it is not available the
+  // twelve month trend from the analytics endpoint stands in, so the
+  // dashboard never shows an empty chart.
+  const seriesRows = series.series.length
+    ? series.series
+    : trend.map((t) => ({
+        key: t.key,
+        label: t.month,
+        revenue: Number(t.revenue) || 0,
+        orders: Number(t.orders) || 0,
+        aov: Number(t.revenue) > 0 && Number(t.orders) > 0
+          ? Number(t.revenue) / Number(t.orders)
+          : 0,
+        customers: 0,
+        newCustomers: 0,
+      }));
+
+  const usingFallbackSeries = !series.series.length && trend.length > 0;
+
+  const hasSeriesData = seriesRows.some(
+    (row) => row.revenue > 0 || row.orders > 0
+  );
+
+  const rangeLabel =
+    TIME_RANGES.find((item) => item.key === range)?.label || "Month";
+
+  const periodTotals = useMemo(
+    () =>
+      series.totals || {
+        revenue: seriesRows.reduce((sum, row) => sum + row.revenue, 0),
+        orders: seriesRows.reduce((sum, row) => sum + row.orders, 0),
+        aov: 0,
+        customers: 0,
+      },
+    [series.totals, seriesRows]
+  );
 
   const kpis = useMemo(
     () => [
@@ -200,36 +293,59 @@ const Overview = () => {
             ? "vs last month"
             : "no prior month to compare",
         trend: revenue.lastMonth > 0 ? revenue.growthPct : null,
-        sparkline: trend.map((t) => Number(t.revenue) || 0),
+        chart: seriesRows.map((row) => row.revenue),
+        chartVariant: "area",
       },
       {
         label: "Total orders",
         value: fmtNum(orders.total),
         icon: ShoppingBag,
         sub: `${fmtNum(orders.today)} today`,
-        sparkline: trend.map((t) => Number(t.orders) || 0),
+        chart: seriesRows.map((row) => row.orders),
+        chartVariant: "bar",
       },
       {
         label: "Avg. order value",
         value: fmtMoney(d?.aov),
         icon: ArrowUpRight,
         sub: "per order",
+        chart: seriesRows.map((row) => row.aov),
+        chartVariant: "area",
+        chartTone: "info",
       },
       {
         label: "Customers",
         value: fmtNum(customers.total),
         icon: Users,
         sub: `+${fmtNum(customers.newThisMonth)} this month`,
+        // New accounts per period — the one customer number that has a
+        // history worth plotting.
+        chart: seriesRows.map((row) => row.newCustomers),
+        chartVariant: "bar",
+        chartTone: "success",
       },
       {
         label: "Live products",
         value: fmtNum(liveProducts),
         icon: Package,
         sub: `of ${fmtNum(totalProducts)} in catalogue`,
+        // A share of the catalogue rather than a trend, so it gets a
+        // progress bar instead of a chart.
+        progress: { value: liveProducts, max: totalProducts },
+        progressLabel: "Live products of the catalogue",
       },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [d, revenue, orders, customers, products, trend, liveProducts, totalProducts]
+    [
+      d,
+      revenue,
+      orders,
+      customers,
+      products,
+      seriesRows,
+      liveProducts,
+      totalProducts,
+    ]
   );
 
   // A month of zeros still renders a (flat) chart, which reads as broken —
@@ -237,6 +353,15 @@ const Overview = () => {
   const hasTrendData = trend.some(
     (t) => (Number(t.revenue) || 0) > 0 || (Number(t.orders) || 0) > 0
   );
+
+  // The change against the previous bucket, for the trend badges.
+  const revenueChange = useMemo(() => {
+    if (seriesRows.length < 2) return null;
+    const last = seriesRows[seriesRows.length - 1];
+    const previous = seriesRows[seriesRows.length - 2];
+    if (!previous.revenue) return null;
+    return ((last.revenue - previous.revenue) / previous.revenue) * 100;
+  }, [seriesRows]);
 
   // The dashboard is a read-only summary, so the export is the same numbers
   // the cards show — nothing is recomputed from a different source.
@@ -313,7 +438,7 @@ const Overview = () => {
 
   // --- charts ---------------------------------------------------------------
 
-  const trendOptions = {
+  const periodTrendOptions = {
     chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
     plotOptions: {
       bar: { borderRadius: 6, columnWidth: "45%", borderRadiusApplication: "end" },
@@ -323,19 +448,19 @@ const Overview = () => {
       {
         name: "Revenue",
         type: "column",
-        data: trend.map((t) => Number(t.revenue) || 0),
+        data: seriesRows.map((row) => Number(row.revenue) || 0),
       },
       {
         name: "Orders",
         type: "line",
-        data: trend.map((t) => Number(t.orders) || 0),
+        data: seriesRows.map((row) => Number(row.orders) || 0),
       },
     ],
     stroke: { width: [0, 3], curve: "smooth" },
     dataLabels: { enabled: false },
     grid: { borderColor: tokens.grid, strokeDashArray: 4 },
     xaxis: {
-      categories: trend.map((t) => t.month),
+      categories: seriesRows.map((row) => row.label),
       labels: { style: { colors: tokens.label, fontSize: "12px" } },
       axisBorder: { show: false },
       axisTicks: { show: false },
@@ -405,6 +530,117 @@ const Overview = () => {
     tooltip: { y: { formatter: (v) => `${v} orders` } },
   };
 
+  // ─── New vs returning customers ───────────────────────────────────────
+  const customerOptions = {
+    chart: { type: "bar", stacked: true, toolbar: { show: false }, fontFamily: "inherit" },
+    plotOptions: { bar: { borderRadius: 4, columnWidth: "55%" } },
+    colors: [tokens.success, tokens.info],
+    series: [
+      {
+        name: "New customers",
+        data: seriesRows.map((row) => Number(row.newCustomers) || 0),
+      },
+      {
+        name: "Returning",
+        data: seriesRows.map(
+          (row) => Math.max(0, Number(row.customers) - Number(row.newCustomers)) || 0
+        ),
+      },
+    ],
+    stroke: { width: 0 },
+    dataLabels: { enabled: false },
+    grid: { borderColor: tokens.grid, strokeDashArray: 4, xaxis: { lines: { show: false } } },
+    xaxis: {
+      categories: seriesRows.map((row) => row.label),
+      labels: {
+        style: { colors: tokens.label, fontSize: "10px" },
+        hideOverlappingLabels: true,
+        rotate: 0,
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: { colors: tokens.label, fontSize: "11px" },
+        formatter: (v) => Math.round(v),
+      },
+    },
+    legend: {
+      position: "top",
+      horizontalAlign: "right",
+      labels: { colors: tokens.label },
+      markers: { size: 5 },
+    },
+    tooltip: { shared: true, intersect: false, y: { formatter: (v) => fmtNum(v) } },
+  };
+
+  // ─── Average order value ──────────────────────────────────────────────
+  const aovOptions = {
+    chart: { type: "area", toolbar: { show: false }, fontFamily: "inherit" },
+    colors: [tokens.info],
+    series: [
+      {
+        name: "Average order value",
+        data: seriesRows.map((row) => Number(row.aov) || 0),
+      },
+    ],
+    stroke: { width: [0, 3], curve: "smooth" },
+    fill: { type: "gradient", gradient: { opacityFrom: 0.28, opacityTo: 0.02 } },
+    dataLabels: { enabled: false },
+    grid: { borderColor: tokens.grid, strokeDashArray: 4 },
+    xaxis: {
+      categories: seriesRows.map((row) => row.label),
+      labels: { style: { colors: tokens.label, fontSize: "11px" } },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    yaxis: {
+      labels: {
+        style: { colors: tokens.label, fontSize: "11px" },
+        formatter: (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`),
+      },
+    },
+    tooltip: { y: { formatter: (v) => fmtMoney2(v) } },
+  };
+
+  const productRevenueOptions = {
+    chart: { type: "bar", toolbar: { show: false }, fontFamily: "inherit" },
+    plotOptions: { bar: { borderRadius: 4, horizontal: true, barHeight: "55%" } },
+    colors: [tokens.series],
+    series: [
+      {
+        name: "Revenue",
+        data: productRevenue.map((product) => product.revenue),
+      },
+    ],
+    // On a horizontal bar the categories sit on the y axis and the values on
+    // the x axis — and the value is written into the label, so a short bar
+    // still shows what it is worth.
+    dataLabels: { enabled: false },
+    grid: { borderColor: tokens.grid, strokeDashArray: 4, yaxis: { lines: { show: false } } },
+    yaxis: {
+      categories: productRevenue.map((product) =>
+        product.name.length > 26 ? `${product.name.slice(0, 25)}…` : product.name
+      ),
+      labels: {
+        style: { colors: tokens.label, fontSize: "11px" },
+        maxWidth: 260,
+      },
+    },
+    xaxis: {
+      categories: productRevenue.map((product) => product.name),
+      labels: {
+        style: { colors: tokens.label, fontSize: "11px" },
+        formatter: (v) => (v >= 1000 ? `$${Math.round(v / 1000)}k` : `$${Math.round(v)}`),
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false },
+    },
+    tooltip: { y: { formatter: (v) => fmtMoney2(v) } },
+    legend: { show: false },
+  };
+
   return (
     <Page>
       <PageHeader
@@ -428,7 +664,11 @@ const Overview = () => {
             icon={kpi.icon}
             sub={kpi.sub}
             trend={kpi.trend}
-            sparkline={kpi.sparkline}
+            chart={kpi.chart}
+            chartVariant={kpi.chartVariant}
+            chartTone={kpi.chartTone}
+            progress={kpi.progress}
+            progressLabel={kpi.progressLabel}
           />
         ))}
       </div>
@@ -436,28 +676,63 @@ const Overview = () => {
       {/* Sales trend + order status */}
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
         <Card className="lg:col-span-2">
-          <CardHeader className="py-4">
+          <CardHeader className="gap-3 py-4">
             <div>
               <h2 className="text-sm font-semibold text-foreground">
                 Sales &amp; orders trend
               </h2>
               <p className="text-xs text-muted-foreground">
-                Revenue and order volume over the last 12 months
+                Revenue and order volume by {rangeLabel.toLowerCase()}
+                {usingFallbackSeries ? " (last 12 months)" : ""}
               </p>
             </div>
+
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              value={range}
+              onValueChange={(value) => value && setRange(value)}
+              aria-label="Chart period"
+              className="shrink-0"
+            >
+              {TIME_RANGES.map((item) => (
+                <ToggleGroupItem
+                  key={item.key}
+                  value={item.key}
+                  aria-label={`${item.label} view`}
+                  title={`${item.label} view`}
+                  className="px-2.5 text-xs"
+                >
+                  {item.label}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
           </CardHeader>
           <CardContent>
-            {hasTrendData ? (
-              <ApexChart
-                options={trendOptions}
-                series={trendOptions.series}
-                type="bar"
-                height={300}
-              />
+            {seriesLoading && !hasSeriesData ? (
+              <div className="flex h-64 items-center justify-center">
+                <Skeleton className="h-56 w-full" />
+              </div>
+            ) : hasSeriesData ? (
+              <>
+                <ApexChart
+                  options={periodTrendOptions}
+                  series={periodTrendOptions.series}
+                  type="bar"
+                  height={300}
+                />
+                {series.truncated && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Based on the most recent{" "}
+                    {fmtNum(series.truncated ? 1000 : 0)} orders.
+                  </p>
+                )}
+              </>
             ) : (
               <div className="flex h-64 flex-col items-center justify-center gap-1 text-center">
                 <p className="text-sm font-medium text-foreground">
-                  No sales in the last 12 months
+                  No sales in this period
                 </p>
                 <p className="text-xs text-muted-foreground">
                   The chart fills in as soon as the first order is placed.
@@ -518,6 +793,100 @@ const Overview = () => {
             ) : (
               <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
                 No orders yet
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Customers + revenue by product */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
+        <Card>
+          <CardHeader className="gap-3 py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Customers
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                New and returning accounts by {rangeLabel.toLowerCase()}
+              </p>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[22px] font-semibold leading-none text-foreground">
+                  {fmtNum(customers.newThisMonth)}
+                </p>
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <UserPlus className="size-3.5" aria-hidden="true" />
+                  new this month
+                </p>
+              </div>
+              <div className="text-end">
+                <p className="text-[22px] font-semibold leading-none text-foreground">
+                  {fmtNum(customers.total)}
+                </p>
+                <p className="mt-1.5 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
+                  <Users className="size-3.5" aria-hidden="true" />
+                  total accounts
+                </p>
+              </div>
+            </div>
+
+            {hasSeriesData && seriesRows.some((row) => row.customers > 0) ? (
+              <ApexChart
+                options={customerOptions}
+                series={customerOptions.series}
+                type="bar"
+                height={220}
+              />
+            ) : (
+              <div className="flex h-48 flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No customer history yet
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  New and returning accounts are counted from the orders.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader className="gap-3 py-4">
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Revenue by product
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Where the money comes from
+              </p>
+            </div>
+            <Link
+              href="/dashboard/product-management/my-products"
+              className="text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              View products
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {productRevenue.length ? (
+              <ApexChart
+                options={productRevenueOptions}
+                series={productRevenueOptions.series}
+                type="bar"
+                height={280}
+              />
+            ) : (
+              <div className="flex h-56 flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No sales yet
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  The chart fills in as soon as the first order is placed.
+                </p>
               </div>
             )}
           </CardContent>
@@ -786,62 +1155,37 @@ const Overview = () => {
         </Card>
 
         <Card>
-          <CardHeader className="py-4">
+          <CardHeader className="gap-3 py-4">
             <div>
               <h2 className="text-sm font-semibold text-foreground">
-                Customer growth
+                Average order value
               </h2>
               <p className="text-xs text-muted-foreground">
-                New storefront accounts this month
+                What an order is worth by {rangeLabel.toLowerCase()}
               </p>
             </div>
-            <span className="text-xs text-muted-foreground">This month</span>
+            <span className="text-xs font-medium text-foreground">
+              {fmtMoney(d?.aov)}
+            </span>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex items-end justify-between gap-4">
-              <div>
-                <p className="text-[28px] font-semibold leading-none text-foreground">
-                  {fmtNum(customers.newThisMonth)}
+            {hasSeriesData ? (
+              <ApexChart
+                options={aovOptions}
+                series={aovOptions.series}
+                type="area"
+                height={200}
+              />
+            ) : (
+              <div className="flex h-48 flex-col items-center justify-center gap-1 text-center">
+                <p className="text-sm font-medium text-foreground">
+                  No orders in this period
                 </p>
-                <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <UserPlus className="size-4" aria-hidden="true" />
-                  new this month
-                </p>
-              </div>
-              <div className="text-end">
-                <p className="text-[28px] font-semibold leading-none text-foreground">
-                  {fmtNum(customers.total)}
-                </p>
-                <p className="mt-1.5 flex items-center justify-end gap-1.5 text-sm text-muted-foreground">
-                  <Users className="size-4" aria-hidden="true" />
-                  total customers
+                <p className="text-xs text-muted-foreground">
+                  The average order value appears with the first sale.
                 </p>
               </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">
-                  Share of new accounts
-                </span>
-                <span className="font-medium text-foreground">
-                  {newCustomerPct}%
-                </span>
-              </div>
-              <div
-                className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted"
-                role="progressbar"
-                aria-valuenow={newCustomerPct}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label="New customers this month"
-              >
-                <span
-                  className="block h-full rounded-full bg-primary"
-                  style={{ width: `${newCustomerPct}%` }}
-                />
-              </div>
-            </div>
+            )}
 
             <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-card text-muted-foreground">
