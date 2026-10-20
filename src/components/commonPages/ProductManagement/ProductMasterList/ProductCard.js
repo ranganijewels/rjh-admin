@@ -1,5 +1,5 @@
 import { Card } from "@/components/common/ui/cards/card";
-import { Edit2, ExternalLinkIcon, EyeIcon, ImageOff } from "lucide-react";
+import { Edit2, ExternalLinkIcon, EyeIcon } from "lucide-react";
 import React from "react";
 import { Checkbox } from "@/components/common/ui/checkbox";
 import { RiDeleteBinFill } from "@remixicon/react";
@@ -11,6 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/common/ui/tooltip";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
@@ -78,17 +79,12 @@ const ProductCard = ({
             </Tooltip>
           </div>
         )}
-        {product_image ? (
-          <img
-            src={product_image}
-            alt="product"
-            className="h-[163px] w-[163px] mx-auto object-cover"
-          />
-        ) : (
-          <div className="h-[163px] w-[163px] mx-auto flex items-center justify-center bg-muted rounded">
-            <ImageOff className="h-8 w-8 text-muted-foreground" />
-          </div>
-        )}
+        <ProductThumb
+          src={product_image}
+          alt={design_no ? `Product ${design_no}` : "Product"}
+          className="h-[163px] w-[163px] mx-auto object-cover rounded"
+          iconClassName="h-8 w-8"
+        />
       </div>
       <div className="card-border card-rounded-b px-3.5 pt-5 pb-3.5 ">
         <div className="grid grid-cols-2 items-center gap-4">

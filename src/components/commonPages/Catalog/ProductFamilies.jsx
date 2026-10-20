@@ -16,6 +16,7 @@ import {
 } from "@/components/common/ui/cards/card";
 import { Checkbox } from "@/components/common/ui/checkbox";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Input } from "@/components/common/ui/input";
 import { Label } from "@/components/common/ui/label";
 import { Page, PageHeader } from "@/components/common/ui/page";
@@ -293,31 +294,38 @@ export default function ProductFamilies() {
     }
   };
 
-  const remove = useCallback(
-    async (fam) => {
-      if (
-        !confirm(
-          `Delete family "${fam.familyCode || fam.name || fam.id}"? This cannot be undone.`
-        )
-      )
-        return;
-      try {
-        const res = await fetch(`/api/catalog/families/${fam.id}`, {
-          method: "DELETE",
-          headers: authHeaders(),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data?.message || "Delete failed");
-        }
-        toast.success("Family deleted");
-        if (form.id === fam.id) closeEditor();
-        load();
-      } catch (e) {
-        toast.error(e?.message || "Delete failed");
+  // Deleting goes through the app's ConfirmDialog instead of the browser's
+  // native confirm(), which cannot be styled and blocks the whole thread.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const remove = useCallback((fam) => {
+    setDeleteTarget(fam);
+  }, []);
+
+  const confirmRemove = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/catalog/families/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || "Delete failed");
       }
-    },
-    [form.id, load]
+      toast.success("Family deleted");
+      if (form.id === deleteTarget.id) closeEditor();
+      load();
+    } catch (e) {
+      toast.error(e?.message || "Delete failed");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  },
+    [deleteTarget, form.id, load]
   );
 
   const columns = useMemo(
@@ -792,6 +800,15 @@ export default function ProductFamilies() {
           paginationResetKey={statusFilter}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmRemove}
+        title="Delete family"
+        message={`Delete family "${deleteTarget?.familyCode || deleteTarget?.name || deleteTarget?.id}"? This cannot be undone.`}
+        confirmLabel={deleting ? "Deleting…" : "Delete"}
+      />
     </Page>
   );
 }

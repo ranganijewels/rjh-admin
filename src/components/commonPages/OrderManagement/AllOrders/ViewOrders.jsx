@@ -15,6 +15,7 @@ import {
 } from "@/components/common/ui/cards/card";
 import { TwoColCard } from "@/components/common/ui/cards/TwoColCard";
 import { Button } from "@/components/common/ui/button";
+import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Badge, BadgeDot } from "@/components/common/ui/badge";
 import { Download, Truck, Check } from "lucide-react";
 import { cn, formatDateShort } from "@/lib/utils";
@@ -88,12 +89,18 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
     (s) => s.toLowerCase() === (status || "").toLowerCase()
   );
 
+  // Cancelling an order is destructive, so it goes through the app's
+  // ConfirmDialog rather than the browser's native confirm().
+  const [cancelOpen, setCancelOpen] = useState(false);
+
+  const requestCancelOrder = () => {
+    if (!orderRowId) return;
+    setCancelOpen(true);
+  };
+
   const handleCancelOrder = async () => {
     if (!orderRowId) return;
-    const confirmed = window.confirm(
-      "Are you sure you want to cancel this order? This action cannot be undone."
-    );
-    if (!confirmed) return;
+    setCancelOpen(false);
     setStatus("Cancelled");
     setSaving(true);
     setSavedMsg("");
@@ -361,7 +368,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
               <div className="flex gap-2.5">
                 <Button
                   variant="ghost"
-                  onClick={handleCancelOrder}
+                  onClick={requestCancelOrder}
                   disabled={saving || !orderRowId}
                 >
                   Cancel Order
@@ -427,6 +434,15 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
           </ScrollArea>
         </SheetBody>
       </SheetContent>
+
+      <ConfirmDialog
+        open={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        onConfirm={handleCancelOrder}
+        title="Cancel order"
+        message="Are you sure you want to cancel this order? This action cannot be undone."
+        confirmLabel="Cancel order"
+      />
     </Sheet>
   );
 };

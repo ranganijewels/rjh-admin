@@ -104,6 +104,9 @@ export const ListWithCardToggle = ({
   // Generic bulk-action bar shown when rows are selected, regardless of view
   // mode: [{key, label, variant?, confirmMessage?, onRun: (selectedRowObjects) => Promise<void>}]
   bulkActions = [],
+  // Overrides the empty-state text. Left unset, the message adapts: a list
+  // that is empty because of a filter says so, instead of "No data available".
+  emptyMessage,
   // Extra classes for the outer container. Defaults to no extra horizontal
   // padding: the app shell already provides the page padding (p-4 md:p-6),
   // so the list lines up with the page header instead of being inset twice.
@@ -301,6 +304,20 @@ export const ListWithCardToggle = ({
     return filterFunc(data, searchQuery);
   }, [data, searchQuery, filterFunction, serverSidePagination]);
 
+  // An empty list reads very differently depending on why it is empty: "this
+  // catalogue has nothing in it yet" and "your filter matched nothing" are
+  // different messages and only one of them is actionable.
+  const hasActiveFilter = Boolean(searchQuery?.trim()) ||
+    Object.values(filterDropdownProps || {}).some(
+      (filter) => filter?.value && filter.value !== "all"
+    );
+
+  const resolvedEmptyMessage =
+    emptyMessage ||
+    (hasActiveFilter
+      ? "Nothing matches the current search and filters."
+      : "No records yet.");
+
   const table = useReactTable({
     columns,
     data: serverSidePagination ? data : filteredData,
@@ -403,56 +420,64 @@ export const ListWithCardToggle = ({
   return (
     <Container className={contentClassName}>
       <div className="flex flex-col items-stretch gap-5 lg:gap-7.5">
-        {/* Header */}
-        <div className="flex flex-wrap items-center gap-5 justify-between">
-          {titleAs !== "none" && (
-            <div>
-              {titleAs === "h2" ? (
-                <h2 className="text-base font-semibold text-foreground">
-                  {title}
-                </h2>
-              ) : (
-                <h1 className="text-2xl font-semibold leading-tight text-foreground">
-                  {title}
-                </h1>
-              )}
-              {!disableDescription && (
-                <ToolbarDescription>{description}</ToolbarDescription>
+        {/* Header — only rendered when it has something to show. A page that
+            supplies its own <PageHeader> and has no card view used to get a
+            row containing nothing but a single "List view" button, floating
+            above the card with a 30px gap above it. */}
+        {(titleAs !== "none" || createBtn || renderCardView) && (
+          <div className="flex flex-wrap items-center gap-5 justify-between">
+            {titleAs !== "none" && (
+              <div>
+                {titleAs === "h2" ? (
+                  <h2 className="text-base font-semibold text-foreground">
+                    {title}
+                  </h2>
+                ) : (
+                  <h1 className="text-2xl font-semibold leading-tight text-foreground">
+                    {title}
+                  </h1>
+                )}
+                {!disableDescription && (
+                  <ToolbarDescription>{description}</ToolbarDescription>
+                )}
+              </div>
+            )}
+
+            {/* The action block has to be allowed to wrap: on a phone the
+                "Import CSV / Export CSV / Bulk Upload Images" row is wider
+                than the screen and used to run off the right edge. */}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {createBtn && createBtn}
+              {renderCardView && (
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={effectiveMode}
+                  onValueChange={(value) => {
+                    if (!value) return;
+                    setCurrentMode(value);
+                    setModeOverride(value);
+                  }}
+                >
+                  <ToggleGroupItem
+                    value="list"
+                    aria-label="List view"
+                    title="List view"
+                  >
+                    <List size={16} />
+                  </ToggleGroupItem>
+                  <ToggleGroupItem
+                    value="cards"
+                    aria-label="Card view"
+                    title="Card view"
+                  >
+                    <LayoutGrid size={16} />
+                  </ToggleGroupItem>
+                </ToggleGroup>
               )}
             </div>
-          )}
-
-          <div className="flex items-center gap-2">
-            {createBtn && createBtn}
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              value={effectiveMode}
-              onValueChange={(value) => {
-                if (!value) return;
-                setCurrentMode(value);
-                setModeOverride(value);
-              }}
-            >
-              <ToggleGroupItem
-                value="list"
-                aria-label="List view"
-                title="List view"
-              >
-                <List size={16} />
-              </ToggleGroupItem>
-              {renderCardView && (
-                <ToggleGroupItem
-                  value="cards"
-                  aria-label="Card view"
-                  title="Card view"
-                >
-                  <LayoutGrid size={16} />
-                </ToggleGroupItem>
-              )}
-            </ToggleGroup>
           </div>
-        </div>
+        )}
 
         {bulkActions.length > 0 && deletePermissionIds.length > 0 && (
           <BulkActionsBar
@@ -560,6 +585,7 @@ export const ListWithCardToggle = ({
           <div className="flex flex-col gap-5 lg:gap-7.5">
             <DataGrid
               table={table}
+              emptyMessage={resolvedEmptyMessage}
               recordCount={
                 serverSidePagination
                   ? totalCount || 0

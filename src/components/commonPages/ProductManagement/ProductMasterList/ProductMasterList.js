@@ -1009,7 +1009,7 @@ const ProductMasterList = () => {
         resizableColumns
         renderCardView={renderStoreCardsView}
         createBtn={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {can("products", "create") && (
               <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                 <Upload className="mr-1.5 h-4 w-4" /> Import CSV

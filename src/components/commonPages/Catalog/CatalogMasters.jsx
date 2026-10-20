@@ -282,6 +282,10 @@ export default function CatalogMasters() {
 
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  // Row delete runs through the app's own ConfirmDialog rather than the
+  // browser's native confirm(), which cannot be styled and blocks the thread.
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const [panelOpen, setPanelOpen] = useState(false);
@@ -464,28 +468,31 @@ export default function CatalogMasters() {
     }
   };
 
-  const handleDelete = useCallback(
-    async (row) => {
-      if (!confirm(`Delete "${row.name || row.code}"? This cannot be undone.`)) {
-        return;
+  const handleDelete = useCallback((row) => {
+    setDeleteTarget(row);
+  }, []);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/catalog/masters/${deleteTarget.id}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.message || `Delete failed (${res.status})`);
       }
-      try {
-        const res = await fetch(`/api/catalog/masters/${row.id}`, {
-          method: "DELETE",
-          headers: authHeaders(),
-        });
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j?.message || `Delete failed (${res.status})`);
-        }
-        toast.success("Value deleted.");
-        loadList(kind);
-      } catch (err) {
-        toast.error(err?.message || "Failed to delete value.");
-      }
-    },
-    [kind, loadList]
-  );
+      toast.success("Value deleted.");
+      loadList(kind);
+    } catch (err) {
+      toast.error(err?.message || "Failed to delete value.");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, kind, loadList]);
 
   const columns = useMemo(
     () => [
@@ -960,6 +967,15 @@ export default function CatalogMasters() {
           />
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title="Delete value"
+        message={`Delete "${deleteTarget?.name || deleteTarget?.code}"? This cannot be undone.`}
+        confirmLabel={deleting ? "Deleting…" : "Delete"}
+      />
 
       <ConfirmDialog
         open={bulkConfirmOpen}

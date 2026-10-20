@@ -7,6 +7,7 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { TruncatedText } from "@/components/common/ui/short-id";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
 
 export const useBrowseColumns = ({ onClick, onView }) => {
   return useMemo(
@@ -34,14 +35,12 @@ export const useBrowseColumns = ({ onClick, onView }) => {
           const src = row.original.data
             ? row.original.data.product[0]?.image
             : row.original.image;
-          return src ? (
-            <img
+          return (
+            <ProductThumb
               src={src}
               alt={row.original.category || "Variant image"}
               className="h-[50px] w-[50px] rounded object-cover"
             />
-          ) : (
-            <span className="text-muted-foreground">N/A</span>
           );
         },
         enableSorting: true,

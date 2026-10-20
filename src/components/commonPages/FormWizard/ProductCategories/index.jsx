@@ -16,6 +16,7 @@ import {
 } from "@/components/common/ui/cards/card";
 import { HexagonBadge } from "@/components/common/ui/badges/hexagon-badge";
 import { Page, PageHeader } from "@/components/common/ui/page";
+import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Switch } from "@/components/common/ui/switch";
 import { useCrudApi } from "@/hooks/useCrudApi";
@@ -59,14 +60,11 @@ const ProductCategories = () => {
     [categoryStatus]
   );
 
-  const handleSubmit = async (type) => {
-    if (type === "draft") {
-      const confirmed = window.confirm(
-        "Save the current selection as a draft?"
-      );
-      if (!confirmed) return;
-    }
+  // "Save as draft" asks first — through the app's own dialog rather than the
+  // browser's native confirm(), which cannot be styled.
+  const [draftConfirmOpen, setDraftConfirmOpen] = useState(false);
 
+  const saveSelection = async (type) => {
     const selectedCategoryIds = Object.entries(categoryStatus)
       .filter(([id, enabled]) => enabled)
       .map(([id]) => Number(id));
@@ -89,6 +87,15 @@ const ProductCategories = () => {
       console.error("Submit failed:", error);
       toast.error(error.message || "Failed to save the selected categories");
     }
+  };
+
+  const handleSubmit = async (type) => {
+    if (type === "draft") {
+      setDraftConfirmOpen(true);
+      return;
+    }
+
+    await saveSelection("next");
   };
 
   return (
@@ -204,6 +211,18 @@ const ProductCategories = () => {
           </Button>
         </CardFooter>
       </Card>
+
+      <ConfirmDialog
+        open={draftConfirmOpen}
+        onClose={() => setDraftConfirmOpen(false)}
+        onConfirm={() => {
+          setDraftConfirmOpen(false);
+          saveSelection("draft");
+        }}
+        title="Save as draft"
+        message="Save the current selection as a draft?"
+        confirmLabel="Save draft"
+      />
     </Page>
   );
 };

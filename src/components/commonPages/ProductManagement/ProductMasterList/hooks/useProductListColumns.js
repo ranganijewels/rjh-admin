@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
 import {
   DataGridTableRowSelect,
@@ -23,36 +23,10 @@ import {
   TooltipTrigger,
 } from "@/components/common/ui/tooltip";
 import { TruncatedText } from "@/components/common/ui/short-id";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
-
-/**
- * Product thumbnail with a graceful fallback.
- *
- * Catalogue media is served from signed URLs that can expire or 401 — a
- * broken image icon in every row would be worse than the placeholder.
- */
-function ProductThumb({ src, alt }) {
-  const [failed, setFailed] = useState(false);
-
-  if (!src || failed) {
-    return (
-      <div className="flex h-11 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
-        <ImageOff className="size-4 text-muted-foreground" aria-hidden="true" />
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className="h-11 w-9 shrink-0 rounded-md object-cover"
-      onError={() => setFailed(true)}
-    />
-  );
-}
 
 export const useProductListColumns = ({
   editingCell,
@@ -103,7 +77,11 @@ export const useProductListColumns = ({
 
           return (
             <div className="flex items-center gap-3">
-              <ProductThumb src={product_image} alt={name} />
+              <ProductThumb
+                src={product_image}
+                alt={name}
+                className="h-11 w-9 shrink-0 rounded-md object-cover"
+              />
               <div className="min-w-0">
                 <TruncatedText
                   value={name}

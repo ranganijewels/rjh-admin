@@ -21,6 +21,7 @@ import dynamic from "next/dynamic";
 import { formatDateLong, toTitleCase } from "@/lib/utils";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
 import { getFileType } from "@/lib/getFileType";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 const ProductCardView = ({ open, closeProductDetailSheet, product }) => {
@@ -202,10 +203,10 @@ const ProductCardView = ({ open, closeProductDetailSheet, product }) => {
                           playsInline
                         />
                       ) : (
-                        <img
+                        <ProductThumb
                           src={image?.url}
-                          className="w-full h-full object-contain transition duration-300 hover:scale-110"
                           alt="Product"
+                          className="w-full h-full object-contain transition duration-300 hover:scale-110"
                         />
                       )}
                     </button>
