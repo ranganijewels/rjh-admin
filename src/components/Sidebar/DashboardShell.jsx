@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  Bell,
-  Menu,
-  X,
-  PanelLeftOpen,
-} from "lucide-react";
+import { Menu, X, PanelLeftOpen } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar/Sidebar";
 import { DASHBOARD_MENU } from "@/services/constant";
 import { CommandPalette } from "@/components/common/ui/command-palette";
+import { AttentionMenu } from "@/components/common/ui/attention-menu";
 import { SettingsProvider, useSettings } from "@/provider/settings-provider";
 import {
   PermissionProvider,
@@ -95,15 +91,7 @@ function ShellInner({ children }) {
           <CommandPalette className="w-full max-w-md" />
 
           <div className="ms-auto flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Notifications"
-              title="Notifications"
-              className="relative flex size-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Bell className="size-[18px]" />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive ring-2 ring-card" />
-            </button>
+            <AttentionMenu />
           </div>
         </header>
 
@@ -119,15 +107,7 @@ function ShellInner({ children }) {
           <span className="font-semibold tracking-wide">{BRAND_NAME}</span>
           <div className="ms-auto flex items-center gap-1">
             <CommandPalette variant="icon" />
-            <button
-              type="button"
-              aria-label="Notifications"
-              title="Notifications"
-              className="relative flex size-9 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <Bell className="size-[18px]" />
-              <span className="absolute right-2 top-2 size-2 rounded-full bg-destructive ring-2 ring-card" />
-            </button>
+            <AttentionMenu />
           </div>
         </header>
 
