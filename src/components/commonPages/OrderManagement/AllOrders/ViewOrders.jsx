@@ -13,12 +13,23 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/common/ui/cards/card";
-import { TwoColCard } from "@/components/common/ui/cards/TwoColCard";
 import { Button } from "@/components/common/ui/button";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
-import { Badge, BadgeDot } from "@/components/common/ui/badge";
-import { Download, Truck, Check } from "lucide-react";
-import { cn, formatDateShort } from "@/lib/utils";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { StepProgress } from "@/components/common/ui/step-progress";
+import { SummaryGrid } from "@/components/common/ui/summary-grid";
+import { Input } from "@/components/common/ui/input";
+import { Label } from "@/components/common/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/common/ui/select";
+import { Download, Truck, TriangleAlert } from "lucide-react";
+import { formatDateShort } from "@/lib/utils";
+import OrderLineItems from "./OrderLineItems";
 
 // Fulfillment pipeline — the operational lifecycle of a luxury order.
 const FULFILLMENT_STAGES = [
@@ -150,287 +161,292 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
 
   return (
     <Sheet open={open} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:w-[720px] top-2 sm:top-5 bottom-2 sm:bottom-5 end-2 sm:end-5 h-auto rounded-lg p-0 sm:max-w-none [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
-        <SheetHeader className="border-b py-3.5 px-5 border-border flex-row items-center justify-between">
-          <SheetTitle>Order Info</SheetTitle>
-          <Button
-            variant="outline"
-            size="sm"
-            className="me-8 gap-1.5"
-            onClick={handleDownloadInvoice}
-            disabled={invoiceBusy || !orders}
-          >
-            <Download className="size-3.5" />
-            {invoiceBusy ? "Preparing…" : "Download Invoice"}
-          </Button>
+      <SheetContent className="w-full sm:w-[760px] top-2 sm:top-5 bottom-2 sm:bottom-5 end-2 sm:end-5 h-auto rounded-lg p-0 sm:max-w-none [&_[data-slot=sheet-close]]:top-4.5 [&_[data-slot=sheet-close]]:end-5">
+        <SheetHeader className="border-b border-border px-5 py-4">
+          <div className="flex flex-wrap items-start justify-between gap-3 pr-8">
+            <div className="min-w-0">
+              <SheetTitle className="flex flex-wrap items-center gap-2.5">
+                <span className="font-mono text-base font-semibold text-foreground">
+                  {orders?.order_number || orders?.orderNumber || "Order"}
+                </span>
+                <StatusBadge status={orders?.order_status || "Pending"} />
+              </SheetTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Placed {formatDateShort(orders?.created_at)} ·{" "}
+                {orders?.total_quantity ?? orders?.items?.length ?? 0} item
+                {(orders?.total_quantity ?? orders?.items?.length ?? 0) === 1
+                  ? ""
+                  : "s"}
+              </p>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleDownloadInvoice}
+              disabled={invoiceBusy || !orders}
+            >
+              <Download className="size-3.5" />
+              {invoiceBusy ? "Preparing…" : "Download Invoice"}
+            </Button>
+          </div>
         </SheetHeader>
 
-        <SheetBody className="px-5 py-0">
-          <ScrollArea className="h-[calc(100dvh-11.5rem)] pe-3 -me-3">
-            {/* ORDER DETAILS */}
-            <div className="grid xl:grid-cols-1 gap-5 lg:gap-9">
-              <div className="lg:col-span-1">
-                <Card>
-                  <CardHeader className="justify-start bg-muted/70 gap-9 h-auto py-5">
-                    {[
-                      ["Order ID", orders?.id],
-                      ["Status", orders?.order_status],
-                      ["Order placed", formatDateShort(orders?.created_at)],
+        <SheetBody className="px-0 py-0">
+          <ScrollArea className="h-[calc(100dvh-9.5rem)]">
+            <div className="flex flex-col gap-5 px-5 py-5">
+              {/* ─── THE ORDER AT A GLANCE ─────────────────────────────── */}
+              <Card>
+                <CardHeader className="justify-start bg-muted/60 h-auto px-5 py-3.5">
+                  <span className="text-sm font-semibold text-foreground">
+                    Summary
+                  </span>
+                </CardHeader>
+                <CardContent className="p-5">
+                  <SummaryGrid
+                    columns={3}
+                    items={[
                       [
                         "Total",
                         Number.isFinite(Number(orders?.subtotal))
-                          ? `$${Number(orders.subtotal).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          ? `$${Number(orders.subtotal).toLocaleString("en-US", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            })}`
                           : "—",
                       ],
                       [
                         "Payment",
-                        `${orders?.payment_method || "COD"} · ${orders?.payment_status || "Pending"}` +
-                          (orders?.currency_code && orders.currency_code !== "USD" && orders?.charged_amount
-                            ? ` (charged ${orders.currency_code} ${Number(orders.charged_amount).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+                        `${orders?.payment_method || "COD"} · ${
+                          orders?.payment_status || "Pending"
+                        }` +
+                          (orders?.currency_code &&
+                          orders.currency_code !== "USD" &&
+                          orders?.charged_amount
+                            ? ` (charged ${orders.currency_code} ${Number(
+                                orders.charged_amount
+                              ).toLocaleString("en-US", {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              })})`
                             : ""),
                       ],
                       ["Ship to", orders?.customer_name || "—"],
-                      ["Estimated Delivery", orders?.estimated_delivery || "—"],
-                    ].map(([label, value], i) => (
-                      <div key={i}>
-                        <span className="text-xs text-secondary-foreground">
-                          {label}
-                        </span>
-                        <div className="text-sm font-medium">{value}</div>
-                      </div>
-                    ))}
-                  </CardHeader>
+                      [
+                        "Order ID",
+                        orders?.id || "—",
+                        { className: "font-mono text-xs" },
+                      ],
+                      ["Estimated delivery", orders?.estimated_delivery || "—"],
+                      [
+                        "Payment status",
+                        orders?.payment_status || "Pending",
+                      ],
+                    ]}
+                  />
+                </CardContent>
+              </Card>
 
-                  <CardContent className="p-5 lg:p-7.5 space-y-5">
-                    <TwoColCard items={orders?.items} limit={4} />
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+              {/* ─── WHAT WAS ORDERED ──────────────────────────────────── */}
+              <Card>
+                <CardHeader className="justify-start bg-muted/60 h-auto px-5 py-3.5">
+                  <span className="text-sm font-semibold text-foreground">
+                    Items
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {orders?.items?.length || 0} line
+                    {orders?.items?.length === 1 ? "" : "s"}
+                  </span>
+                </CardHeader>
+                <CardContent className="p-5">
+                  <OrderLineItems items={orders?.items || []} />
+                </CardContent>
+              </Card>
 
-            {/* ─── FULFILLMENT CONTROL ─────────────────────────────── */}
-            <Card className="overflow-hidden mt-5 border-primary/20">
-              <CardHeader className="justify-start bg-primary gap-2 h-auto py-3.5 px-5 flex-row items-center">
-                <Truck className="size-4 text-white" />
-                <span className="text-sm font-semibold text-white">
-                  Fulfillment &amp; Shipping
-                </span>
-              </CardHeader>
-              <CardContent className="p-5 space-y-4">
-                {/* Stage progress */}
-                <div className="flex items-center gap-1 overflow-x-auto pb-1">
-                  {FULFILLMENT_STAGES.map((s, i) => {
-                    const done = currentStageIdx >= 0 && i <= currentStageIdx;
-                    return (
-                      <React.Fragment key={s}>
-                        <div className="flex flex-col items-center gap-1 shrink-0">
-                          <span
-                            className={cn(
-                              "size-5 rounded-full flex items-center justify-center text-xs font-semibold",
-                              done
-                                ? "bg-primary text-white"
-                                : "bg-muted text-muted-foreground"
-                            )}
-                          >
-                            {done ? <Check className="size-3" /> : i + 1}
-                          </span>
-                          <span
-                            className={cn(
-                              "text-xs text-center max-w-[64px] leading-tight",
-                              done ? "text-primary font-medium" : "text-muted-foreground"
-                            )}
-                          >
-                            {s}
-                          </span>
-                        </div>
-                        {i < FULFILLMENT_STAGES.length - 1 && (
-                          <div
-                            className={cn(
-                              "h-0.5 flex-1 min-w-2 rounded",
-                              i < currentStageIdx ? "bg-primary" : "bg-muted"
-                            )}
-                          />
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </div>
-
-                {/* Controls */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`order-status-${orderRowId ?? "new"}`}
-                      className="text-sm text-secondary-foreground"
-                    >
-                      Status
-                    </label>
-                    <select
-                      id={`order-status-${orderRowId ?? "new"}`}
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value)}
-                      className="border border-input rounded-md px-2.5 py-2 text-sm bg-card"
-                    >
-                      {FULFILLMENT_STAGES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                      <option value="Cancelled">Cancelled</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`order-courier-${orderRowId ?? "new"}`}
-                      className="text-sm text-secondary-foreground"
-                    >
-                      Courier
-                    </label>
-                    <input
-                      id={`order-courier-${orderRowId ?? "new"}`}
-                      value={courier}
-                      onChange={(e) => setCourier(e.target.value)}
-                      placeholder="FedEx, DHL, Brinks…"
-                      className="border border-input rounded-md px-2.5 py-2 text-sm"
+              {/* ─── FULFILMENT CONTROL ───────────────────────────────── */}
+              <Card className="overflow-hidden border-primary/20">
+                <CardHeader className="justify-start bg-primary gap-2 h-auto px-5 py-3.5 flex-row items-center">
+                  <Truck className="size-4 text-primary-foreground" />
+                  <span className="text-sm font-semibold text-primary-foreground">
+                    Fulfilment &amp; Shipping
+                  </span>
+                </CardHeader>
+                <CardContent className="p-5 space-y-5">
+                  <div className="-mx-1 overflow-x-auto px-1 pb-1">
+                    <StepProgress
+                      steps={FULFILLMENT_STAGES}
+                      currentIndex={currentStageIdx}
                     />
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <label
-                      htmlFor={`order-tracking-${orderRowId ?? "new"}`}
-                      className="text-sm text-secondary-foreground"
-                    >
-                      Tracking #
-                    </label>
-                    <input
-                      id={`order-tracking-${orderRowId ?? "new"}`}
-                      value={tracking}
-                      onChange={(e) => setTracking(e.target.value)}
-                      placeholder="Tracking number"
-                      className="border border-input rounded-md px-2.5 py-2 text-sm"
-                    />
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-3">
-                  <Button
-                    className="bg-primary hover:bg-primary/90 text-white"
-                    onClick={handleSaveFulfillment}
-                    disabled={saving || !orderRowId}
-                  >
-                    {saving ? "Saving…" : "Update Fulfillment"}
-                  </Button>
-                  {savedMsg && (
-                    <span
-                      className="text-sm text-success font-medium"
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
-                    >
-                      {savedMsg}
-                    </span>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="flex items-center justify-between mt-5">
-              <div className="space-y-2.5">
-                <div className="flex gap-2.5">
-                  <p>{orders?.id}</p>
-                  <Badge variant="success">{orders?.order_status}</Badge>
-                </div>
-
-                <div className="flex gap-1">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-secondary-foreground">
-                      Placed
-                    </span>
-                    <span className="text-sm font-medium text-mono">
-                      {formatDateShort(orders?.created_at)}
-                    </span>
-                  </div>
-
-                  <Badge appearance="ghost" variant="destructive">
-                    <BadgeDot className="size-1 bg-muted-foreground/60" />
-                  </Badge>
-
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs text-secondary-foreground">
-                      Customer
-                    </span>
-                    <span className="text-sm font-medium text-mono">
-                      {orders?.customer_name}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-2.5">
-                <Button
-                  variant="ghost"
-                  onClick={requestCancelOrder}
-                  disabled={saving || !orderRowId}
-                >
-                  Cancel Order
-                </Button>
-                <Button
-                  variant="outline"
-                  aria-disabled="true"
-                  className="opacity-60 cursor-not-allowed"
-                  title="Notify Customer is not yet available"
-                >
-                  Notify Customer
-                </Button>
-              </div>
-            </div>
-
-            {/* shipping data — real order fields only; no fake ETA/log, see
-                OrderManagement/constant.js history for the mock data this replaced */}
-            <Card className="my-5">
-              <CardHeader className="justify-start bg-muted/70 gap-9 h-auto py-5">
-                Shipping Data
-              </CardHeader>
-              <CardContent className="flex flex-wrap justify-between gap-5">
-                {[
-                  ["Courier", orders?.courierName || orders?.courier_name],
-                  [
-                    "Tracking #",
-                    orders?.trackingNumber || orders?.tracking_number,
-                    orders?.trackingUrl || orders?.tracking_url,
-                  ],
-                  [
-                    "Shipped",
-                    (orders?.shippedAt || orders?.shipped_at) &&
-                      formatDateShort(orders?.shippedAt || orders?.shipped_at),
-                  ],
-                  [
-                    "Delivered",
-                    (orders?.deliveredAt || orders?.delivered_at) &&
-                      formatDateShort(orders?.deliveredAt || orders?.delivered_at),
-                  ],
-                ].map(([label, value, url], i) => (
-                  <div key={i} className="flex flex-col gap-1.5">
-                    <span className="text-xs font-normal text-secondary-foreground">
-                      {label}
-                    </span>
-                    {value && url ? (
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium text-primary underline"
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="flex flex-col gap-1.5">
+                      <Label
+                        htmlFor={`order-status-${orderRowId ?? "new"}`}
+                        className="text-xs text-muted-foreground"
                       >
-                        {value}
-                      </a>
-                    ) : (
-                      <span className="text-sm font-medium text-mono">
-                        {value || "—"}
+                        Status
+                      </Label>
+                      <Select value={status} onValueChange={setStatus}>
+                        <SelectTrigger
+                          id={`order-status-${orderRowId ?? "new"}`}
+                          className="w-full"
+                        >
+                          <SelectValue placeholder="Select a status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {FULFILLMENT_STAGES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="Cancelled">Cancelled</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label
+                        htmlFor={`order-courier-${orderRowId ?? "new"}`}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Courier
+                      </Label>
+                      <Input
+                        id={`order-courier-${orderRowId ?? "new"}`}
+                        value={courier}
+                        onChange={(e) => setCourier(e.target.value)}
+                        placeholder="FedEx, DHL, Brinks…"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label
+                        htmlFor={`order-tracking-${orderRowId ?? "new"}`}
+                        className="text-xs text-muted-foreground"
+                      >
+                        Tracking #
+                      </Label>
+                      <Input
+                        id={`order-tracking-${orderRowId ?? "new"}`}
+                        value={tracking}
+                        onChange={(e) => setTracking(e.target.value)}
+                        placeholder="Tracking number"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Button
+                      onClick={handleSaveFulfillment}
+                      disabled={saving || !orderRowId}
+                    >
+                      {saving ? "Saving…" : "Update Fulfilment"}
+                    </Button>
+                    {savedMsg && (
+                      <span
+                        className="text-sm font-medium text-success"
+                        role="status"
+                        aria-live="polite"
+                        aria-atomic="true"
+                      >
+                        {savedMsg}
                       </span>
                     )}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+
+              {/* ─── SHIPPING DATA ────────────────────────────────────── */}
+              <Card>
+                <CardHeader className="justify-start bg-muted/60 h-auto px-5 py-3.5">
+                  <span className="text-sm font-semibold text-foreground">
+                    Shipping details
+                  </span>
+                </CardHeader>
+                <CardContent className="p-5">
+                  <SummaryGrid
+                    columns={4}
+                    items={[
+                      [
+                        "Courier",
+                        orders?.courierName || orders?.courier_name || "—",
+                      ],
+                      [
+                        "Tracking #",
+                        orders?.trackingNumber || orders?.tracking_number || "—",
+                      ],
+                      [
+                        "Shipped",
+                        (orders?.shippedAt || orders?.shipped_at)
+                          ? formatDateShort(
+                              orders?.shippedAt || orders?.shipped_at
+                            )
+                          : "—",
+                      ],
+                      [
+                        "Delivered",
+                        (orders?.deliveredAt || orders?.delivered_at)
+                          ? formatDateShort(
+                              orders?.deliveredAt || orders?.delivered_at
+                            )
+                          : "—",
+                      ],
+                    ]}
+                  />
+                  {(orders?.trackingUrl || orders?.tracking_url) && (
+                    <a
+                      href={orders?.trackingUrl || orders?.tracking_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-block text-sm font-medium text-primary underline underline-offset-4"
+                    >
+                      Track this shipment
+                    </a>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* ─── DESTRUCTIVE ACTIONS ──────────────────────────────── */}
+              <Card className="border-destructive/25 bg-destructive/[0.03]">
+                <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
+                  <div className="flex items-start gap-2.5">
+                    <TriangleAlert
+                      className="mt-0.5 size-4 shrink-0 text-destructive"
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">
+                        Cancel this order
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Cancelling cannot be undone.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled
+                      title="Notify Customer is not yet available"
+                    >
+                      Notify customer
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={requestCancelOrder}
+                      disabled={saving || !orderRowId}
+                    >
+                      Cancel order
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </ScrollArea>
         </SheetBody>
       </SheetContent>
