@@ -985,7 +985,7 @@ export default function ProductForm({ id }) {
                     <button
                       type="button"
                       onClick={() => removeMetalOption(i)}
-                      className="text-red-500 hover:text-red-600"
+                      className="text-destructive hover:text-destructive"
                     >
                       <Trash2 className="size-4" />
                     </button>
@@ -1098,7 +1098,7 @@ export default function ProductForm({ id }) {
               <button
                 type="button"
                 onClick={() => removeWeightRow(i)}
-                className="text-red-500 hover:text-red-600 ms-1"
+                className="text-destructive hover:text-destructive ms-1"
               >
                 <Trash2 className="size-4" />
               </button>
@@ -1194,7 +1194,7 @@ export default function ProductForm({ id }) {
                 {Number(form.net_weight) > 0 && Number(row.percent) > 0 &&
                   ` ≈ +${((Number(form.net_weight) * Number(row.percent)) / 100).toFixed(2)} g`}
               </span>
-              <button type="button" onClick={() => set("size_weight_diff", form.size_weight_diff.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-600 ms-1">
+              <button type="button" onClick={() => set("size_weight_diff", form.size_weight_diff.filter((_, idx) => idx !== i))} className="text-destructive hover:text-destructive ms-1">
                 <Trash2 className="size-4" />
               </button>
             </div>
@@ -1220,7 +1220,7 @@ export default function ProductForm({ id }) {
                 <Input value={m.name} onChange={(e) => set("molds", form.molds.map((r, idx) => idx === i ? { ...r, name: e.target.value } : r))} placeholder="Mold name" />
                 <Input value={m.locker} onChange={(e) => set("molds", form.molds.map((r, idx) => idx === i ? { ...r, locker: e.target.value } : r))} placeholder="Locker" className="w-32" />
                 <Input type="number" value={m.pcs} onChange={(e) => set("molds", form.molds.map((r, idx) => idx === i ? { ...r, pcs: e.target.value } : r))} placeholder="Pcs" className="w-20" />
-                <button type="button" onClick={() => set("molds", form.molds.filter((_, idx) => idx !== i))} className="text-red-500 hover:text-red-600">
+                <button type="button" onClick={() => set("molds", form.molds.filter((_, idx) => idx !== i))} className="text-destructive hover:text-destructive">
                   <Trash2 className="size-4" />
                 </button>
               </div>
@@ -1238,7 +1238,7 @@ export default function ProductForm({ id }) {
                 { }
                 <img src={url} alt="" className="w-20 h-20 object-cover rounded border border-border" />
                 <button type="button" onClick={() => set("production_images", form.production_images.filter((_, idx) => idx !== i))}
-                  className="absolute -top-2 -right-2 bg-card border border-border rounded-full p-0.5 text-red-500">
+                  className="absolute -top-2 -right-2 bg-card border border-border rounded-full p-0.5 text-destructive">
                   <Trash2 className="size-3" />
                 </button>
               </div>
@@ -1380,7 +1380,7 @@ export default function ProductForm({ id }) {
                   </td>
                   <td className="p-1 text-center">
                     <Button variant="outline" mode="icon" size="sm" onClick={() => removeMaterial(i)}>
-                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </Button>
                   </td>
                 </tr>
@@ -1465,7 +1465,7 @@ export default function ProductForm({ id }) {
             {pairsWithItems.map((it) => (
               <span key={it.id} className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs">
                 {it.title}
-                <button type="button" className="text-red-500" onClick={() => setPairsWithItems(pairsWithItems.filter((x) => x.id !== it.id))}>×</button>
+                <button type="button" className="text-destructive" onClick={() => setPairsWithItems(pairsWithItems.filter((x) => x.id !== it.id))}>×</button>
               </span>
             ))}
           </div>
@@ -1523,7 +1523,7 @@ export default function ProductForm({ id }) {
             <div key={i} className="rounded-md border border-border p-3 space-y-2 relative">
               <button
                 type="button"
-                className="absolute top-2 right-2 text-red-500 text-xs"
+                className="absolute top-2 right-2 text-destructive text-xs"
                 onClick={() => set("faqs", form.faqs.filter((_, idx) => idx !== i))}
               >
                 Remove
@@ -1876,7 +1876,7 @@ function ComputedPrice({ form, materials }) {
             <div>metal ${result.metalValue} · diamond ${result.diamondValue}</div>
             <div>labour ${result.laborCharge} · charges ${result.additionalCharges}</div>
             {result.warnings?.length > 0 && (
-              <div className="text-red-500">⚠ {result.warnings[0]}</div>
+              <div className="text-destructive">⚠ {result.warnings[0]}</div>
             )}
           </div>
         )}

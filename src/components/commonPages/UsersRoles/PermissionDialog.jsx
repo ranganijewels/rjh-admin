@@ -78,7 +78,7 @@ export default function PermissionDialog({ open, onOpenChange, role }) {
                           <span
                             className={
                               allowed
-                                ? "inline-flex size-5 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                ? "inline-flex size-5 items-center justify-center rounded-full bg-success/10 text-success dark:text-success"
                                 : "inline-flex size-5 items-center justify-center rounded-full bg-muted text-muted-foreground/50"
                             }
                             aria-label={

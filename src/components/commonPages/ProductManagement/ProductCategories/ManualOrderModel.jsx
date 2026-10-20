@@ -8,7 +8,7 @@ import DialogContent, {
   DialogHeader,
   DialogTitle,
 } from "@/components/common/ui/dialog";
-import { ImageWithFallback } from "@/components/common/ui/ImageWithFallback";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
 import { Input } from "@/components/common/ui/input";
 import { Label } from "@/components/common/ui/label";
 import {
@@ -87,18 +87,18 @@ const ManualOrderModel = ({ showOrderModal, setShowOrderModal, product }) => {
 
         <div className="space-y-6">
           {/* Product Preview */}
-          <Card className="p-4 rounded-xl border border-gray-200 dark:border-border bg-gray-50 dark:bg-muted">
+          <Card className="p-4 rounded-xl border border-border bg-muted">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-lg overflow-hidden bg-white dark:bg-card">
-                <ImageWithFallback
+              <div className="w-20 h-20 rounded-lg overflow-hidden bg-card">
+                <ProductThumb
                   src={product.image}
                   alt={product.title}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div>
-                <p className="text-sm text-gray-900 dark:text-foreground mb-1">{product.title}</p>
-                <code className="text-xs bg-white dark:bg-card px-2 py-1 rounded text-gray-600 dark:text-muted-foreground">
+                <p className="text-sm text-foreground mb-1">{product.title}</p>
+                <code className="text-xs bg-card px-2 py-1 rounded text-muted-foreground">
                   {product.designNumber}
                 </code>
               </div>
@@ -245,7 +245,7 @@ const ManualOrderModel = ({ showOrderModal, setShowOrderModal, product }) => {
 
           {/* Customer Info */}
           <div className="space-y-4">
-            <h4 className="text-sm text-gray-900 dark:text-foreground">Customer Information</h4>
+            <h4 className="text-sm text-foreground">Customer Information</h4>
 
             <div className="space-y-2">
               <Label>Customer Name*</Label>

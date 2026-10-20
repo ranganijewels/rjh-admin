@@ -220,7 +220,7 @@ export const useProductListColumns = ({
             {!row?.original?.has_media && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <ImageOff className="h-4 w-4 shrink-0 text-amber-600" />
+                  <ImageOff className="h-4 w-4 shrink-0 text-warning" />
                 </TooltipTrigger>
                 <TooltipContent>
                   Hidden from the storefront until at least one photo is
@@ -287,7 +287,7 @@ export const useProductListColumns = ({
                 aria-label={`Delete ${row.original.design_no || "product"}`}
                 title="Delete"
               >
-                <Trash2Icon className="h-3.5 w-3.5 text-red-500" />
+                <Trash2Icon className="h-3.5 w-3.5 text-destructive" />
               </Button>
             )}
           </div>

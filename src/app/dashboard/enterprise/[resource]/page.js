@@ -4,7 +4,7 @@ import { ENTERPRISE_RESOURCES } from "@/components/commonPages/Enterprise/config
 const page = async ({ params }) => {
   const { resource } = await params;
   const cfg = ENTERPRISE_RESOURCES[resource];
-  if (!cfg) return <div className="p-6 text-gray-500 dark:text-muted-foreground">Unknown resource: {resource}</div>;
+  if (!cfg) return <div className="p-6 text-muted-foreground">Unknown resource: {resource}</div>;
   return <EntityManager cfg={cfg} />;
 };
 

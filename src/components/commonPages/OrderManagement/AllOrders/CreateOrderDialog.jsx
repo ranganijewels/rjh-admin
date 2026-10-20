@@ -11,7 +11,7 @@ import DialogContent, {
   DialogHeader,
   DialogTitle,
 } from "@/components/common/ui/dialog";
-import { ImageWithFallback } from "@/components/common/ui/ImageWithFallback";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
 import { Input } from "@/components/common/ui/input";
 import { Label } from "@/components/common/ui/label";
 import {
@@ -201,7 +201,7 @@ export default function CreateOrderDialog({ open, onOpenChange, onCreated }) {
                   >
                     <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-muted">
                       {item.product_image ? (
-                        <ImageWithFallback
+                        <ProductThumb
                           src={item.product_image}
                           alt={item.title || "Product"}
                           className="size-full object-cover"
@@ -230,7 +230,7 @@ export default function CreateOrderDialog({ open, onOpenChange, onCreated }) {
               <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/40 p-3">
                 <span className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-card">
                   {product.product_image ? (
-                    <ImageWithFallback
+                    <ProductThumb
                       src={product.product_image}
                       alt={product.title || "Product"}
                       className="size-full object-cover"

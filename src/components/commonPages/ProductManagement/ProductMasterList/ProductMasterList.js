@@ -165,10 +165,10 @@ const ImportModal = ({ open, onClose, onImported }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Import Products from CSV</h2>
-          <button onClick={handleClose} className="text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-muted-foreground"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-muted-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         {status === "idle" || status === "loading" ? (
@@ -178,15 +178,15 @@ const ImportModal = ({ open, onClose, onImported }) => {
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.name.endsWith(".csv")) setFile(f); }}
-              className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-8 text-center cursor-pointer hover:border-orange-400 transition-colors"
+              className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
             >
-              <Upload className="w-8 h-8 text-gray-400 dark:text-muted-foreground mx-auto mb-2" />
+              <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               {file ? (
-                <p className="text-sm font-medium text-gray-700 dark:text-foreground">{file.name} <span className="text-gray-400 dark:text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span></p>
+                <p className="text-sm font-medium text-foreground">{file.name} <span className="text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span></p>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-gray-700 dark:text-foreground">Click or drag & drop a CSV file</p>
-                  <p className="text-xs text-gray-400 dark:text-muted-foreground mt-1">Only .csv files accepted</p>
+                  <p className="text-sm font-medium text-foreground">Click or drag & drop a CSV file</p>
+                  <p className="text-xs text-muted-foreground mt-1">Only .csv files accepted</p>
                 </>
               )}
               <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => setFile(e.target.files[0])} />
@@ -201,12 +201,12 @@ const ImportModal = ({ open, onClose, onImported }) => {
             </button>
 
             {/* CSV column reference */}
-            <details className="mt-3 text-xs text-gray-500 dark:text-muted-foreground">
-              <summary className="cursor-pointer font-medium text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:text-foreground">Required columns</summary>
-              <div className="mt-2 font-mono bg-gray-50 dark:bg-muted rounded p-2 leading-5 break-all">
+            <details className="mt-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">Required columns</summary>
+              <div className="mt-2 font-mono bg-muted rounded p-2 leading-5 break-all">
                 productName*, productCode, category, subCategory, metalType, metalPurity, metalColor, diamondShape, diamondQuality, diamondType, diamondCount, diamondWeightCt, grossWeightG, netWeightG, ringSize, collectionName, gender, description, status, makingCharge
               </div>
-              <p className="mt-1 text-gray-400 dark:text-muted-foreground">* required · all others optional</p>
+              <p className="mt-1 text-muted-foreground">* required · all others optional</p>
             </details>
 
             <div className="flex gap-2 mt-5">
@@ -219,16 +219,16 @@ const ImportModal = ({ open, onClose, onImported }) => {
         ) : status === "done" ? (
           <>
             <div className="text-center py-4">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Import Complete</p>
+              <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
+              <p className="text-lg font-semibold text-foreground">Import Complete</p>
               <div className="flex justify-center gap-6 mt-4 text-sm">
-                <div className="text-center"><p className="text-2xl font-bold text-green-600">{result.created}</p><p className="text-gray-500 dark:text-muted-foreground">Created</p></div>
-                <div className="text-center"><p className="text-2xl font-bold text-gray-800 dark:text-foreground">{result.total}</p><p className="text-gray-500 dark:text-muted-foreground">Total rows</p></div>
-                {result.failed > 0 && <div className="text-center"><p className="text-2xl font-bold text-red-500">{result.failed}</p><p className="text-gray-500 dark:text-muted-foreground">Failed</p></div>}
+                <div className="text-center"><p className="text-2xl font-bold text-success">{result.created}</p><p className="text-muted-foreground">Created</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-foreground">{result.total}</p><p className="text-muted-foreground">Total rows</p></div>
+                {result.failed > 0 && <div className="text-center"><p className="text-2xl font-bold text-destructive">{result.failed}</p><p className="text-muted-foreground">Failed</p></div>}
               </div>
             </div>
             {result.errors?.length > 0 && (
-              <div className="mt-4 max-h-32 overflow-y-auto bg-red-50 rounded p-3 text-xs text-red-700 space-y-1">
+              <div className="mt-4 max-h-32 overflow-y-auto bg-destructive/10 rounded p-3 text-xs text-destructive space-y-1">
                 {result.errors.map((e, i) => <p key={i}>Row {e.row}: {e.reason}</p>)}
               </div>
             )}
@@ -237,9 +237,9 @@ const ImportModal = ({ open, onClose, onImported }) => {
         ) : (
           <>
             <div className="text-center py-4">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Import Failed</p>
-              <p className="text-sm text-red-600 mt-2">{result?.error}</p>
+              <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
+              <p className="text-lg font-semibold text-foreground">Import Failed</p>
+              <p className="text-sm text-destructive mt-2">{result?.error}</p>
             </div>
             <div className="flex gap-2 mt-5">
               <Button variant="outline" className="flex-1" onClick={handleClose}>Close</Button>
@@ -297,10 +297,10 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Bulk Upload Product Media</h2>
-          <button onClick={handleClose} className="text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-muted-foreground"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-muted-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         {status === "idle" || status === "loading" ? (
@@ -310,17 +310,17 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
               onClick={() => fileRef.current?.click()}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); addFiles(e.dataTransfer.files); }}
-              className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-8 text-center cursor-pointer hover:border-orange-400 transition-colors"
+              className="border-2 border-dashed border-border rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
             >
-              <Images className="w-8 h-8 text-gray-400 dark:text-muted-foreground mx-auto mb-2" />
+              <Images className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               {files.length ? (
-                <p className="text-sm font-medium text-gray-700 dark:text-foreground">
+                <p className="text-sm font-medium text-foreground">
                   {files.length} file{files.length > 1 ? "s" : ""} selected
                 </p>
               ) : (
                 <>
-                  <p className="text-sm font-medium text-gray-700 dark:text-foreground">Click or drag & drop your product photos or videos</p>
-                  <p className="text-xs text-gray-400 dark:text-muted-foreground mt-1">jpg, png, webp, gif, mp4, mov, webm — matched by filename</p>
+                  <p className="text-sm font-medium text-foreground">Click or drag & drop your product photos or videos</p>
+                  <p className="text-xs text-muted-foreground mt-1">jpg, png, webp, gif, mp4, mov, webm — matched by filename</p>
                 </>
               )}
               <input
@@ -334,37 +334,37 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
             </div>
 
             {files.length > 0 && (
-              <div className="mt-3 max-h-28 overflow-y-auto text-xs text-gray-500 dark:text-muted-foreground space-y-0.5">
+              <div className="mt-3 max-h-28 overflow-y-auto text-xs text-muted-foreground space-y-0.5">
                 {files.map((f, i) => <p key={i} className="truncate">{f.name}</p>)}
               </div>
             )}
 
             {/* Alt text template */}
             <div className="mt-3">
-              <label className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Alt text template (SEO, optional)</label>
+              <label className="text-xs font-medium text-muted-foreground">Alt text template (SEO, optional)</label>
               <input
                 type="text"
                 value={altTextTemplate}
                 onChange={(e) => setAltTextTemplate(e.target.value)}
                 placeholder="{productName} - {color}"
-                className="mt-1 w-full text-xs border border-gray-300 dark:border-border rounded-md px-2 py-1.5"
+                className="mt-1 w-full text-xs border border-border rounded-md px-2 py-1.5"
               />
-              <p className="mt-1 text-[11px] text-gray-400 dark:text-muted-foreground">
+              <p className="mt-1 text-[11px] text-muted-foreground">
                 Applied to every matched file. Placeholders: {"{productName}"}, {"{color}"}, {"{role}"}. Leave blank to skip.
               </p>
             </div>
 
             {/* Naming convention reference */}
-            <details className="mt-3 text-xs text-gray-500 dark:text-muted-foreground">
-              <summary className="cursor-pointer font-medium text-gray-600 dark:text-muted-foreground hover:text-gray-800 dark:text-foreground">How files get matched to products</summary>
-              <div className="mt-2 font-mono bg-gray-50 dark:bg-muted rounded p-2 leading-5 break-all space-y-1">
+            <details className="mt-3 text-xs text-muted-foreground">
+              <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">How files get matched to products</summary>
+              <div className="mt-2 font-mono bg-muted rounded p-2 leading-5 break-all space-y-1">
                 <p>{"{productCode}"}-main.jpg → cover image</p>
                 <p>{"{productCode}"}-{"{metalColor}"}-main.jpg → main image for that color</p>
                 <p>{"{productCode}"}-{"{metalColor}"}-rollover.jpg → hover-swap image for that color</p>
                 <p>{"{productCode}"}-{"{metalColor}"}-gallery-2.jpg → gallery image #2 for that color</p>
                 <p>{"{productCode}"}-White-Rose-main.jpg → the White/Rose two-tone variant&apos;s own photo</p>
               </div>
-              <p className="mt-1 text-gray-400 dark:text-muted-foreground">
+              <p className="mt-1 text-muted-foreground">
                 Every color needs its own file — colors are never shared or duplicated from one upload. productCode must match an existing product exactly (case-insensitive). metalColor is optional on single-color products (White/Yellow/Rose/Gold/Silver/Platinum), plus two-tone combos (White-Rose, White-Yellow, Yellow-Rose). Videos work the same way as images (mp4, mov, webm) — a video can be the &quot;main&quot; or &quot;rollover&quot; slot for a color too. Any image format works (jpg, png, webp, gif).
               </p>
             </details>
@@ -379,16 +379,16 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
         ) : status === "done" ? (
           <>
             <div className="text-center py-4">
-              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
-              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Upload Complete</p>
+              <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
+              <p className="text-lg font-semibold text-foreground">Upload Complete</p>
               <div className="flex justify-center gap-6 mt-4 text-sm">
-                <div className="text-center"><p className="text-2xl font-bold text-green-600">{result.uploaded}</p><p className="text-gray-500 dark:text-muted-foreground">Matched &amp; uploaded</p></div>
-                <div className="text-center"><p className="text-2xl font-bold text-gray-800 dark:text-foreground">{result.total}</p><p className="text-gray-500 dark:text-muted-foreground">Total files</p></div>
-                {result.unmatched?.length > 0 && <div className="text-center"><p className="text-2xl font-bold text-red-500">{result.unmatched.length}</p><p className="text-gray-500 dark:text-muted-foreground">Unmatched</p></div>}
+                <div className="text-center"><p className="text-2xl font-bold text-success">{result.uploaded}</p><p className="text-muted-foreground">Matched &amp; uploaded</p></div>
+                <div className="text-center"><p className="text-2xl font-bold text-foreground">{result.total}</p><p className="text-muted-foreground">Total files</p></div>
+                {result.unmatched?.length > 0 && <div className="text-center"><p className="text-2xl font-bold text-destructive">{result.unmatched.length}</p><p className="text-muted-foreground">Unmatched</p></div>}
               </div>
             </div>
             {result.unmatched?.length > 0 && (
-              <div className="mt-4 max-h-32 overflow-y-auto bg-red-50 rounded p-3 text-xs text-red-700 space-y-1">
+              <div className="mt-4 max-h-32 overflow-y-auto bg-destructive/10 rounded p-3 text-xs text-destructive space-y-1">
                 {result.unmatched.map((u, i) => <p key={i}><span className="font-medium">{u.fileName}:</span> {u.reason}</p>)}
               </div>
             )}
@@ -397,9 +397,9 @@ const BulkImageUploadModal = ({ open, onClose, onUploaded }) => {
         ) : (
           <>
             <div className="text-center py-4">
-              <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-3" />
-              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">Upload Failed</p>
-              <p className="text-sm text-red-600 mt-2">{result?.error}</p>
+              <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-3" />
+              <p className="text-lg font-semibold text-foreground">Upload Failed</p>
+              <p className="text-sm text-destructive mt-2">{result?.error}</p>
             </div>
             <div className="flex gap-2 mt-5">
               <Button variant="outline" className="flex-1" onClick={handleClose}>Close</Button>
@@ -527,20 +527,20 @@ const BulkAiGenerateModal = ({ open, onClose, rows, onDone }) => {
   const failed = results.filter((r) => !r.ok);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white dark:bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+      <div className="bg-card rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Generate AI Listing Copy</h2>
-          <button onClick={handleClose} className="text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-muted-foreground"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="text-muted-foreground hover:text-muted-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         {status === "idle" ? (
           <>
-            <p className="text-sm text-gray-600 dark:text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Rewrite Name, Short Description, Description and SEO fields for {rows.length} selected product{rows.length > 1 ? "s" : ""} from their existing metal, diamond, category and style attributes.
             </p>
             <div className="mt-3">
-              <label className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Model</label>
-              <select value={model} onChange={(e) => setModel(e.target.value)} className="mt-1 w-full text-sm border border-gray-300 dark:border-border rounded-md px-2 py-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Model</label>
+              <select value={model} onChange={(e) => setModel(e.target.value)} className="mt-1 w-full text-sm border border-border rounded-md px-2 py-1.5">
                 <option value="haiku">Haiku 4.5 — fast, cheap, default</option>
                 <option value="sonnet">Sonnet 5 — best copy, higher cost</option>
               </select>
@@ -553,22 +553,22 @@ const BulkAiGenerateModal = ({ open, onClose, rows, onDone }) => {
         ) : status === "running" ? (
           <div className="text-center py-6">
             <Loader2 className="w-8 h-8 text-primary mx-auto mb-3 animate-spin" />
-            <p className="text-sm font-medium text-gray-700 dark:text-foreground">Generating {progress.done} / {progress.total}…</p>
+            <p className="text-sm font-medium text-foreground">Generating {progress.done} / {progress.total}…</p>
           </div>
         ) : (
           <>
             <div className="text-center py-4">
               {failed.length === 0 ? (
-                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+                <CheckCircle className="w-12 h-12 text-success mx-auto mb-3" />
               ) : (
-                <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
+                <AlertCircle className="w-12 h-12 text-warning mx-auto mb-3" />
               )}
-              <p className="text-lg font-semibold text-gray-800 dark:text-foreground">
+              <p className="text-lg font-semibold text-foreground">
                 {results.length - failed.length} / {results.length} generated
               </p>
             </div>
             {failed.length > 0 && (
-              <div className="mt-2 max-h-32 overflow-y-auto bg-red-50 rounded p-3 text-xs text-red-700 space-y-1">
+              <div className="mt-2 max-h-32 overflow-y-auto bg-destructive/10 rounded p-3 text-xs text-destructive space-y-1">
                 {failed.map((f) => <p key={f.id}><span className="font-medium">{f.title || f.id}:</span> {f.reason}</p>)}
               </div>
             )}
@@ -966,7 +966,7 @@ const ProductMasterList = () => {
   // Only show the full-page loader on the FIRST load. On pagination/filter
   // fetches keep the list mounted so the view toggle (grid/table) persists.
   if (loading && !list?.length) return <ContentLoader />;
-  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (error) return <div className="text-destructive">Error: {error}</div>;
 
   const activeFilters = () =>
     Object.fromEntries(Object.entries(filters).filter(([, v]) => v));

@@ -106,7 +106,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
               {/* Details Section */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Diamond Specs */}
-                <div className="bg-gray-50 dark:bg-muted p-4 rounded-lg">
+                <div className="bg-muted p-4 rounded-lg">
                   <h3 className="text-base font-medium mb-4">
                     Diamond Specification
                   </h3>
@@ -116,7 +116,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
                         key={index}
                         className="flex justify-between items-center"
                       >
-                        <span className="text-sm text-gray-600 dark:text-muted-foreground">
+                        <span className="text-sm text-muted-foreground">
                           {item.label}
                         </span>
                         <span className="text-sm font-medium">{item.info}</span>
@@ -126,7 +126,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
                 </div>
 
                 {/* Metal Specs + Other Details */}
-                <div className="bg-gray-50 dark:bg-muted p-4 rounded-lg">
+                <div className="bg-muted p-4 rounded-lg">
                   <h3 className="text-base font-medium mb-4">
                     Metal Specification
                   </h3>
@@ -136,7 +136,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
                         key={index}
                         className="flex justify-between items-center"
                       >
-                        <span className="text-sm text-gray-600 dark:text-muted-foreground">
+                        <span className="text-sm text-muted-foreground">
                           {item.label}
                         </span>
                         <span className="text-sm font-medium">{item.info}</span>
@@ -152,7 +152,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
                           key={index}
                           className="flex justify-between items-center mt-2"
                         >
-                          <span className="text-sm text-gray-600 dark:text-muted-foreground">
+                          <span className="text-sm text-muted-foreground">
                             {item.label}
                           </span>
                           <span className="text-sm font-medium">
@@ -165,17 +165,17 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
                 </div>
 
                 {/* Description / Notes */}
-                <div className="bg-gray-50 dark:bg-muted p-4 rounded-lg">
+                <div className="bg-muted p-4 rounded-lg">
                   <h3 className="text-base font-medium mb-4">
                     Additional Description
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {description || "No description provided."}
                   </p>
                 </div>
 
                 {/* Customer Info */}
-                <div className="bg-gray-50 dark:bg-muted p-4 rounded-lg">
+                <div className="bg-muted p-4 rounded-lg">
                   <h3 className="text-base font-medium mb-4">
                     Customer Contact Info
                   </h3>
@@ -185,7 +185,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
                         key={index}
                         className="flex justify-between items-center"
                       >
-                        <span className="text-sm text-gray-600 dark:text-muted-foreground">
+                        <span className="text-sm text-muted-foreground">
                           {item.label}
                         </span>
                         <span className="text-sm font-medium">{item.info}</span>

@@ -158,7 +158,7 @@ const BlogPostModel = ({ open, onClose, onSuccess, editData, storeId, postId }) 
                     <SelectContent>
                       <SelectGroup>
                         {categories.length === 0 ? (
-                          <div className="text-center text-xs text-gray-500 dark:text-muted-foreground py-2">
+                          <div className="text-center text-xs text-muted-foreground py-2">
                             No categories yet — add one in the Categories tab
                           </div>
                         ) : (

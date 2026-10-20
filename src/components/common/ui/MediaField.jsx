@@ -95,7 +95,7 @@ const MediaField = ({
             onClick={() => onChange("")}
             className="absolute top-1.5 right-1.5 bg-background/90 rounded-md p-1.5 shadow-sm hover:bg-background"
           >
-            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+            <Trash2 className="h-3.5 w-3.5 text-destructive" />
           </button>
         )}
       </div>
@@ -106,7 +106,7 @@ const MediaField = ({
         onChange={(e) => onChange(e.target.value)}
         placeholder="https://… or upload above"
       />
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
       {hint && !error && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
     </div>
   );

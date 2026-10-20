@@ -123,13 +123,13 @@ export function NotificationCenterSheet({ isOpen, onOpenChange }) {
     return (
       {
         order: "text-primary",
-        support: "text-purple-500",
-        content: "text-green-500",
-        product: "text-orange-500",
-        billing: "text-yellow-500",
-        system: "text-gray-500 dark:text-muted-foreground",
-        store: "text-pink-500",
-      }[type] || "text-gray-500 dark:text-muted-foreground"
+        support: "text-info",
+        content: "text-success",
+        product: "text-warning",
+        billing: "text-info",
+        system: "text-muted-foreground",
+        store: "text-info",
+      }[type] || "text-muted-foreground"
     );
   };
 

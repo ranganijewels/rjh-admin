@@ -191,7 +191,7 @@ const CategoryProductsPage = ({ category }) => {
           <h1 className="text-xl font-semibold">
             {toTitleCase(category)} Products
           </h1>
-          <p className="text-sm text-gray-500 dark:text-muted-foreground">{products.length} Products</p>
+          <p className="text-sm text-muted-foreground">{products.length} Products</p>
         </div>
 
         <div className="flex gap-3">

@@ -96,7 +96,7 @@ export function Communication() {
   ];
 
   return (
-    <div className="bg-white dark:bg-card rounded-xl shadow-md border border-border w-full flex flex-col h-[600px]">
+    <div className="bg-card rounded-xl shadow-md border border-border w-full flex flex-col h-[600px]">
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-border">
         <div className="max-w-4xl">
@@ -160,7 +160,7 @@ export function Communication() {
             { path: "/media/avatars/300-2.png" },
             {
               fallback: "+10",
-              variant: "bg-green-500 text-white",
+              variant: "bg-success text-white",
             },
           ]}
         />
@@ -170,7 +170,7 @@ export function Communication() {
       </div>
       {/* Messages */}
       <div
-        className="flex-1 overflow-y-auto px-0 py-3 space-y-3.5 bg-white dark:bg-card"
+        className="flex-1 overflow-y-auto px-0 py-3 space-y-3.5 bg-card"
         aria-live="polite"
       >
         {messages.map((message, index) =>
@@ -187,7 +187,7 @@ export function Communication() {
                   <CheckCheck
                     className={cn(
                       "w-4 h-4",
-                      message.read ? "text-green-500" : "text-muted-foreground"
+                      message.read ? "text-success" : "text-muted-foreground"
                     )}
                   />
                 </div>

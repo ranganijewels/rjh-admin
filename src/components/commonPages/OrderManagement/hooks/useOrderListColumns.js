@@ -37,7 +37,7 @@ const TestFlag = ({ order }) => {
       disabled={busy}
       title={isTest ? "Test order — excluded from reports. Click to mark as real." : "Mark as test order (exclude from reports)"}
       className={`rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase ${
-        isTest ? "bg-amber-100 text-amber-800" : "text-muted-foreground/50 hover:text-amber-700"
+        isTest ? "bg-warning/10 text-warning" : "text-muted-foreground/50 hover:text-warning"
       }`}
     >
       {isTest ? "Test" : "· test?"}
@@ -148,7 +148,7 @@ export const useOrderListColumns = ({ onEdit, onView }) => {
           const n = Number(row.original.subtotal);
           // Guard against bad/legacy NaN totals so the grid never shows "NaN".
           if (!Number.isFinite(n)) {
-            return <span className="text-amber-600">—</span>;
+            return <span className="text-warning">—</span>;
           }
           return <span>${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>;
         },

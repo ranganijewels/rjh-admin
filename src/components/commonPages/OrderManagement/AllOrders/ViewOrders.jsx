@@ -229,7 +229,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                               "size-5 rounded-full flex items-center justify-center text-xs font-semibold",
                               done
                                 ? "bg-primary text-white"
-                                : "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground"
+                                : "bg-muted text-muted-foreground"
                             )}
                           >
                             {done ? <Check className="size-3" /> : i + 1}
@@ -237,7 +237,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                           <span
                             className={cn(
                               "text-xs text-center max-w-[64px] leading-tight",
-                              done ? "text-primary font-medium" : "text-gray-600 dark:text-muted-foreground"
+                              done ? "text-primary font-medium" : "text-muted-foreground"
                             )}
                           >
                             {s}
@@ -247,7 +247,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                           <div
                             className={cn(
                               "h-0.5 flex-1 min-w-2 rounded",
-                              i < currentStageIdx ? "bg-primary" : "bg-gray-200 dark:bg-secondary"
+                              i < currentStageIdx ? "bg-primary" : "bg-muted"
                             )}
                           />
                         )}
@@ -269,7 +269,7 @@ const ViewOrders = ({ open, onClose, orderId, orders }) => {
                       id={`order-status-${orderRowId ?? "new"}`}
                       value={status}
                       onChange={(e) => setStatus(e.target.value)}
-                      className="border border-input rounded-md px-2.5 py-2 text-sm bg-white dark:bg-card"
+                      className="border border-input rounded-md px-2.5 py-2 text-sm bg-card"
                     >
                       {FULFILLMENT_STAGES.map((s) => (
                         <option key={s} value={s}>

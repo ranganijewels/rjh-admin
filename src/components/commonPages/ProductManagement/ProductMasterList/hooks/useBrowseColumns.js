@@ -139,7 +139,7 @@ export const useBrowseColumns = ({ onClick, onView }) => {
                   key={index}
                   title={color}
                   aria-label={`Metal color: ${color || "unknown"}`}
-                  className="flex h-[18px] w-[18px] items-center justify-center rounded-sm border border-gray-400 dark:border-border"
+                  className="flex h-[18px] w-[18px] items-center justify-center rounded-sm border border-border"
                   style={{
                     background: getBackground(color),
                   }}

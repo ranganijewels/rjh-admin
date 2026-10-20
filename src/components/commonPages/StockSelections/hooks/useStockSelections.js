@@ -146,7 +146,7 @@ export const useStockSelections = ({ onClick, onView }) => {
                   }-${index}`}
                   title={color}
                   aria-label={`Metal color: ${color || "unknown"}`}
-                  className="h-[18px] w-[18px] rounded-sm border border-gray-300 dark:border-border"
+                  className="h-[18px] w-[18px] rounded-sm border border-border"
                   style={{
                     background: getBackground(color),
                   }}

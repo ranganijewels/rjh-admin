@@ -68,7 +68,7 @@ const ProductCard = ({
           <div className="absolute left-[17px] bottom-[10px]">
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="text-[11px] font-medium px-2 py-1 rounded bg-amber-100 text-amber-800 border border-amber-200 cursor-default">
+                <span className="text-[11px] font-medium px-2 py-1 rounded bg-warning/10 text-warning border border-warning/30 cursor-default">
                   No media
                 </span>
               </TooltipTrigger>
@@ -224,7 +224,7 @@ const ProductCard = ({
                 onDelete();
               }}
             >
-              <RiDeleteBinFill className="h-4 w-4 text-red-500" />
+              <RiDeleteBinFill className="h-4 w-4 text-destructive" />
             </Button>
           )}
         </div>

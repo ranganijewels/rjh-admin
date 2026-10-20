@@ -26,7 +26,7 @@ const authHeaders = () => {
 // colour palette rather than the interface tokens.
 const swatch = (c) =>
   c === "White"
-    ? "bg-gray-200 dark:bg-secondary"
+    ? "bg-muted"
     : c === "Yellow"
       ? "bg-yellow-300"
       : c === "Rose"

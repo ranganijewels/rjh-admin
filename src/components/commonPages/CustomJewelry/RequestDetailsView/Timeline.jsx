@@ -20,7 +20,7 @@ export function TimelineItem({ line, icon: Icon, children }) {
             {line && (
                 <div className="absolute w-px h-full bg-border left-4 top-8"></div>
             )}
-            <div className="flex items-center justify-center shrink-0 rounded-full bg-white dark:bg-card border border-border w-8 h-8 z-10">
+            <div className="flex items-center justify-center shrink-0 rounded-full bg-card border border-border w-8 h-8 z-10">
                 <Icon size={16} className="text-secondary-foreground" />
             </div>
             <div className="flex-1 ml-4">

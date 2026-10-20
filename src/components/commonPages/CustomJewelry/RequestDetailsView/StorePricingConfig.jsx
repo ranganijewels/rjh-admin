@@ -138,10 +138,10 @@ export const StorePricingConfig = () => {
                 {leftColumn.map((item, index) => (
                   <div
                     key={index}
-                    className="flex justify-between text-sm text-gray-600 dark:text-muted-foreground"
+                    className="flex justify-between text-sm text-muted-foreground"
                   >
                     <span>{item.label}</span>
-                    <span className="font-semibold text-gray-900 dark:text-foreground">
+                    <span className="font-semibold text-foreground">
                       {item.value}
                     </span>
                   </div>
@@ -153,10 +153,10 @@ export const StorePricingConfig = () => {
                 {rightColumn.map((item, index) => (
                   <div
                     key={index}
-                    className="flex justify-between text-sm text-gray-600 dark:text-muted-foreground"
+                    className="flex justify-between text-sm text-muted-foreground"
                   >
                     <span>{item.label}</span>
-                    <span className="font-semibold text-gray-900 dark:text-foreground">
+                    <span className="font-semibold text-foreground">
                       {item.value}
                     </span>
                   </div>
@@ -169,7 +169,7 @@ export const StorePricingConfig = () => {
 
       <CardTitle className="ml-5 mb-5">CAD & Assets</CardTitle>
       <div className="flex gap-3 ml-5 mb-5">
-        <Button variant="outline" className={"bg-gray-200 dark:bg-secondary"}>
+        <Button variant="outline" className={"bg-muted"}>
           <Link href="#">CAD Version History</Link>
         </Button>
         <Button

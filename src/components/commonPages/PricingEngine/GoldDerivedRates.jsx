@@ -77,19 +77,19 @@ export default function GoldDerivedRates() {
   if (state.loading) return null;
 
   return (
-    <div className="mb-5 rounded-lg border border-dashed border-amber-300 bg-amber-50/60 p-4">
+    <div className="mb-5 rounded-lg border border-dashed border-warning/40 bg-warning/10 p-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <div>
-          <div className="text-xs font-semibold text-amber-900">
+          <div className="text-xs font-semibold text-warning">
             Gold — auto-derived KT prices
           </div>
-          <div className="text-[11px] text-amber-800/80">
+          <div className="text-[11px] text-warning/80">
             You only maintain the <b>24K row</b>; karats price at 24K × factor ÷ 99.9
             (factors live in Catalog → KT / Purity Master). An explicit row for a
             karat overrides its derived price.
           </div>
         </div>
-        <div className="text-sm font-semibold text-amber-900">
+        <div className="text-sm font-semibold text-warning">
           24K: {state.base != null ? `$${state.base.toFixed(2)}/g` : "— no 24K gold row yet"}
         </div>
       </div>
@@ -98,13 +98,13 @@ export default function GoldDerivedRates() {
           {state.rows.map((r) => (
             <div
               key={r.code}
-              className="rounded-md border border-amber-200 bg-white dark:bg-card px-3 py-1.5 text-xs"
+              className="rounded-md border border-warning/30 bg-card px-3 py-1.5 text-xs"
             >
               <span className="font-semibold">{r.code}</span>{" "}
               {r.override != null ? (
                 <span>
                   = ${r.override.toFixed(2)}/g{" "}
-                  <span className="text-amber-700">(explicit row overrides{r.derived != null ? ` $${r.derived.toFixed(2)} derived` : ""})</span>
+                  <span className="text-warning">(explicit row overrides{r.derived != null ? ` $${r.derived.toFixed(2)} derived` : ""})</span>
                 </span>
               ) : r.derived != null ? (
                 <span>
@@ -112,7 +112,7 @@ export default function GoldDerivedRates() {
                   <span className="text-muted-foreground">(×{r.factor} ÷ 99.9)</span>
                 </span>
               ) : (
-                <span className="text-red-600">no factor — set one in the KT master</span>
+                <span className="text-destructive">no factor — set one in the KT master</span>
               )}
             </div>
           ))}

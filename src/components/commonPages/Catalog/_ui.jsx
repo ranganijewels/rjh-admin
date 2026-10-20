@@ -49,7 +49,7 @@ export const Select = ({ value, onChange, options, className, ...props }) => (
   <select
     value={value ?? ""}
     onChange={onChange}
-    className={`border border-input rounded-md px-2.5 py-2 text-sm bg-white dark:bg-card aria-invalid:border-destructive/60 ${className || ""}`}
+    className={`border border-input rounded-md px-2.5 py-2 text-sm bg-card aria-invalid:border-destructive/60 ${className || ""}`}
     {...props}
   >
     {options.map((o) =>

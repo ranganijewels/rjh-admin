@@ -310,7 +310,7 @@ export default function RichTextEditor({
 
   return (
     <Card className="w-full">
-      <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-gray-50 dark:bg-muted">
+      <div className="flex flex-wrap items-center gap-2 p-2 border-b bg-muted">
         <div className="flex flex-wrap gap-2">
           <Select onValueChange={(val) => applyFontSize(val)}>
             <SelectTrigger className="w-[115px] px-2 py-1 border rounded">

@@ -68,7 +68,7 @@ const alertVariants = cva(
       {
         variant: 'warning',
         appearance: 'solid',
-        className: 'bg-yellow-500 text-white *:data-alert-close:text-white',
+        className: 'bg-warning text-warning-foreground *:data-alert-close:text-warning-foreground',
       },
       {
         variant: 'mono',
@@ -111,7 +111,7 @@ const alertVariants = cva(
         variant: 'warning',
         appearance: 'outline',
         className:
-          'border border-border bg-background text-yellow-500 *:data-alert-close:text-foreground',
+          'border border-border bg-background text-warning *:data-alert-close:text-foreground',
       },
       {
         variant: 'mono',
@@ -154,7 +154,7 @@ const alertVariants = cva(
         variant: 'warning',
         appearance: 'stroke',
         className:
-          'border border-border bg-background [&>div:first-of-type>svg]:text-yellow-500',
+          'border border-border bg-background [&>div:first-of-type>svg]:text-warning',
       },
       {
         variant: 'mono',
@@ -196,7 +196,7 @@ const alertVariants = cva(
         variant: 'warning',
         appearance: 'light',
         className:
-          'bg-yellow-50 border border-yellow-200 text-foreground [&>div:first-of-type>svg]:text-yellow-500',
+          'bg-warning/10 border border-warning/30 text-foreground [&>div:first-of-type>svg]:text-warning',
       },
 
       {
@@ -207,7 +207,7 @@ const alertVariants = cva(
       {
         variant: 'mono',
         icon: 'warning',
-        className: '[&>div:first-of-type>svg]:text-yellow-500',
+        className: '[&>div:first-of-type>svg]:text-warning',
       },
       {
         variant: 'mono',

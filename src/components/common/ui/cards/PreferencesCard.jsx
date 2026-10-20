@@ -36,7 +36,7 @@ export const PreferencesCard = ({ data, selected }) => {
                 >
                   {data.title}
                 </Link>
-                <span className="inline-flex items-center justify-center rounded-full bg-red-50 p-1">
+                <span className="inline-flex items-center justify-center rounded-full bg-destructive/10 p-1">
                   <img src="/images/verify.svg" alt="Verified" />
                 </span>
               </div>
@@ -101,7 +101,7 @@ export const PreferencesCard = ({ data, selected }) => {
 
 // Extracted reusable component for theme info cards
 const ThemeCard = ({ title, content }) => (
-  <Card className="bg-white dark:bg-card border-2 border-dashed border-gray-300 dark:border-border ">
+  <Card className="bg-card border-2 border-dashed border-border">
     <CardContent className="">
       <h3 className="font-semibold text-base mb-2">{title}</h3>
       <p className="text-sm text-muted-foreground">{content}</p>

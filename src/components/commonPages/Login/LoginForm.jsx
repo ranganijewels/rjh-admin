@@ -67,7 +67,7 @@ const LoginForm = () => {
         </div>
 
         {error && (
-          <p role="alert" aria-live="polite" className="text-red-500 text-sm">
+          <p role="alert" aria-live="polite" className="text-destructive text-sm">
             {error}
           </p>
         )}

@@ -70,7 +70,7 @@ export const DynamicFormFields = ({
                           </SelectItem>
                         ))
                       ) : (
-                        <div className="text-center text-gray-500 dark:text-muted-foreground">
+                        <div className="text-center text-muted-foreground">
                           No options available
                         </div>
                       )}
@@ -96,7 +96,7 @@ export const DynamicFormFields = ({
           </div>
           <div className="w-52 flex items-center">
             <Button variant="dim" mode="icon">
-              <SquareMousePointer size={16} className="text-green-500" />
+              <SquareMousePointer size={16} className="text-success" />
             </Button>
             <Input type="text" className="ml-2" />
           </div>

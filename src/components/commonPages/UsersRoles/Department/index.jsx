@@ -58,7 +58,7 @@ const Department = () => {
   };
 
   if (loading) return <ContentLoader />;
-  if (error) return <div className="text-red-500">Error: {error}</div>;
+  if (error) return <div className="text-destructive">Error: {error}</div>;
 
   return (
     <Page>
