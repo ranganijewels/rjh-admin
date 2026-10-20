@@ -30,6 +30,7 @@ import { TIME_RANGES } from "@/lib/timeseries";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { SafeImage } from "@/components/common/ui/safe-image";
+import { DashboardPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -108,34 +109,6 @@ function useChartTokens() {
   }, []);
 
   return tokens;
-}
-
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-5 lg:space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-7 w-56" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-[124px] rounded-xl" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
-        <Skeleton className="h-80 rounded-xl lg:col-span-2" />
-        <Skeleton className="h-80 rounded-xl" />
-      </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-6">
-        <Skeleton className="h-72 rounded-xl lg:col-span-2" />
-        <Skeleton className="h-72 rounded-xl" />
-      </div>
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-        <Skeleton className="h-56 rounded-xl" />
-        <Skeleton className="h-56 rounded-xl" />
-      </div>
-    </div>
-  );
 }
 
 const Overview = () => {
@@ -423,7 +396,7 @@ const Overview = () => {
     topProducts,
   ]);
 
-  if (loading) return <DashboardSkeleton />;
+  if (loading) return <DashboardPageSkeleton />;
 
   if (err || !d) {
     return (

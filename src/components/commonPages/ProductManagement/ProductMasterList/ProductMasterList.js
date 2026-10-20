@@ -5,7 +5,6 @@ import { useProductListColumns } from "./hooks/useProductListColumns";
 import ProductCard from "./ProductCard";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import { Page, PageHeader } from "@/components/common/ui/page";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Button } from "@/components/common/ui/button";
 import { Plus, X, Upload, Download, FileDown, CheckCircle, AlertCircle, Loader2, Images } from "lucide-react";
@@ -16,6 +15,7 @@ import { toTitleCase } from "@/lib/utils";
 import { PRODUCT_CSV_HEADERS } from "@/lib/csvSubTables";
 import { usePermissions } from "@/provider/permission-provider";
 import { getAuthToken } from "@/lib/auth-token";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 /* ── Example CSV template ──────────────────────────────────────── */
 // Column order is PRODUCT_CSV_HEADERS itself (see src/lib/csvSubTables.js) —
@@ -965,7 +965,7 @@ const ProductMasterList = () => {
 
   // Only show the full-page loader on the FIRST load. On pagination/filter
   // fetches keep the list mounted so the view toggle (grid/table) persists.
-  if (loading && !list?.length) return <ContentLoader />;
+  if (loading && !list?.length) return <ListPageSkeleton showKpis={false} />;
   if (error) return <div className="text-destructive">Error: {error}</div>;
 
   const activeFilters = () =>

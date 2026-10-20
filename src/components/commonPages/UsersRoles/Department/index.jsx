@@ -5,13 +5,13 @@ import { Button } from "@/components/common/ui/button";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { Plus } from "lucide-react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import { useUserDepartments } from "./hooks/useUserDepartments";
 import AddDepartmentModel from "./AddDepartmentsModel";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { usePermissions } from "@/provider/permission-provider";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const Department = () => {
   const { can } = usePermissions();
@@ -57,7 +57,7 @@ const Department = () => {
     });
   };
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <ListPageSkeleton />;
   if (error) return <div className="text-destructive">Error: {error}</div>;
 
   return (

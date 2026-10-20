@@ -1,10 +1,10 @@
 import AllUserList from "@/components/commonPages/UsersRoles/AllUserList";
 import React, { Suspense } from "react";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const page = () => {
   return (
-    <Suspense fallback={<ContentLoader />}>
+    <Suspense fallback={<ListPageSkeleton />}>
       <AllUserList />
     </Suspense>
   );

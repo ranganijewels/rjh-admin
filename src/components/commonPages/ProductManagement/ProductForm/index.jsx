@@ -12,11 +12,11 @@ import { Page, PageHeader } from "@/components/common/ui/page";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Plus, Trash2, ArrowLeft, Save, ChevronDown, ExternalLink } from "lucide-react";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ImageUpload from "./ImageUpload";
 import MediaManager, { detectType } from "./MediaManager";
 import { SafeImage } from "@/components/common/ui/safe-image";
 import { getAuthToken } from "@/lib/auth-token";
+import { FormPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
@@ -791,7 +791,7 @@ export default function ProductForm({ id }) {
     }
   };
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <FormPageSkeleton />;
 
   return (
     <Page className="pb-24">

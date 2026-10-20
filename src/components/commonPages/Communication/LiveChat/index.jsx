@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { Button } from "@/components/common/ui/button";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { Skeleton } from "@/components/common/ui/skeleton";
 import { MessageSquare, Send, CheckCheck, RefreshCw } from "lucide-react";
 import { getAuthToken } from "@/lib/auth-token";
 
@@ -167,7 +167,17 @@ export default function LiveChatInbox() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {loadingList ? (
-              <div className="p-6"><ContentLoader /></div>
+              <div className="flex flex-col gap-3 p-6">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="size-9 rounded-full" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-2/5" />
+                      <Skeleton className="h-3 w-3/5" />
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : conversations.length === 0 ? (
               <div className="p-8 text-center text-sm text-muted-foreground">
                 No conversations yet.
@@ -218,7 +228,13 @@ export default function LiveChatInbox() {
               Select a conversation to view the chat.
             </div>
           ) : !thread ? (
-            <div className="flex-1 flex items-center justify-center"><ContentLoader /></div>
+            <div className="flex-1 space-y-4 p-6">
+              <Skeleton className="h-4 w-1/3" />
+              <Skeleton className="h-4 w-4/5" />
+              <Skeleton className="h-4 w-2/3" />
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
           ) : (
             <>
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/40">

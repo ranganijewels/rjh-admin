@@ -10,8 +10,8 @@ import {
 import useCustomRequestColumn from "../useCustomRequestColumn";
 import { useCrudList } from "@/hooks/useCrudList";
 import RequestDetailsSheet from "./RequestDetailsModel";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const AllCustomRequest = () => {
   const { list, loading, error } = useCrudList("/api/custom-request");
@@ -55,7 +55,7 @@ const AllCustomRequest = () => {
     [list, statusFilter]
   );
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <ListPageSkeleton />;
   if (error) return <div className="text-destructive">Error: {error}</div>;
   if (!list || list.length === 0)
     return (

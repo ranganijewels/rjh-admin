@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/common/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/common/ui/cards/card";
 import { StatusBadge } from "@/components/common/ui/badge";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { ArrowLeft, ImageOff, Pencil, Trash2 } from "lucide-react";
 import { toTitleCase, formatDateLong } from "@/lib/utils";
@@ -13,6 +12,7 @@ import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { MediaPreview, detectType } from "../ProductForm/MediaManager";
 import { toast } from "sonner";
 import { getAuthToken } from "@/lib/auth-token";
+import { DetailPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const authHeaders = () => {
   const token =
@@ -54,7 +54,7 @@ export default function ProductDetailView({ id }) {
     }
   };
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <DetailPageSkeleton />;
 
   if (!product) {
     return (

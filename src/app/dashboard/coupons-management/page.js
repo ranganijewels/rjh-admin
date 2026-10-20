@@ -1,10 +1,10 @@
 import React, { Suspense } from "react";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 import CouponsManagement from "@/components/commonPages/CouponsManagement";
 
 const page = () => {
   return (
-    <Suspense fallback={<ContentLoader />}>
+    <Suspense fallback={<ListPageSkeleton />}>
       <CouponsManagement />
     </Suspense>
   );

@@ -2,11 +2,11 @@
 
 import React, { useState } from "react";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { useCrudList } from "@/hooks/useCrudList";
 import PermissionDialog from "../PermissionDialog";
 import { useUserRolesData } from "./hooks/useUserRolesData";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const Roles = () => {
   const { list, loading, error } = useCrudList("/api/users-roles");
@@ -28,7 +28,7 @@ const Roles = () => {
     );
   };
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <ListPageSkeleton />;
   if (error) return <div className="text-destructive">Error: {error}</div>;
 
   return (

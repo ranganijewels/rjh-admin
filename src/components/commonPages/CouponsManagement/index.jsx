@@ -15,9 +15,9 @@ import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import CouponAddDialog from "./CouponAddDialog";
 import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { usePermissions } from "@/provider/permission-provider";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const CouponsManagement = () => {
   const { can } = usePermissions();
@@ -85,7 +85,7 @@ const CouponsManagement = () => {
     [list, statusFilter]
   );
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <ListPageSkeleton />;
   if (error) return <div>Error: {error}</div>;
 
   return (

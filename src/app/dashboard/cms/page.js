@@ -1,10 +1,10 @@
 import React, { Suspense } from "react";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { DetailPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 import CMS from "@/components/commonPages/CMS";
 
 const page = () => {
   return (
-    <Suspense fallback={<ContentLoader />}>
+    <Suspense fallback={<DetailPageSkeleton />}>
       <CMS />
     </Suspense>
   );

@@ -13,11 +13,11 @@ import { Plus } from "lucide-react";
 import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
-import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import BlogPostModel from "./BlogPostModel";
 import { useBlogPostColumns } from "./hooks/useBlogPostColumns";
 import { usePermissions } from "@/provider/permission-provider";
 import { useUrlFilters } from "@/hooks/useUrlFilters";
+import { ListPageSkeleton } from "@/components/common/ui/skeletons/page-skeleton";
 
 const BlogPosts = ({ storeId = "default" }) => {
   const { can } = usePermissions();
@@ -95,7 +95,7 @@ const BlogPosts = ({ storeId = "default" }) => {
     [list, statusFilter]
   );
 
-  if (loading) return <ContentLoader />;
+  if (loading) return <ListPageSkeleton />;
   if (error)
     return (
       <Alert variant="destructive" appearance="light">
