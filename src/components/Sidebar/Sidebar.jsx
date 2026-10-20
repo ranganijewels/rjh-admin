@@ -5,9 +5,11 @@ import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { ScrollspyMenu } from "./ScrollspyMenu";
 import SidebarMenu from "./SidebarMenu";
+import SidebarRailMenu from "./SidebarRailMenu";
 import SidebarHeader from "./SidebarHeader";
 import SidebarFooter from "./SidebarFooter";
 import ThemeToggle from "./ThemeToggle";
+import { useSidebarCollapsed } from "./useSidebarCollapsed";
 
 // Layout notes:
 // - The <aside> is a plain flex column and never scrolls itself; the MENU AREA
@@ -19,6 +21,7 @@ export function Sidebar({ sideBarMenus, dashboardSidebar }) {
   const router = useRouter();
   const pathname = usePathname();
   const [active, setActive] = useState("");
+  const collapsed = useSidebarCollapsed();
 
   useEffect(() => {
     setActive(pathname.replace(/^\//, ""));
@@ -44,7 +47,7 @@ export function Sidebar({ sideBarMenus, dashboardSidebar }) {
         <>
           <SidebarHeader />
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain">
-            <SidebarMenu />
+            {collapsed ? <SidebarRailMenu /> : <SidebarMenu />}
           </div>
           <SidebarFooter />
           <ThemeToggle />

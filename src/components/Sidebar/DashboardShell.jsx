@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, PanelLeftOpen } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar/Sidebar";
 import { DASHBOARD_MENU } from "@/services/constant";
 import { CommandPalette } from "@/components/common/ui/command-palette";
@@ -19,7 +19,7 @@ import { BRAND_NAME } from "@/lib/config";
 
 function ShellInner({ children }) {
   const pathname = usePathname();
-  const { settings, storeOption } = useSettings();
+  const { settings } = useSettings();
   const { canAccess } = usePermissions();
   const collapsed = !!settings?.layouts?.demo1?.sidebarCollapse;
   const [open, setOpen] = useState(false); // mobile drawer
@@ -39,8 +39,6 @@ function ShellInner({ children }) {
     };
   }, [open]);
 
-  const expand = () => storeOption("layouts.demo1.sidebarCollapse", false);
-
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Mobile backdrop */}
@@ -52,13 +50,14 @@ function ShellInner({ children }) {
       )}
 
       {/* Sidebar: static column on desktop, off-canvas drawer on mobile.
-          On desktop it collapses to width 0 when sidebarCollapse is set. */}
+          On desktop it collapses to an icon rail, so the navigation is
+          always one click away instead of disappearing. */}
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-50 shrink-0 bg-card transition-all duration-200 lg:static lg:transition-[width]",
           "w-sidebar shadow-xl lg:shadow-none",
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
-          collapsed && "lg:w-0 lg:overflow-hidden lg:border-0"
+          collapsed && "lg:w-sidebar-collapsed"
         )}
       >
         {/* Mobile close button */}
@@ -71,17 +70,6 @@ function ShellInner({ children }) {
         </button>
         <Sidebar sideBarMenus={DASHBOARD_MENU} dashboardSidebar={true} />
       </div>
-
-      {/* Floating expand button — shown on desktop only when collapsed */}
-      {collapsed && (
-        <button
-          onClick={expand}
-          className="fixed left-4 top-4 z-[60] hidden h-9 w-9 items-center justify-center rounded-md border border-border bg-card shadow-sm hover:bg-muted lg:flex"
-          aria-label="Expand sidebar"
-        >
-          <PanelLeftOpen className="h-5 w-5" />
-        </button>
-      )}
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -115,7 +103,7 @@ function ShellInner({ children }) {
         <main
           className={cn(
             "flex-1 overflow-auto bg-background p-4 md:p-6",
-            collapsed && "lg:pl-16"
+
           )}
         >
           <div className="mx-auto w-full max-w-[1440px]">

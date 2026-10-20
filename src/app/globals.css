@@ -182,6 +182,8 @@ body {
   /** Sidebar width tokens, exposed for use as w-sidebar / w-sidebar-mobile **/
   --width-sidebar: 288px;
   --width-sidebar-mobile: 288px;
+  /* The collapsed sidebar is an icon rail, not a hidden column. */
+  --width-sidebar-collapsed: 80px;
 
   /* Teal accent used by Live Chat (agent bubbles / unread badge) */
   --color-teal: #2f6f7a;
