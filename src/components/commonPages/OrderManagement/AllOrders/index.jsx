@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   ArrowUpRight,
@@ -99,14 +100,41 @@ const AllOrders = () => {
   const { can } = usePermissions();
   const { orders, loading, error, total, truncated, refresh } = useOrderList();
   const { fetchById } = useCrudApi("/api/order-management");
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [statusTab, setStatusTab] = useState("all");
-  const [todayOnly, setTodayOnly] = useState(false);
+  // The fulfilment tab and the "today" toggle live in the URL, so a view can
+  // be bookmarked, shared and survives a refresh.
+  const [statusTab, setStatusTab] = useState(
+    () => searchParams.get("status") || "all"
+  );
+  const [todayOnly, setTodayOnly] = useState(
+    () => searchParams.get("today") === "1"
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [openOrderDetailSheet, setOpenOrderDetailSheet] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [orderDetail, setOrderDetail] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
+
+  // Keep the URL in step with the filters, without pushing a history entry
+  // for every keystroke.
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (statusTab && statusTab !== "all") params.set("status", statusTab);
+    else params.delete("status");
+    if (todayOnly) params.set("today", "1");
+    else params.delete("today");
+
+    const next = params.toString();
+    const current = searchParams.toString();
+    if (next !== current) {
+      router.replace(
+        `${window.location.pathname}${next ? `?${next}` : ""}`,
+        { scroll: false }
+      );
+    }
+  }, [statusTab, todayOnly, router, searchParams]);
 
   const handleView = useCallback(
     async (order) => {

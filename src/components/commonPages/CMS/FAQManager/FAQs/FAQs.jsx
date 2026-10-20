@@ -6,7 +6,7 @@ import {
   AccordionTrigger,
 } from "@/components/common/ui/accordion";
 import ActiveToggleCell from "@/components/common/ui/ActiveToggleCell";
-import { StatusBadge } from "@/components/common/ui/badge";
+import { Badge, StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
 import { Card } from "@/components/common/ui/cards/card";
 import { PageHeader } from "@/components/common/ui/page";

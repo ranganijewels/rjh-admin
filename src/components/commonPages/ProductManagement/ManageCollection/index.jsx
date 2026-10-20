@@ -481,7 +481,7 @@ export default function ManageCollection() {
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2.5">
                       {row.heroImage ? (
-                        // eslint-disable-next-line @next/next/no-img-element
+                         
                         <img
                           src={row.heroImage}
                           alt=""
@@ -571,7 +571,7 @@ export default function ManageCollection() {
                 <h3 className="font-semibold">Products in “{assignFor.name}”</h3>
                 <p className="text-xs text-muted-foreground">
                   {selectedIds.size} selected — assigning a product here also sets
-                  it as the product's collection.
+                  it as the product&apos;s collection.
                 </p>
               </div>
               <button
@@ -610,7 +610,7 @@ export default function ManageCollection() {
                           onChange={() => toggleProduct(p.id)}
                         />
                         {p.product_image ? (
-                          // eslint-disable-next-line @next/next/no-img-element
+                           
                           <img
                             src={p.product_image}
                             alt=""

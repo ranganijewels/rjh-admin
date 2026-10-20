@@ -143,7 +143,7 @@ function renderMasterDetails(row, kind) {
   }
   if (kind === "diamond_shape") {
     return md.iconUrl ? (
-      // eslint-disable-next-line @next/next/no-img-element
+       
       <img
         src={md.iconUrl}
         alt={row.name}
@@ -215,7 +215,7 @@ function IconUpload({ value, onChange }) {
         {uploading ? (
           <span className="text-[10px] text-muted-foreground">…</span>
         ) : value ? (
-          // eslint-disable-next-line @next/next/no-img-element
+           
           <img src={value} alt="icon" className="size-full object-contain" />
         ) : (
           <ImageUp className="size-5 text-muted-foreground" aria-hidden="true" />

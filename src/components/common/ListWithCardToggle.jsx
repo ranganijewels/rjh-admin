@@ -18,7 +18,7 @@ import {
   ToggleGroup,
   ToggleGroupItem,
 } from "@/components/common/ui/toggle-group";
-import { Columns, LayoutGrid, List, Search, Settings2, X } from "lucide-react";
+import { Columns, LayoutGrid, List, Rows2, Rows3, Search, Settings2, X } from "lucide-react";
 import {
   ToolbarDescription,
 } from "@/components/common/ui/toolbar";
@@ -132,6 +132,15 @@ export const ListWithCardToggle = ({
     columns.some((column) => column.id === "id") ? [{ id: "id", desc: true }] : []
   );
   const [rowSelection, setRowSelection] = useState({});
+  // Row density is a per-list preference, like the column visibility.
+  const [density, setDensity] = useState(() => {
+    if (typeof window === "undefined") return "comfortable";
+    try {
+      return localStorage.getItem(`${title}-row-density`) || "comfortable";
+    } catch {
+      return "comfortable";
+    }
+  });
   const [searchQuery, setSearchQuery] = useState(externalSearchQuery || "");
   const [deletePermissionIds, setDeletePermissionIds] = useState([]);
 
@@ -267,7 +276,15 @@ export const ListWithCardToggle = ({
       COLUMN_VISIBILITY_KEY,
       JSON.stringify(columnVisibility)
     );
-  }, [columnVisibility]);
+  }, [columnVisibility, COLUMN_VISIBILITY_KEY]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${title}-row-density`, density);
+    } catch {
+      // A blocked storage quota should not break the table.
+    }
+  }, [density, title]);
 
   useEffect(() => {
     if (typeof onSelectionChange === "function") {
@@ -555,6 +572,7 @@ export const ListWithCardToggle = ({
                 cellBorder: true,
                 headerSticky: true,
                 columnsResizable: resizableColumns,
+                dense: density === "compact",
                 ...(resizableColumns ? { width: "fixed" } : {}),
               }}
               onRowSelectionChange={setRowSelection}
@@ -604,7 +622,7 @@ export const ListWithCardToggle = ({
                                 value={filter.value}
                                 onValueChange={filter.onChange}
                               >
-                                <SelectTrigger className="w-full sm:w-40">
+                                <SelectTrigger className="w-full sm:w-36">
                                   <SelectValue
                                     placeholder={filter.placeholder || key}
                                   />
@@ -687,6 +705,34 @@ export const ListWithCardToggle = ({
                     )}
 
                     <CardToolbar className="flex items-center gap-2">
+                      {/* Row density — comfortable or compact. */}
+                      <ToggleGroup
+                        type="single"
+                        value={density}
+                        onValueChange={(value) => {
+                          if (value) setDensity(value);
+                        }}
+                        variant="outline"
+                        size="sm"
+                        aria-label="Row density"
+                        className="hidden sm:flex"
+                      >
+                        <ToggleGroupItem
+                          value="comfortable"
+                          aria-label="Comfortable rows"
+                          title="Comfortable rows"
+                        >
+                          <Rows3 className="size-4" />
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value="compact"
+                          aria-label="Compact rows"
+                          title="Compact rows"
+                        >
+                          <Rows2 className="size-4" />
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+
                       {/* Column Visibility Toggle */}
                       <DataGridColumnVisibility
                         table={table}

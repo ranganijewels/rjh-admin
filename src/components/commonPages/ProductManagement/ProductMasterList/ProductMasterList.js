@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useProductListColumns } from "./hooks/useProductListColumns";
 import ProductCard from "./ProductCard";
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
@@ -596,6 +596,7 @@ const authHeaders = () => {
 
 const ProductMasterList = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { can } = usePermissions();
   const [pageInfo, setPageInfo] = useState({ pageIndex: 0, pageSize: 10 });
   const [searchQuery, setSearchQuery] = useState("");
@@ -605,12 +606,14 @@ const ProductMasterList = () => {
   const [aiGenerateOpen, setAiGenerateOpen] = useState(false);
   const [aiGenerateRows, setAiGenerateRows] = useState([]);
   const [exporting, setExporting] = useState(false);
-  const [filters, setFilters] = useState({
-    category: "",
-    metal_color: "",
-    shape: "",
-    status: "",
-  });
+  // The filters live in the URL so a view can be bookmarked, shared and
+  // survives a refresh.
+  const [filters, setFilters] = useState(() => ({
+    category: searchParams.get("category") || "",
+    metal_color: searchParams.get("metal_color") || "",
+    shape: searchParams.get("shape") || "",
+    status: searchParams.get("status") || "",
+  }));
 
   const {
     list,
@@ -669,7 +672,13 @@ const ProductMasterList = () => {
       }
 
       if (!restore) {
-        fetchData({ page: 1, pageSize: pageInfo.pageSize });
+        fetchData({
+          page: 1,
+          pageSize: pageInfo.pageSize,
+          ...Object.fromEntries(
+            Object.entries(filters).filter(([, value]) => value)
+          ),
+        });
         return;
       }
 
@@ -750,6 +759,24 @@ const ProductMasterList = () => {
   const setFilter = (key, value) =>
     applyFilters({ ...filters, [key]: value === "all" ? "" : value });
 
+  // Mirror the filters into the URL — without pushing a history entry for
+  // every dropdown change.
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    });
+
+    const next = params.toString();
+    if (next !== searchParams.toString()) {
+      router.replace(
+        `${window.location.pathname}${next ? `?${next}` : ""}`,
+        { scroll: false }
+      );
+    }
+  }, [filters, router, searchParams]);
+
   const clearFilters = () => applyFilters({ category: "", metal_color: "", shape: "", status: "" });
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
@@ -771,7 +798,7 @@ const ProductMasterList = () => {
         onChange: (v) => setFilter("metal_color", v),
         placeholder: "All metal colours",
         options: [
-          { value: "all", label: "All metal colours" },
+          { value: "all", label: "All colours" },
           ...METAL_COLORS.map((c) => ({ value: c, label: toTitleCase(c) })),
         ],
       },
@@ -968,8 +995,14 @@ const ProductMasterList = () => {
         filterDropdownProps={filterDropdowns}
         filterActions={
           activeFilterCount > 0 ? (
-            <Button variant="outline" size="sm" onClick={clearFilters}>
-              <X className="size-3.5" /> Clear ({activeFilterCount})
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={clearFilters}
+              aria-label={`Clear ${activeFilterCount} active filters`}
+            >
+              <X className="size-3.5" />
+              {activeFilterCount}
             </Button>
           ) : null
         }

@@ -42,7 +42,7 @@ export function MediaPreview({ url, type, className }) {
   }
   if (t === "model") {
     return (
-      // eslint-disable-next-line react/no-unknown-property
+       
       <model-viewer
         src={url}
         camera-controls=""

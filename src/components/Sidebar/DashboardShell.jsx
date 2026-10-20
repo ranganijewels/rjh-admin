@@ -1,17 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   Bell,
   Menu,
   X,
   PanelLeftOpen,
-  Search,
 } from "lucide-react";
 import { Sidebar } from "@/components/Sidebar/Sidebar";
 import { DASHBOARD_MENU } from "@/services/constant";
-import { MENU_SIDEBAR } from "@/config/menu.config";
+import { CommandPalette } from "@/components/common/ui/command-palette";
 import { SettingsProvider, useSettings } from "@/provider/settings-provider";
 import {
   PermissionProvider,
@@ -20,106 +19,6 @@ import {
 import AccessDenied from "@/components/common/AccessDenied";
 import { cn } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/config";
-
-// Flatten the sidebar config into searchable { title, path, trail } records.
-// Group headings and parent-only items without a path are skipped.
-function flattenMenu(items, trail = []) {
-  return items.flatMap((item) => {
-    if (item.heading) return [];
-    const nextTrail = item.title ? [...trail, item.title] : trail;
-    const self = item.path
-      ? [{ title: item.title, path: item.path, trail: trail.join(" / ") }]
-      : [];
-    const children = item.children ? flattenMenu(item.children, nextTrail) : [];
-    return [...self, ...children];
-  });
-}
-
-const SEARCHABLE_MENU = flattenMenu(MENU_SIDEBAR);
-
-function GlobalSearch({ className }) {
-  const router = useRouter();
-  const { canAccess } = usePermissions();
-  const [query, setQuery] = useState("");
-  const [focused, setFocused] = useState(false);
-
-  const results = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return [];
-    return SEARCHABLE_MENU.filter(
-      (item) =>
-        canAccess(item.path) &&
-        (item.title.toLowerCase().includes(term) ||
-          item.trail.toLowerCase().includes(term))
-    ).slice(0, 8);
-  }, [query, canAccess]);
-
-  const open = focused && query.trim().length > 0;
-  const showEmpty = open && results.length === 0;
-
-  const go = (path) => {
-    setQuery("");
-    setFocused(false);
-    router.push(path);
-  };
-
-  return (
-    <div className={cn("relative", className)}>
-      <Search
-        className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden="true"
-      />
-      <input
-        type="search"
-        value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setTimeout(() => setFocused(false), 120)}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            setQuery("");
-            setFocused(false);
-          }
-          if (event.key === "Enter" && results[0]) go(results[0].path);
-        }}
-        placeholder="Search anything..."
-        aria-label="Search the admin panel"
-        className="h-9 w-full rounded-lg border border-border bg-muted/50 ps-9 pe-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary/30 focus:bg-card focus:ring-[3px] focus:ring-primary/10"
-      />
-      {open && (
-        <div
-          role="listbox"
-          aria-label="Search results"
-          className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-border bg-popover shadow-popover"
-        >
-          {results.map((item) => (
-            <button
-              key={item.path}
-              type="button"
-              role="option"
-              aria-selected="false"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => go(item.path)}
-              className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-start text-sm hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-            >
-              <span className="truncate font-medium">{item.title}</span>
-              {item.trail && (
-                <span className="shrink-0 truncate text-xs text-muted-foreground">
-                  {item.trail}
-                </span>
-              )}
-            </button>
-          ))}
-          {showEmpty && (
-            <p className="px-3 py-3 text-sm text-muted-foreground">
-              No matching pages
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function ShellInner({ children }) {
   const pathname = usePathname();
@@ -193,7 +92,7 @@ function ShellInner({ children }) {
             The account/profile lives in the sidebar footer, so it is not
             repeated here. */}
         <header className="hidden h-16 shrink-0 items-center gap-4 border-b border-border bg-card px-6 lg:flex">
-          <GlobalSearch className="w-full max-w-md" />
+          <CommandPalette className="w-full max-w-md" />
 
           <div className="ms-auto flex items-center gap-2">
             <button
@@ -219,6 +118,7 @@ function ShellInner({ children }) {
           </button>
           <span className="font-semibold tracking-wide">{BRAND_NAME}</span>
           <div className="ms-auto flex items-center gap-1">
+            <CommandPalette variant="icon" />
             <button
               type="button"
               aria-label="Notifications"

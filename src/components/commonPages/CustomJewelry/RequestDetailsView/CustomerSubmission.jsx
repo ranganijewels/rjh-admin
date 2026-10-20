@@ -144,8 +144,8 @@ export const CustomerSubmission = () => {
           <div className="bg-accent/30 rounded-lg p-4">
             <h3 className="text-base font-medium mb-4">Additional Notes</h3>
             <p className="text-sm text-secondary-foreground">
-              I've looked over the rollout plan, and everything seems spot on.
-              I'm ready on my end and can't wait for the user feedback.
+              I&apos;ve looked over the rollout plan, and everything seems spot on.
+              I&apos;m ready on my end and can&apos;t wait for the user feedback.
             </p>
           </div>
 

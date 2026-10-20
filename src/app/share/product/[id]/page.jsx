@@ -87,7 +87,7 @@ export default async function ShareProductPage({ params }) {
     >
       <h1>{product.title}</h1>
 
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      { }
       <img
         src={product.images?.[0]}
         alt={product.title}
