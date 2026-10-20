@@ -11,6 +11,7 @@ import {
   StatusFilter,
   buildStatusOptions,
 } from "@/components/common/ui/status-filter";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const ReturnRepair = () => {
   const { list } = useCrudList("/api/order-management/return-repair");
@@ -21,7 +22,13 @@ const ReturnRepair = () => {
     pageIndex: 0,
     pageSize: 10,
   });
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
 
   const filteredList = useMemo(() => {
     if (!searchQuery) return list;

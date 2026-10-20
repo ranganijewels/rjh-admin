@@ -1,8 +1,13 @@
 import AllUserList from "@/components/commonPages/UsersRoles/AllUserList";
-import React from "react";
+import React, { Suspense } from "react";
+import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 
 const page = () => {
-  return <AllUserList />;
+  return (
+    <Suspense fallback={<ContentLoader />}>
+      <AllUserList />
+    </Suspense>
+  );
 };
 
 export default page;

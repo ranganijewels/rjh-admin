@@ -13,13 +13,20 @@ import StaticPageModel from "./StaticPageModel";
 import { useStaticPageColumns } from "./hooks/useStaticPageColumns";
 import { useCrudListWithPagination } from "@/hooks/useCrudListWithPagination";
 import { usePermissions } from "@/provider/permission-provider";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const StaticPageManager = () => {
   const { can } = usePermissions();
   const [previewData, setPreviewData] = useState(null);
   const [pageInfo, setPageInfo] = useState({ pageIndex: 0, pageSize: 10 });
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
   const [openDialog, setDialogOpen] = useState(false);
   const [editRow, setEditRow] = useState(null);
 

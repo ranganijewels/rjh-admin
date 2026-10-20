@@ -17,6 +17,7 @@ import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import BlogPostModel from "./BlogPostModel";
 import { useBlogPostColumns } from "./hooks/useBlogPostColumns";
 import { usePermissions } from "@/provider/permission-provider";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const BlogPosts = ({ storeId = "default" }) => {
   const { can } = usePermissions();
@@ -38,7 +39,13 @@ const BlogPosts = ({ storeId = "default" }) => {
   const { remove } = useCrudApi(`/api/cms/blog/${storeId}/posts`);
 
   const [selectedPostId, setSelectedPostId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
 
   // Columns (Edit / Delete Actions)
   const columns = useBlogPostColumns({

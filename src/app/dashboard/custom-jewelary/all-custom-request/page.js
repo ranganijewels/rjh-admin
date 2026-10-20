@@ -1,8 +1,13 @@
 import AllCustomRequest from "@/components/commonPages/CustomJewelry/AllCustomRequest/AllCustomRequest";
-import React from "react";
+import React, { Suspense } from "react";
+import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 
 const page = () => {
-  return <AllCustomRequest />;
+  return (
+    <Suspense fallback={<ContentLoader />}>
+      <AllCustomRequest />
+    </Suspense>
+  );
 };
 
 export default page;

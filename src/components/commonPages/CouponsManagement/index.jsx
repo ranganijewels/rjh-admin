@@ -17,6 +17,7 @@ import { useCrudList } from "@/hooks/useCrudList";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { usePermissions } from "@/provider/permission-provider";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const CouponsManagement = () => {
   const { can } = usePermissions();
@@ -35,7 +36,13 @@ const CouponsManagement = () => {
     handleDelete,
   } = useCrudList("/api/coupon-management");
   const { remove } = useCrudApi("/api/coupon-management");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
 
   const columns = useCouponsList({
     canEdit: can("coupons", "edit"),

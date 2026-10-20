@@ -16,6 +16,7 @@ import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import BlogCategoriesModel from "./BlogCategoriesModel";
 import { useBlogCategoriesColumns } from "./hooks/useBlogCategoriesColumns";
 import { usePermissions } from "@/provider/permission-provider";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const BlogCategories = ({ storeId = "default" }) => {
   const { can } = usePermissions();
@@ -37,7 +38,13 @@ const BlogCategories = ({ storeId = "default" }) => {
   const { remove } = useCrudApi(`/api/cms/blog/${storeId}/categories`);
 
   const [selectedCategoryId, setSelectedCategoryId] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
 
   const columns = useBlogCategoriesColumns({
     canEdit: can("cms", "edit"),

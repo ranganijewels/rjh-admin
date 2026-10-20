@@ -11,6 +11,7 @@ import useCustomRequestColumn from "../useCustomRequestColumn";
 import { useCrudList } from "@/hooks/useCrudList";
 import RequestDetailsSheet from "./RequestDetailsModel";
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const AllCustomRequest = () => {
   const { list, loading, error } = useCrudList("/api/custom-request");
@@ -26,7 +27,13 @@ const AllCustomRequest = () => {
   const columns = useCustomRequestColumn({ onView: handleView });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
 
   const statusLabel = (request) => request?.status || "Unknown";
 

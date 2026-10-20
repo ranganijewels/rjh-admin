@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/common/ui/dialog";
 import { usePermissions } from "@/provider/permission-provider";
-import { searchMenu } from "@/lib/nav-search";
+import { searchSidebar } from "@/lib/nav-search";
 import { cn } from "@/lib/utils";
 
 /**
@@ -196,7 +196,7 @@ export function CommandPalette({
 
   const pageResults = useMemo(
     () =>
-      searchMenu(query, canAccess).slice(0, 6).map((item) => ({
+      searchSidebar(query, canAccess).slice(0, 6).map((item) => ({
         kind: "page",
         id: item.path,
         title: item.title,

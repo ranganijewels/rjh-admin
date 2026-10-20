@@ -16,6 +16,7 @@ import { useCrudApi } from "@/hooks/useCrudApi";
 import PermissionDialog from "../PermissionDialog";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { usePermissions } from "@/provider/permission-provider";
+import { useUrlFilters } from "@/hooks/useUrlFilters";
 
 const AllUserList = () => {
   const { can } = usePermissions();
@@ -38,7 +39,13 @@ const AllUserList = () => {
   const [viewingRole, setViewingRole] = useState(null);
 
   const [editData, setEditData] = useState(null);
-  const [statusFilter, setStatusFilter] = useState("all");
+  // The status filter lives in the URL, so a filtered view can be
+  // bookmarked, shared and survives a refresh.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters({
+    status: "all",
+  });
+  const statusFilter = urlFilters.status;
+  const setStatusFilter = (value) => setUrlFilter("status", value);
 
   const { columns, dialogOpen, setDialogOpen } = useUsersList({
     onEdit: (user) => {
