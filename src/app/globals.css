@@ -9,7 +9,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @import "../css/components/image-input.css";
-/* @import "../css/components/apexcharts.css"; */
+/* ApexCharts ships its own font stack; without this the chart labels, legend
+   and tooltips render in the browser default while the rest of the panel
+   uses the app's typefaces. */
+@import "../css/components/apexcharts.css";
 
 :root {
   /* ── Storeflow-aligned light palette ─────────────────────────────────────
