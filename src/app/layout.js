@@ -1,26 +1,17 @@
 import "./globals.css";
-import { Inter, Montserrat, Cormorant_Garamond } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import Providers from "@/components/Providers";
 
-const inter = Inter({
-  variable: "--font-inter",
+// DM Sans is the admin panel's typeface: a geometric grotesque that stays
+// legible at the small sizes a dense data table is full of, and that keeps
+// its character in the headings without competing with the wordmark.
+//
+// The variable font is used, so the whole weight range comes down in a
+// single file. Montserrat and Cormorant used to be loaded here but nothing
+// referenced them — two wasted downloads at build time.
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
-  style: ["normal", "italic"],
-  display: "swap",
-});
-
-const montserrat = Montserrat({
-  variable: "--font-montserrat",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-cormorant",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
   style: ["normal", "italic"],
   display: "swap",
 });
@@ -56,7 +47,7 @@ export default function RootLayout({ children }) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${inter.variable} ${montserrat.variable} ${cormorant.variable} antialiased`}>
+      <body className={`${dmSans.variable} antialiased`}>
         {" "}
         <Providers>{children}</Providers>
       </body>
