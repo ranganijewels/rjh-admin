@@ -1,10 +1,18 @@
-// Expired/invalid session: clear it and send the admin back to login.
-// Plain module (no hooks available), so use window.location for the redirect.
+// A 401 can mean two very different things: the session really is gone, or
+// this one endpoint rejected the token (a module the role cannot read, a
+// token the service does not recognise). Reacting to the first by nuking the
+// cookie and hard-navigating to /login meant a single failing request threw
+// the admin out of the panel — and out of the 1,800-line product form they
+// were halfway through.
+//
+// So the session is no longer destroyed here. The event is broadcast instead
+// and SessionExpiredDialog decides what happens; the admin keeps their place
+// and their unsaved work until they choose to sign in again.
+import { SESSION_EXPIRED_EVENT } from "@/lib/session-events";
+
 const handleSessionExpiry = (res) => {
   if (res.status !== 401 || typeof window === "undefined") return false;
-  localStorage.removeItem("authTokenStoreAdmin");
-  document.cookie = "token=; Max-Age=0; path=/";
-  window.location.href = "/login";
+  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
   return true;
 };
 

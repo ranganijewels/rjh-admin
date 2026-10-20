@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/Sidebar/Sidebar";
 import { DASHBOARD_MENU } from "@/services/constant";
 import { CommandPalette } from "@/components/common/ui/command-palette";
 import { AttentionMenu } from "@/components/common/ui/attention-menu";
+import { SessionExpiredDialog } from "@/components/common/SessionExpiredDialog";
 import { SettingsProvider, useSettings } from "@/provider/settings-provider";
 import {
   PermissionProvider,
@@ -121,6 +122,8 @@ function ShellInner({ children }) {
             {allowed ? children : <AccessDenied pathname={pathname} />}
           </div>
         </main>
+
+        <SessionExpiredDialog />
       </div>
     </div>
   );
