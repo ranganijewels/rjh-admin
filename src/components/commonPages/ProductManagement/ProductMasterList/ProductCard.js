@@ -11,7 +11,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/common/ui/tooltip";
-import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
@@ -79,7 +79,7 @@ const ProductCard = ({
             </Tooltip>
           </div>
         )}
-        <ProductThumb
+        <SafeImage
           src={product_image}
           alt={design_no ? `Product ${design_no}` : "Product"}
           className="h-[163px] w-[163px] mx-auto object-cover rounded"

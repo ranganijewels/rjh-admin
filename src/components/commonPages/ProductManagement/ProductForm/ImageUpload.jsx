@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const authHeaders = () => {
   const token =
@@ -66,7 +67,7 @@ export default function ImageUpload({ value, onChange, label, compact }) {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         ) : value ? (
           <>
-            <img src={value} alt="" className="w-full h-full object-cover" />
+            <SafeImage src={value} alt="" className="w-full h-full object-cover" />
             <button
               type="button"
               onClick={(e) => {

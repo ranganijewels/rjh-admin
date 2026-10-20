@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Upload, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const authHeaders = () => {
   const token =
@@ -51,7 +52,7 @@ export function MediaPreview({ url, type, className }) {
       ></model-viewer>
     );
   }
-  return <img src={url} alt="" className={className} />;
+  return <SafeImage src={url} alt="" className={className} />;
 }
 
 const ROLES = ["gallery", "main", "rollover"];

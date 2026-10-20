@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { ShoppingCart } from "lucide-react";
 import { TruncatedText } from "@/components/common/ui/short-id";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const useStockSelections = ({ onClick, onView }) => {
   return useMemo(
@@ -31,7 +32,7 @@ export const useStockSelections = ({ onClick, onView }) => {
         accessorFn: (row) => row.image,
         cell: ({ row }) =>
           row.original.image ? (
-            <img
+            <SafeImage
               src={row.original.image}
               alt={row.original.title || "Variant image"}
               className="h-[50px] w-[50px] rounded object-cover"

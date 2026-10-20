@@ -8,7 +8,7 @@ import DialogContent, {
   DialogHeader,
   DialogTitle,
 } from "@/components/common/ui/dialog";
-import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { SafeImage } from "@/components/common/ui/safe-image";
 import { Input } from "@/components/common/ui/input";
 import { Label } from "@/components/common/ui/label";
 import {
@@ -90,7 +90,7 @@ const ManualOrderModel = ({ showOrderModal, setShowOrderModal, product }) => {
           <Card className="p-4 rounded-xl border border-border bg-muted">
             <div className="flex items-center gap-4">
               <div className="w-20 h-20 rounded-lg overflow-hidden bg-card">
-                <ProductThumb
+                <SafeImage
                   src={product.image}
                   alt={product.title}
                   className="w-full h-full object-cover"

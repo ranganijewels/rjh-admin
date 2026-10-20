@@ -24,6 +24,7 @@ import { Button } from "@/components/common/ui/button";
 import { KpiCard } from "@/components/common/ui/kpi-card";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Page, PageHeader } from "@/components/common/ui/page";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
@@ -641,7 +642,7 @@ const Overview = () => {
                   <div key={`${p.code || p.name}-${i}`} className="flex items-start gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted">
                       {p.image ? (
-                        <img
+                        <SafeImage
                           src={p.image}
                           alt={p.name ? `${p.name} thumbnail` : "Product thumbnail"}
                           width={40}

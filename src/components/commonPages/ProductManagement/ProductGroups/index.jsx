@@ -15,6 +15,7 @@ import {
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { cn, toTitleCase } from "@/lib/utils";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const authHeaders = () => {
   const token =
@@ -122,7 +123,7 @@ export default function ProductGroups() {
                     key={p.id}
                     className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
                   >
-                    <img
+                    <SafeImage
                       src={p.mainImageUrl}
                       alt=""
                       className="size-10 shrink-0 rounded object-cover bg-muted"

@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import Link from "next/link";
 import { Badge } from "../badge";
 import { Card, CardContent } from "./card";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export function TwoColCard({ items = [], limit = items.length }) {
   const renderItem = (items, index) => (
@@ -11,7 +12,7 @@ export function TwoColCard({ items = [], limit = items.length }) {
       <CardContent className="flex items-center flex-wrap justify-between gap-4.5 p-2 pe-5">
         <div className="flex items-center gap-3.5">
           <Card className="flex items-center justify-center bg-accent/50 h-[70px] w-[90px] shadow-none">
-            <img
+            <SafeImage
               src={items?.product?.image}
               className="cursor-pointer h-[70px]"
               alt={items?.product?.title || items?.product?.design_no}

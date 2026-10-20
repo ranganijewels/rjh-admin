@@ -28,6 +28,7 @@ import { Label } from "@/components/common/ui/label";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { RadioGroup, RadioGroupItem } from "@/components/common/ui/radio-group";
 import { Textarea } from "@/components/common/ui/textarea";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const ContentandBranding = () => {
   const form = useForm();
@@ -234,7 +235,7 @@ export const ContentandBranding = () => {
                       }}
                     />
                     {logoPreview && (
-                      <img
+                      <SafeImage
                         src={logoPreview}
                         alt="Logo Preview"
                         className="mt-4 h-24 rounded object-contain"

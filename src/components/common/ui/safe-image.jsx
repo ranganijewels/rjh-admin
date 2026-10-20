@@ -6,22 +6,37 @@ import { ImageOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Catalogue media with a graceful fallback.
+ * An image with a graceful fallback.
  *
- * Product photos are served from signed URLs that expire, and a token that
+ * Catalogue media is served from signed URLs that expire, and a token that
  * has gone stale makes the CDN answer 401. The browser then draws its own
  * broken-image glyph inside every cell and every card — which reads as a
- * broken product list rather than a broken session. A failed load falls back
- * to the same muted placeholder used for a product with no photo at all.
+ * broken page rather than a broken session. A failed load falls back to the
+ * muted placeholder instead.
+ *
+ * `fallbackSrc` swaps in a specific image (a bundled placeholder photo)
+ * rather than the icon.
  */
-export function ProductThumb({
+export function SafeImage({
   src,
   alt = "",
   className,
   iconClassName,
+  fallbackSrc,
   ...rest
 }) {
   const [failed, setFailed] = useState(false);
+
+  if (failed && fallbackSrc) {
+    return (
+      <img
+        src={fallbackSrc}
+        alt={alt}
+        className={className}
+        {...rest}
+      />
+    );
+  }
 
   if (!src || failed) {
     return (
@@ -50,4 +65,4 @@ export function ProductThumb({
   );
 }
 
-export default ProductThumb;
+export default SafeImage;

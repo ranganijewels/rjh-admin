@@ -12,7 +12,7 @@ import {
   DataGridTableRowSelectAll,
 } from "@/components/common/ui/data-grid-table";
 import { StatusBadge } from "@/components/common/ui/badge";
-import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { SafeImage } from "@/components/common/ui/safe-image";
 import { usePermissions } from "@/provider/permission-provider";
 import { Button } from "@/components/common/ui/button";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
@@ -134,7 +134,7 @@ export default function ManageCollection() {
           const item = row.original;
           return (
             <div className="flex items-center gap-2.5">
-              <ProductThumb
+              <SafeImage
                 src={item.heroImage}
                 alt=""
                 className="h-9 w-9 shrink-0 rounded-md border border-border object-cover"
@@ -631,7 +631,7 @@ export default function ManageCollection() {
                         />
                         {p.product_image ? (
                            
-                          <img
+                          <SafeImage
                             src={p.product_image}
                             alt=""
                             className="w-9 h-9 rounded object-cover border border-border"

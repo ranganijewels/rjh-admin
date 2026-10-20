@@ -9,6 +9,7 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { StatusBadge } from "@/components/common/ui/badge";
 import { ShortId, TruncatedText } from "@/components/common/ui/short-id";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const useReturnRepairColumns = () => {
   return useMemo(
@@ -48,7 +49,7 @@ export const useReturnRepairColumns = () => {
         cell: ({ row }) => {
           const img = row.original.files?.[0];
           return img ? (
-            <img
+            <SafeImage
               src={img}
               alt={`${row.original.full_name} item image`}
               width="80"

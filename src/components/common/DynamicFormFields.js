@@ -17,6 +17,7 @@ import {
 } from "@/components/common/ui/select";
 import { Button } from "@/components/common/ui/button";
 import { SquareMousePointer } from "lucide-react";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const DynamicFormFields = ({
   questions = [],
@@ -128,7 +129,7 @@ export const DynamicFormFields = ({
               />
             </div>
             {previewUrl && (
-              <img
+              <SafeImage
                 src={previewUrl}
                 alt="preview"
                 className="h-[100px] w-[100px] object-contain"

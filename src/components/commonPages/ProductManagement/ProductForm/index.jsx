@@ -15,6 +15,7 @@ import { Plus, Trash2, ArrowLeft, Save, ChevronDown, ExternalLink } from "lucide
 import { ContentLoader } from "@/components/common/ui/Loader/content-loader";
 import ImageUpload from "./ImageUpload";
 import MediaManager, { detectType } from "./MediaManager";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
@@ -1236,7 +1237,7 @@ export default function ProductForm({ id }) {
             {form.production_images.map((url, i) => (
               <div key={i} className="relative">
                 { }
-                <img src={url} alt="" className="w-20 h-20 object-cover rounded border border-border" />
+                <SafeImage src={url} alt="" className="w-20 h-20 object-cover rounded border border-border" />
                 <button type="button" onClick={() => set("production_images", form.production_images.filter((_, idx) => idx !== i))}
                   className="absolute -top-2 -right-2 bg-card border border-border rounded-full p-0.5 text-destructive">
                   <Trash2 className="size-3" />

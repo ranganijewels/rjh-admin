@@ -9,6 +9,7 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { toTitleCase } from "@/lib/utils";
 import { TruncatedText } from "@/components/common/ui/short-id";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const useSelectionColumns = ({
   editingCell,
@@ -53,13 +54,11 @@ export const useSelectionColumns = ({
           const productImage = row.original.product_image;
 
           return (
-            <img
-              src={productImage || "/images/products/1.png"}
+            <SafeImage
+              src={productImage}
+              fallbackSrc="/images/products/1.png"
               className="h-[50px] w-[50px] rounded object-cover"
               alt={row.original.title || "Product image"}
-              onError={(e) => {
-                e.currentTarget.src = "/images/products/1.png";
-              }}
             />
           );
         },

@@ -7,7 +7,7 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Button } from "@/components/common/ui/button";
 import { TruncatedText } from "@/components/common/ui/short-id";
-import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const useBrowseColumns = ({ onClick, onView }) => {
   return useMemo(
@@ -36,7 +36,7 @@ export const useBrowseColumns = ({ onClick, onView }) => {
             ? row.original.data.product[0]?.image
             : row.original.image;
           return (
-            <ProductThumb
+            <SafeImage
               src={src}
               alt={row.original.category || "Variant image"}
               className="h-[50px] w-[50px] rounded object-cover"

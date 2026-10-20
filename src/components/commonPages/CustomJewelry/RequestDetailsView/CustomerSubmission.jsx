@@ -11,6 +11,7 @@ import {
   TableCell,
   TableRow,
 } from "@/components/common/ui/table";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const items = [
   {
@@ -33,7 +34,7 @@ const renderItem = (item) => {
 const CardLocation = ({ image }) => {
   return (
     <div className="flex flex-col items-center rounded-lg overflow-hidden">
-      <img
+      <SafeImage
         src={image}
         alt="Ring"
         className="w-[142px] h-[137px] object-cover rounded-xl"

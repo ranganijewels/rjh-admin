@@ -3,6 +3,7 @@ import React, { useId, useRef, useState } from "react";
 import { UploadCloud, Trash2 } from "lucide-react";
 import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const authHeaders = () => {
   const token =
@@ -81,7 +82,7 @@ const MediaField = ({
         className={`rounded-md border border-input bg-muted/30 overflow-hidden ${aspectClassName} flex items-center justify-center relative`}
       >
         {value ? (
-          <img src={value} alt={label ? `${label} preview` : "Media preview"} className="w-full h-full object-cover" />
+          <SafeImage src={value} alt={label ? `${label} preview` : "Media preview"} className="w-full h-full object-cover" />
         ) : (
           <span className="text-xs text-muted-foreground px-3 text-center">
             No image — upload or paste a URL

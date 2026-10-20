@@ -24,6 +24,7 @@ import {
   PRODUCT_DISPLAY,
 } from "./constant";
 import { cn } from "@/lib/utils";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 /**
  * A selectable theme option (homepage banner / product display style).
@@ -62,7 +63,7 @@ const ThemeOptionTile = ({ work, isSelected, onSelect }) => (
     )}
 
     <div className="relative aspect-[16/9] overflow-hidden bg-muted/40">
-      <img
+      <SafeImage
         src={work.image}
         alt={work.title}
         width={768}

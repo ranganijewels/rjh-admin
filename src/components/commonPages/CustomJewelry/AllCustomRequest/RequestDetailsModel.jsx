@@ -14,6 +14,7 @@ import {
   SheetTitle,
 } from "@/components/common/ui/sheet";
 import { ScrollArea } from "@/components/common/ui/scroll-area";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
   if (!requestDetails) return null;
@@ -44,7 +45,7 @@ export const RequestDetailsSheet = ({ open, onClose, requestDetails }) => {
   const CardLocation = ({ image }) => {
     return (
       <div className="flex flex-col items-center rounded-lg overflow-hidden">
-        <img
+        <SafeImage
           src={image}
           alt="Ring"
           className="w-[142px] h-[137px] object-cover rounded-xl"

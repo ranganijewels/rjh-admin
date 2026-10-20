@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Badge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
 import { Checkbox } from "@/components/common/ui/checkbox";
-import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { SafeImage } from "@/components/common/ui/safe-image";
 import { Label } from "@/components/common/ui/label";
 import { Separator } from "@/components/common/ui/separator";
 import { Edit, Eye, Info } from "lucide-react";
@@ -79,7 +79,7 @@ const ProductsGrid = ({
               onMouseEnter={() => setHoveredProduct(product.id)}
               onMouseLeave={() => setHoveredProduct(null)}
             >
-              <ProductThumb
+              <SafeImage
                 src={product.product_image}
                 alt={product.title}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"

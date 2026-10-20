@@ -37,6 +37,7 @@ import { TruncatedText } from "@/components/common/ui/short-id";
 import { Textarea } from "@/components/common/ui/textarea";
 import { authHeaders } from "@/components/commonPages/Catalog/_ui";
 import { cn } from "@/lib/utils";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 // Known kinds rendered as the top pill row. Admin can still create values for
 // brand-new kinds via the API, but these cover the standard reference data.
@@ -145,7 +146,7 @@ function renderMasterDetails(row, kind) {
   if (kind === "diamond_shape") {
     return md.iconUrl ? (
        
-      <img
+      <SafeImage
         src={md.iconUrl}
         alt={row.name}
         className="h-8 w-8 rounded border border-border bg-card object-contain"
@@ -217,7 +218,7 @@ function IconUpload({ value, onChange }) {
           <span className="text-[10px] text-muted-foreground">…</span>
         ) : value ? (
            
-          <img src={value} alt="icon" className="size-full object-contain" />
+          <SafeImage src={value} alt="icon" className="size-full object-contain" />
         ) : (
           <ImageUp className="size-5 text-muted-foreground" aria-hidden="true" />
         )}

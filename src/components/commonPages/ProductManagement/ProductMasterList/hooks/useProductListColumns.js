@@ -23,7 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/common/ui/tooltip";
 import { TruncatedText } from "@/components/common/ui/short-id";
-import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { SafeImage } from "@/components/common/ui/safe-image";
 
 const STOREFRONT_URL =
   process.env.NEXT_PUBLIC_STOREFRONT_URL || "https://ranganijewelry.com";
@@ -77,7 +77,7 @@ export const useProductListColumns = ({
 
           return (
             <div className="flex items-center gap-3">
-              <ProductThumb
+              <SafeImage
                 src={product_image}
                 alt={name}
                 className="h-11 w-9 shrink-0 rounded-md object-cover"
