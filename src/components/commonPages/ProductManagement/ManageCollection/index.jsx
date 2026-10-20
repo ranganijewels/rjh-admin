@@ -5,6 +5,15 @@ import { toast } from "sonner";
 import { Input } from "@/components/common/ui/input";
 import { Textarea } from "@/components/common/ui/textarea";
 import { Page, PageHeader } from "@/components/common/ui/page";
+import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
+import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
+import {
+  DataGridTableRowSelect,
+  DataGridTableRowSelectAll,
+} from "@/components/common/ui/data-grid-table";
+import { StatusBadge } from "@/components/common/ui/badge";
+import { ProductThumb } from "@/components/common/ui/product-thumb";
+import { usePermissions } from "@/provider/permission-provider";
 import { Button } from "@/components/common/ui/button";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import ImageUpload from "../ProductForm/ImageUpload";
@@ -36,6 +45,13 @@ const slugify = (s) =>
 const EMPTY = { name: "", slug: "", description: "", heroImage: "", sortOrder: 0, status: "active", variantMode: false };
 
 export default function ManageCollection() {
+  // Collections live under Product Management, so the same product
+  // permissions apply: a viewer may look, but not create, edit or delete.
+  const { can } = usePermissions();
+  const canCreate = can("products", "create");
+  const canEdit = can("products", "edit");
+  const canDelete = can("products", "delete");
+
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,11 +66,8 @@ export default function ManageCollection() {
   const [deleteId, setDeleteId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  // bulk row-select on the collections table (distinct from the product
-  // assignment dialog's own `selectedIds` below)
-  const [selectedCollectionIds, setSelectedCollectionIds] = useState(new Set());
-  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
-  const [bulkDeleting, setBulkDeleting] = useState(false);
+  // Row selection for the bulk delete is handled by the shared grid; the
+  // product assignment dialog keeps its own `selectedIds` below.
 
   // product assignment dialog
   const [assignFor, setAssignFor] = useState(null); // collection row
@@ -74,7 +87,6 @@ export default function ManageCollection() {
       const json = await res.json();
       const list = Array.isArray(json) ? json : json?.data || [];
       setRows(list);
-      setSelectedCollectionIds(new Set());
     } catch {
       toast.error("Failed to load collections");
     } finally {
@@ -86,43 +98,172 @@ export default function ManageCollection() {
     load();
   }, [load]);
 
-  const toggleSelectAllCollections = () => {
-    setSelectedCollectionIds((prev) =>
-      prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))
+  const handleBulkDeleteCollections = async (selected) => {
+    await Promise.all(
+      selected.map((row) =>
+        fetch(`/api/product-management/manage-collection/${row.id}`, {
+          method: "DELETE",
+          headers: authHeaders(),
+        })
+      )
     );
-  };
-  const toggleSelectCollectionRow = (id) => {
-    setSelectedCollectionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+    toast.success(
+      `${selected.length} collection(s) deleted (products were kept)`
+    );
+    load();
   };
 
-  const handleBulkDeleteCollections = async () => {
-    setBulkDeleting(true);
-    try {
-      await Promise.all(
-        [...selectedCollectionIds].map((id) =>
-          fetch(`/api/product-management/manage-collection/${id}`, {
-            method: "DELETE",
-            headers: authHeaders(),
-          })
-        )
-      );
-      toast.success(
-        `${selectedCollectionIds.size} collection(s) deleted (products were kept)`
-      );
-      setSelectedCollectionIds(new Set());
-      load();
-    } catch (e) {
-      toast.error(e.message || "Failed to delete selected collections");
-    } finally {
-      setBulkDeleting(false);
-      setBulkConfirmOpen(false);
-    }
-  };
+  const columns = useMemo(
+    () => [
+      {
+        id: "select",
+        header: () => <DataGridTableRowSelectAll />,
+        cell: ({ row }) => <DataGridTableRowSelect row={row} />,
+        enableSorting: false,
+        enableHiding: false,
+        size: 48,
+        meta: { headerTitle: "Select" },
+      },
+      {
+        id: "collection",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Collection" column={column} />
+        ),
+        accessorFn: (row) => row.name,
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="flex items-center gap-2.5">
+              <ProductThumb
+                src={item.heroImage}
+                alt=""
+                className="h-9 w-9 shrink-0 rounded-md border border-border object-cover"
+              />
+              <div className="min-w-0">
+                <div className="truncate font-medium text-foreground">
+                  {item.name}
+                </div>
+                {item.description && (
+                  <div className="truncate text-xs text-muted-foreground">
+                    {item.description}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        },
+        enableSorting: false,
+        size: 280,
+        meta: { identity: true, headerTitle: "Collection" },
+      },
+      {
+        id: "slug",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Page (slug)" column={column} />
+        ),
+        accessorFn: (row) => row.slug,
+        cell: ({ row }) => (
+          <a
+            href={`${STOREFRONT_URL}/collections/${row.original.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs font-mono hover:underline"
+          >
+            /collections/{row.original.slug}
+            <ExternalLink className="size-3" aria-hidden="true" />
+          </a>
+        ),
+        enableSorting: false,
+        size: 220,
+        meta: { headerTitle: "Page (slug)" },
+      },
+      {
+        id: "products",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Products" column={column} />
+        ),
+        accessorFn: (row) => row.productCount ?? 0,
+        cell: ({ row }) => (
+          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+            {row.original.productCount ?? 0} products
+          </span>
+        ),
+        enableSorting: false,
+        size: 130,
+        meta: { headerTitle: "Products" },
+      },
+      {
+        id: "status",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Status" column={column} />
+        ),
+        accessorFn: (row) => row.status,
+        cell: ({ row }) => (
+          <StatusBadge
+            status={row.original.status === "inactive" ? "Inactive" : "Active"}
+          />
+        ),
+        enableSorting: false,
+        size: 120,
+        meta: { headerTitle: "Status" },
+      },
+      {
+        id: "actions",
+        header: ({ column }) => (
+          <DataGridColumnHeader title="Actions" column={column} />
+        ),
+        cell: ({ row }) => {
+          const item = row.original;
+          return (
+            <div className="flex items-center justify-end gap-1">
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  onClick={() => openAssign(item)}
+                >
+                  <Boxes className="size-3.5" /> Products
+                </Button>
+              )}
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  mode="icon"
+                  aria-label={`Edit collection ${item.name}`}
+                  title="Edit collection"
+                  onClick={() => openEdit(item)}
+                >
+                  <Pencil className="size-3.5" />
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  mode="icon"
+                  aria-label={`Delete collection ${item.name}`}
+                  title="Delete collection"
+                  onClick={() => {
+                    setDeleteId(item.id);
+                    setConfirmOpen(true);
+                  }}
+                >
+                  <Trash2 className="size-3.5 text-destructive" />
+                </Button>
+              )}
+            </div>
+          );
+        },
+        enableSorting: false,
+        enableHiding: false,
+        size: 190,
+        meta: { headerTitle: "Actions" },
+      },
+    ],
+    [canEdit, canDelete]
+  );
 
   const openAdd = () => {
     setEditingId(null);
@@ -309,9 +450,11 @@ export default function ManageCollection() {
           </>
         }
         actions={
-          <Button onClick={openAdd} className="gap-1.5">
-            <Plus className="size-4" /> New Collection
-          </Button>
+          canCreate && (
+            <Button onClick={openAdd} className="gap-1.5">
+              <Plus className="size-4" /> New Collection
+            </Button>
+          )
         }
       />
 
@@ -415,152 +558,29 @@ export default function ManageCollection() {
         </div>
       )}
 
-      {/* Bulk action bar */}
-      {selectedCollectionIds.size > 0 && (
-        <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
-          <span className="text-sm font-medium">
-            {selectedCollectionIds.size} selected
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ms-auto text-red-600 border-red-200 hover:bg-red-50"
-            onClick={() => setBulkConfirmOpen(true)}
-          >
-            Delete
-          </Button>
-        </div>
-      )}
-
-      {/* Table */}
-      <div className="overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="bg-muted/60 text-foreground text-left">
-              <th className="px-4 py-2.5 font-medium w-10">
-                <input
-                  type="checkbox"
-                  checked={rows.length > 0 && selectedCollectionIds.size === rows.length}
-                  onChange={toggleSelectAllCollections}
-                  className="h-4 w-4 cursor-pointer"
-                  aria-label="Select all"
-                />
-              </th>
-              <th className="px-4 py-2.5 font-medium">Collection</th>
-              <th className="px-4 py-2.5 font-medium">Page (slug)</th>
-              <th className="px-4 py-2.5 font-medium">Products</th>
-              <th className="px-4 py-2.5 font-medium">Status</th>
-              <th className="px-4 py-2.5 font-medium text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  Loading…
-                </td>
-              </tr>
-            ) : rows.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  No collections yet — click “New Collection”.
-                </td>
-              </tr>
-            ) : (
-              rows.map((row, i) => (
-                <tr key={row.id} className={i % 2 ? "bg-gray-50 dark:bg-muted" : "bg-white dark:bg-card"}>
-                  <td className="px-4 py-2.5">
-                    <input
-                      type="checkbox"
-                      checked={selectedCollectionIds.has(row.id)}
-                      onChange={() => toggleSelectCollectionRow(row.id)}
-                      className="h-4 w-4 cursor-pointer"
-                      aria-label="Select row"
-                    />
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      {row.heroImage ? (
-                         
-                        <img
-                          src={row.heroImage}
-                          alt=""
-                          className="w-9 h-9 rounded object-cover border border-border"
-                        />
-                      ) : (
-                        <div className="w-9 h-9 rounded bg-muted flex items-center justify-center">
-                          <Boxes className="size-4 text-muted-foreground" />
-                        </div>
-                      )}
-                      <div>
-                        <div className="font-medium">{row.name}</div>
-                        {row.description && (
-                          <div className="text-xs text-muted-foreground line-clamp-1 max-w-[280px]">
-                            {row.description}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <a
-                      href={`${STOREFRONT_URL}/collections/${row.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs font-mono hover:underline"
-                                          >
-                      /collections/{row.slug}
-                      <ExternalLink className="size-3" />
-                    </a>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
-                      {row.productCount ?? 0} products
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <span
-                      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-                        row.status === "inactive"
-                          ? "bg-gray-200 dark:bg-secondary text-gray-600 dark:text-muted-foreground"
-                          : "bg-green-100 text-green-700"
-                      }`}
-                    >
-                      {row.status === "inactive" ? "Inactive" : "Active"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => openAssign(row)}
-                      >
-                        <Boxes className="size-3.5" /> Products
-                      </Button>
-                      <Button variant="outline" size="sm" mode="icon" onClick={() => openEdit(row)}>
-                        <Pencil className="size-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        mode="icon"
-                        onClick={() => {
-                          setDeleteId(row.id);
-                          setConfirmOpen(true);
-                        }}
-                      >
-                        <Trash2 className="size-3.5 text-red-500" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      {/* Collections list — the shared grid, so the spacing, the pinned
+          identity column and the row density match every other list. */}
+      <ListWithCardToggle
+        titleAs="none"
+        data={rows}
+        columns={columns}
+        resizableColumns
+        emptyMessage="No collections yet — create one to group products."
+        bulkActions={
+          canDelete
+            ? [
+                {
+                  key: "delete",
+                  label: "Delete",
+                  variant: "destructive",
+                  confirmMessage:
+                    "Delete the selected collections? Their products are kept (only detached).",
+                  onRun: handleBulkDeleteCollections,
+                },
+              ]
+            : []
+        }
+      />
 
       {/* Product assignment dialog */}
       {assignFor && (
@@ -653,14 +673,6 @@ export default function ManageCollection() {
         message="Delete this collection? Its products are kept (only detached)."
       />
 
-      <ConfirmDialog
-        open={bulkConfirmOpen}
-        onClose={() => setBulkConfirmOpen(false)}
-        onConfirm={handleBulkDeleteCollections}
-        title="Delete selected collections"
-        message={`Delete ${selectedCollectionIds.size} selected collection(s)? Their products are kept (only detached).`}
-        confirmLabel={bulkDeleting ? "Deleting…" : "Delete"}
-      />
     </Page>
   );
 }

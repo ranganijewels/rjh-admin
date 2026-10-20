@@ -19,7 +19,14 @@ import { toTitleCase } from "@/lib/utils";
 import { toast } from "sonner";
 import { PRODUCTS_DATA } from "./constant";
 import { useSearchParams } from "next/navigation";
+import { usePermissions } from "@/provider/permission-provider";
 const CategoryProductsPage = ({ category }) => {
+  // Sharing a product is a product edit; raising a manual order is an order
+  // create. Both are hidden from roles that may not perform them.
+  const { can } = usePermissions();
+  const canShare = can("products", "edit");
+  const canCreateOrder = can("orders", "create");
+
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -188,15 +195,19 @@ const CategoryProductsPage = ({ category }) => {
         </div>
 
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setShowShareModal(true)}>
-            <Share2 className="mr-2 h-4 w-4" />
-            Share Products
-          </Button>
+          {canShare && (
+            <Button variant="outline" onClick={() => setShowShareModal(true)}>
+              <Share2 className="mr-2 h-4 w-4" />
+              Share Products
+            </Button>
+          )}
 
-          <Button onClick={() => setShowOrderModal(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create Manual Order
-          </Button>
+          {canCreateOrder && (
+            <Button onClick={() => setShowOrderModal(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Manual Order
+            </Button>
+          )}
         </div>
       </div>
 

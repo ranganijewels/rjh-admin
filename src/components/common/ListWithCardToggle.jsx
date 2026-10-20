@@ -835,7 +835,9 @@ function BulkActionsBar({ actions, count, getSelectedRows, onDone }) {
       <div className="flex items-center gap-3 rounded-md border border-input bg-muted/40 px-4 py-2.5">
         <span className="text-sm font-medium">{count} selected</span>
         <div className="flex items-center gap-2 ms-auto">
-          {actions.map((action) => (
+          {/* `hidden: true` lets a page hide an action its role may not run
+              without having to build the whole list conditionally. */}
+          {actions.filter((action) => !action.hidden).map((action) => (
             <Button
               key={action.key}
               size="sm"

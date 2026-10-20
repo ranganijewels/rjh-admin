@@ -6,6 +6,7 @@ import { ImageUp, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { usePermissions } from "@/provider/permission-provider";
 import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
 import {
@@ -275,6 +276,12 @@ function MetalChecks({ value, onChange }) {
 }
 
 export default function CatalogMasters() {
+  // Catalog masters live under the Advanced (Enterprise) module.
+  const { can } = usePermissions();
+  const canCreate = can("enterprise", "create");
+  const canEdit = can("enterprise", "edit");
+  const canDelete = can("enterprise", "delete");
+
   const [kind, setKind] = useState(KINDS[0].value);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -569,30 +576,34 @@ export default function CatalogMasters() {
         ),
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button
-              mode="icon"
-              variant="outline"
-              aria-label={`Edit ${row.original.name || row.original.code || "value"}`}
-              title="Edit value"
-              onClick={(event) => {
-                event.stopPropagation();
-                openEdit(row.original);
-              }}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              aria-label={`Delete ${row.original.name || row.original.code || "value"}`}
-              title="Delete value"
-              onClick={(event) => {
-                event.stopPropagation();
-                handleDelete(row.original);
-              }}
-            >
-              <Trash2 />
-            </Button>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label={`Edit ${row.original.name || row.original.code || "value"}`}
+                title="Edit value"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openEdit(row.original);
+                }}
+              >
+                <Pencil />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label={`Delete ${row.original.name || row.original.code || "value"}`}
+                title="Delete value"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleDelete(row.original);
+                }}
+              >
+                <Trash2 />
+              </Button>
+            )}
           </div>
         ),
         enableSorting: false,
@@ -601,7 +612,7 @@ export default function CatalogMasters() {
         meta: { headerTitle: "Actions" },
       },
     ],
-    [kind, openEdit, handleDelete]
+    [kind, openEdit, handleDelete, canEdit, canDelete]
   );
 
   const filterFunction = useCallback((data, query) => {
@@ -620,10 +631,12 @@ export default function CatalogMasters() {
         title="Catalog Masters"
         description="Shapes (with icons), KT purities (with pricing factors), metal colors (incl. two-tone) and more — they feed the product form and price dropdowns."
         actions={
-          <Button type="button" onClick={openAdd}>
-            <Plus className="size-4" />
-            Add Value
-          </Button>
+          canCreate && (
+            <Button type="button" onClick={openAdd}>
+              <Plus className="size-4" />
+              Add Value
+            </Button>
+          )
         }
       />
 
@@ -920,7 +933,7 @@ export default function CatalogMasters() {
       )}
 
       {/* Bulk action bar */}
-      {selectedIds.size > 0 && (
+      {canDelete && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 rounded-md border border-border bg-muted/40 px-4 py-2.5">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           <Button

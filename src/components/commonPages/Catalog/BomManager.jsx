@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { usePermissions } from "@/provider/permission-provider";
 
 import { ListWithCardToggle } from "@/components/common/ListWithCardToggle";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
@@ -79,6 +80,12 @@ export default function BomManager() {
   const [boms, setBoms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  // BOM revisions live under the Advanced (Enterprise) module.
+  const { can } = usePermissions();
+  const canCreate = can("enterprise", "create");
+  const canEdit = can("enterprise", "edit");
+  const canDelete = can("enterprise", "delete");
+
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -362,30 +369,34 @@ export default function BomManager() {
         ),
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button
-              mode="icon"
-              variant="outline"
-              aria-label={`Edit BOM ${row.original.masterCode || ""} revision ${row.original.revNo ?? ""}`}
-              title="Edit BOM revision"
-              onClick={(event) => {
-                event.stopPropagation();
-                openEdit(row.original);
-              }}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              aria-label={`Delete BOM ${row.original.masterCode || ""} revision ${row.original.revNo ?? ""}`}
-              title="Delete BOM revision"
-              onClick={(event) => {
-                event.stopPropagation();
-                requestRemove(row.original);
-              }}
-            >
-              <Trash2 />
-            </Button>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label={`Edit BOM ${row.original.masterCode || ""} revision ${row.original.revNo ?? ""}`}
+                title="Edit BOM revision"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openEdit(row.original);
+                }}
+              >
+                <Pencil />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label={`Delete BOM ${row.original.masterCode || ""} revision ${row.original.revNo ?? ""}`}
+                title="Delete BOM revision"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  requestRemove(row.original);
+                }}
+              >
+                <Trash2 />
+              </Button>
+            )}
           </div>
         ),
         enableSorting: false,
@@ -394,7 +405,7 @@ export default function BomManager() {
         meta: { headerTitle: "Actions" },
       },
     ],
-    [openEdit, requestRemove]
+    [openEdit, requestRemove, canEdit, canDelete]
   );
 
   const filterFunction = useCallback((data, query) => {
@@ -413,7 +424,7 @@ export default function BomManager() {
         title="Bill of Materials"
         description="Versioned weight curves (carat→grams) + ring-size delta. Drives the configurator & pricing."
         actions={
-          <Button type="button" onClick={openNew}>
+          <Button type="button" onClick={openNew} disabled={!canCreate}>
             <Plus className="size-4" />
             New BOM Revision
           </Button>

@@ -6,6 +6,7 @@ import { Button } from "@/components/common/ui/button";
 import { Input } from "@/components/common/ui/input";
 import { Label } from "@/components/common/ui/label";
 import { Plus, RefreshCw, Star, Trash2, Pencil } from "lucide-react";
+import { usePermissions } from "@/provider/permission-provider";
 import { toast } from "sonner";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 import { Skeleton } from "@/components/common/ui/skeleton";
@@ -67,6 +68,12 @@ const CurrencyManagement = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
+  // Currencies are store settings.
+  const { can } = usePermissions();
+  const canCreate = can("settings", "create");
+  const canEdit = can("settings", "edit");
+  const canDelete = can("settings", "delete");
+
   const [editId, setEditId] = useState(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -380,29 +387,33 @@ const CurrencyManagement = () => {
           const c = row.original;
           return (
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                mode="icon"
-                size="sm"
-                aria-label={`Edit ${c.currencyCode || "currency"}`}
-                title="Edit currency"
-                onClick={() => openEdit(c)}
-              >
-                <Pencil className="size-4" />
-              </Button>
-              <Button
-                variant="outline"
-                mode="icon"
-                size="sm"
-                aria-label={`Delete ${c.currencyCode || "currency"}`}
-                title="Delete currency"
-                onClick={() => {
-                  setDeleteId(c.id);
-                  setConfirmOpen(true);
-                }}
-              >
-                <Trash2 className="size-4 text-destructive" />
-              </Button>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  mode="icon"
+                  size="sm"
+                  aria-label={`Edit ${c.currencyCode || "currency"}`}
+                  title="Edit currency"
+                  onClick={() => openEdit(c)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="outline"
+                  mode="icon"
+                  size="sm"
+                  aria-label={`Delete ${c.currencyCode || "currency"}`}
+                  title="Delete currency"
+                  onClick={() => {
+                    setDeleteId(c.id);
+                    setConfirmOpen(true);
+                  }}
+                >
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              )}
             </div>
           );
         },
@@ -412,7 +423,7 @@ const CurrencyManagement = () => {
         meta: { headerTitle: "Actions" },
       },
     ],
-    [toggleActive, setDefault, openEdit]
+    [toggleActive, setDefault, openEdit, canEdit, canDelete]
   );
 
   if (loading) {
@@ -443,10 +454,12 @@ const CurrencyManagement = () => {
               />
               {refreshing ? "Refreshing…" : "Refresh Live Rates"}
             </Button>
-            <Button variant="primary" size="md" onClick={openAdd}>
-              <Plus className="size-4" />
-              Add Currency
-            </Button>
+            {canCreate && (
+              <Button variant="primary" size="md" onClick={openAdd}>
+                <Plus className="size-4" />
+                Add Currency
+              </Button>
+            )}
           </>
         }
       />
@@ -459,10 +472,12 @@ const CurrencyManagement = () => {
           <p className="max-w-sm text-sm text-muted-foreground">
             Add a country and its currency to start selling in that market.
           </p>
-          <Button variant="primary" onClick={openAdd}>
-            <Plus className="size-4" />
-            Add Currency
-          </Button>
+          {canCreate && (
+            <Button variant="primary" onClick={openAdd}>
+              <Plus className="size-4" />
+              Add Currency
+            </Button>
+          )}
         </div>
       ) : (
         <ListWithCardToggle
@@ -477,6 +492,7 @@ const CurrencyManagement = () => {
               key: "delete",
               label: "Delete",
               variant: "destructive",
+              hidden: !canDelete,
               confirmMessage:
                 "Remove the selected currenc(ies) from the storefront? This cannot be undone.",
               onRun: handleBulkDelete,

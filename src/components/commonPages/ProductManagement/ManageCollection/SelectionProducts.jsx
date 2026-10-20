@@ -6,8 +6,13 @@ import { useSelectionColumns } from "../hooks/useSelectionColumns";
 import { useCrudApi } from "@/hooks/useCrudApi";
 import { toast } from "sonner";
 import { useParams } from "next/navigation";
+import { usePermissions } from "@/provider/permission-provider";
 
 const SelectionProducts = () => {
+  // Adding products to a collection edits the catalogue.
+  const { can } = usePermissions();
+  const canEdit = can("products", "edit");
+
   const params = useParams();
   const collectionId = params.id; // collection ID from route
   const storeId = localStorage.getItem("storeId"); // store ID
@@ -125,6 +130,7 @@ const SelectionProducts = () => {
           {
             key: "addToCollection",
             label: "Add to Collection",
+            hidden: !canEdit,
             onRun: async (rows) => {
               if (!storeId || !collectionId) {
                 toast.error("Store ID or Collection ID is missing!");

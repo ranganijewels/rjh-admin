@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, Layers, Pencil, Plus } from "lucide-react";
+import { usePermissions } from "@/provider/permission-provider";
 
 import { StatusBadge } from "@/components/common/ui/badge";
 import { Button } from "@/components/common/ui/button";
@@ -52,6 +53,11 @@ export default function ProductGroups() {
     }
   }, []);
 
+  // Product groups are products, so the product permissions apply.
+  const { can } = usePermissions();
+  const canCreate = can("products", "create");
+  const canEdit = can("products", "edit");
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -64,13 +70,15 @@ export default function ProductGroups() {
         title="Product Groups"
         description="A group is one design sold in several diamond shapes. Each shape is its own product; products with the same Design Group code are linked on the storefront shape selector."
         actions={
-          <Button
-            variant="primary"
-            size="md"
-            onClick={() => router.push("/dashboard/product-management/add")}
-          >
-            <Plus className="size-4" aria-hidden="true" /> Add Product
-          </Button>
+          canCreate && (
+            <Button
+              variant="primary"
+              size="md"
+              onClick={() => router.push("/dashboard/product-management/add")}
+            >
+              <Plus className="size-4" aria-hidden="true" /> Add Product
+            </Button>
+          )
         }
       />
 
@@ -155,16 +163,18 @@ export default function ProductGroups() {
                     >
                       <Eye className="size-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      mode="icon"
-                      size="sm"
-                      onClick={() => router.push(`/dashboard/product-management/edit/${p.id}`)}
-                      aria-label={`Edit ${p.productName}`}
-                      title="Edit product"
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
+                    {canEdit && (
+                      <Button
+                        variant="outline"
+                        mode="icon"
+                        size="sm"
+                        onClick={() => router.push(`/dashboard/product-management/edit/${p.id}`)}
+                        aria-label={`Edit ${p.productName}`}
+                        title="Edit product"
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    )}
                   </div>
                 ))}
               </CardContent>

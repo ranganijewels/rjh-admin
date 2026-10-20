@@ -17,6 +17,7 @@ import {
 import { Checkbox } from "@/components/common/ui/checkbox";
 import { DataGridColumnHeader } from "@/components/common/ui/data-grid-column-header";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
+import { usePermissions } from "@/provider/permission-provider";
 import { Input } from "@/components/common/ui/input";
 import { Label } from "@/components/common/ui/label";
 import { Page, PageHeader } from "@/components/common/ui/page";
@@ -296,6 +297,12 @@ export default function ProductFamilies() {
 
   // Deleting goes through the app's ConfirmDialog instead of the browser's
   // native confirm(), which cannot be styled and blocks the whole thread.
+  // Product families live under the Advanced (Enterprise) module.
+  const { can } = usePermissions();
+  const canCreate = can("enterprise", "create");
+  const canEdit = can("enterprise", "edit");
+  const canDelete = can("enterprise", "delete");
+
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -394,30 +401,34 @@ export default function ProductFamilies() {
         ),
         cell: ({ row }) => (
           <div className="flex gap-2">
-            <Button
-              mode="icon"
-              variant="outline"
-              aria-label={`Edit family ${row.original.familyCode || row.original.name || ""}`}
-              title="Edit family"
-              onClick={(event) => {
-                event.stopPropagation();
-                openEdit(row.original);
-              }}
-            >
-              <Pencil />
-            </Button>
-            <Button
-              mode="icon"
-              variant="outline"
-              aria-label={`Delete family ${row.original.familyCode || row.original.name || ""}`}
-              title="Delete family"
-              onClick={(event) => {
-                event.stopPropagation();
-                remove(row.original);
-              }}
-            >
-              <Trash2 />
-            </Button>
+            {canEdit && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label={`Edit family ${row.original.familyCode || row.original.name || ""}`}
+                title="Edit family"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openEdit(row.original);
+                }}
+              >
+                <Pencil />
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                mode="icon"
+                variant="outline"
+                aria-label={`Delete family ${row.original.familyCode || row.original.name || ""}`}
+                title="Delete family"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  remove(row.original);
+                }}
+              >
+                <Trash2 />
+              </Button>
+            )}
           </div>
         ),
         enableSorting: false,
@@ -426,7 +437,7 @@ export default function ProductFamilies() {
         meta: { headerTitle: "Actions" },
       },
     ],
-    [openEdit, remove]
+    [openEdit, remove, canEdit, canDelete]
   );
 
   // Search runs over the rows already loaded from the API.
@@ -466,10 +477,12 @@ export default function ProductFamilies() {
                 ))}
               </SelectContent>
             </Select>
-            <Button type="button" variant="primary" size="md" onClick={openNew}>
-              <Plus className="size-4" />
-              New Family
-            </Button>
+            {canCreate && (
+              <Button type="button" variant="primary" size="md" onClick={openNew}>
+                <Plus className="size-4" />
+                New Family
+              </Button>
+            )}
           </>
         }
       />
