@@ -31,24 +31,69 @@ function mapProductNames(payload) {
   };
 }
 
+/**
+ * One attempt against the analytics endpoint, with the body parsed.
+ *
+ * The upstream occasionally refuses the connection and then never answers,
+ * and Node gives up after ten seconds — `fetch` throws, which is what turned
+ * into a red "could not load" banner on an otherwise healthy dashboard. A
+ * bounded retry turns that one bad connection into a normal page load.
+ * Only transport and parse failures retry; a 401 comes straight back.
+ */
+async function fetchDashboard(headers) {
+  const url = `${NEST}/api/v1/analytics/dashboard`;
+  let lastError;
+
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const res = await fetch(url, {
+        headers,
+        cache: "no-store",
+        signal: AbortSignal.timeout(8_000),
+      });
+      const json = await res.json();
+      return { ok: res.ok, status: res.status, json };
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  throw lastError;
+}
+
 export async function GET(req) {
   const auth = req.headers.get("authorization");
+
+  let result;
   try {
-    const res = await fetch(`${NEST}/api/v1/analytics/dashboard`, {
-      headers: {
-        "Content-Type": "application/json",
-        "x-tenant-id": TENANT,
-        ...(auth && { Authorization: auth }),
-      },
-      cache: "no-store",
-    });
-    const json = await res.json();
-    // NestJS wraps payload as { success, data }
-    const data = json?.data ?? json;
-    return Response.json(mapProductNames(data), {
-      status: res.ok ? 200 : res.status,
+    result = await fetchDashboard({
+      "Content-Type": "application/json",
+      "x-tenant-id": TENANT,
+      ...(auth && { Authorization: auth }),
     });
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    // The upstream never answered at all — a timeout, a reset, DNS.
+    return Response.json(
+      { error: `Dashboard service unreachable: ${e.message}` },
+      { status: 502 }
+    );
   }
+
+  if (!result.ok) {
+    // A bare status code tells the page nothing about what went wrong.
+    return Response.json(
+      {
+        error:
+          result.json?.message ||
+          result.json?.error ||
+          `Dashboard service returned ${result.status}`,
+      },
+      { status: result.status }
+    );
+  }
+
+  // NestJS wraps payload as { success, data }
+  return Response.json(mapProductNames(result.json?.data ?? result.json), {
+    status: 200,
+  });
 }

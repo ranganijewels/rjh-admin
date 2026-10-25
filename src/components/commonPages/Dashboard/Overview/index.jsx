@@ -27,6 +27,7 @@ import {
   ToggleGroupItem,
 } from "@/components/common/ui/toggle-group";
 import { TIME_RANGES } from "@/lib/timeseries";
+import { getAuthToken } from "@/lib/auth-token";
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { Page, PageHeader } from "@/components/common/ui/page";
 import { SafeImage } from "@/components/common/ui/safe-image";
@@ -128,8 +129,17 @@ const Overview = () => {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch("/api/analytics/dashboard", { cache: "no-store" });
-        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+        const token = getAuthToken();
+        const res = await fetch("/api/analytics/dashboard", {
+          cache: "no-store",
+          headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+        });
+        if (!res.ok) {
+          // Prefer the reason the route gives us — a bare status code hides
+          // whether the upstream was slow, refused us, or is simply down.
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.error || `Request failed (${res.status})`);
+        }
         const json = await res.json();
         if (alive) setD(json);
       } catch (e) {
@@ -151,9 +161,13 @@ const Overview = () => {
     setSeriesLoading(true);
     (async () => {
       try {
+        const token = getAuthToken();
         const res = await fetch(
           `/api/analytics/timeseries?range=${range}`,
-          { cache: "no-store" }
+          {
+            cache: "no-store",
+            headers: { ...(token && { Authorization: `Bearer ${token}` }) },
+          }
         );
         if (!res.ok) throw new Error(`Request failed (${res.status})`);
         const json = await res.json();
