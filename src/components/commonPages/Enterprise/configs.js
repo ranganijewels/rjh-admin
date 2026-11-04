@@ -222,6 +222,16 @@ export const ENTERPRISE_RESOURCES = {
     description: "Customer reviews. Approve to publish (feeds the Review schema & PDP rating).",
     resource: "reviews",
     noEdit: true,
+    // The API lists approved reviews only unless ?status= is given, so
+    // moderation must ask for pending ones explicitly.
+    statusFilter: {
+      param: "status",
+      options: [
+        { value: "pending", label: "Pending" },
+        { value: "approved", label: "Approved" },
+        { value: "rejected", label: "Rejected" },
+      ],
+    },
     rowActions: [
       { label: "Approve", action: "moderate", body: { status: "approved" } },
       { label: "Reject", action: "moderate", body: { status: "rejected" } },

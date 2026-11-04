@@ -27,6 +27,7 @@ import {
 import { Skeleton } from "@/components/common/ui/skeleton";
 import { TruncatedText } from "@/components/common/ui/short-id";
 import { Textarea } from "@/components/common/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/common/ui/toggle-group";
 import ConfirmDialog from "@/components/common/ui/ConfirmDialog";
 
 import { authHeaders } from "../Catalog/_ui";
@@ -76,8 +77,9 @@ const CellValue = ({ row, col }) => {
 };
 
 export default function EntityManager({ cfg }) {
-  const { title, description, resource, columns, fields, readOnly, noEdit, rowActions } = cfg;
+  const { title, description, resource, columns, fields, readOnly, noEdit, rowActions, statusFilter } = cfg;
   const [rows, setRows] = useState([]);
+  const [filterValue, setFilterValue] = useState(statusFilter?.options?.[0]?.value ?? "");
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // null | {} (new) | row (edit)
   const [form, setForm] = useState({});
@@ -91,7 +93,10 @@ export default function EntityManager({ cfg }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/enterprise/${resource}`, { cache: "no-store" });
+      const qs = statusFilter && filterValue
+        ? `?${new URLSearchParams({ [statusFilter.param]: filterValue })}`
+        : "";
+      const res = await fetch(`/api/enterprise/${resource}${qs}`, { cache: "no-store" });
       const j = await res.json();
       setRows(Array.isArray(j) ? j : j?.data ?? []);
     } catch (e) {
@@ -99,7 +104,7 @@ export default function EntityManager({ cfg }) {
     } finally {
       setLoading(false);
     }
-  }, [resource]);
+  }, [resource, statusFilter, filterValue]);
 
   useEffect(() => {
     load();
@@ -422,6 +427,24 @@ export default function EntityManager({ cfg }) {
           ) : null
         }
       />
+
+      {statusFilter && (
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={filterValue}
+          onValueChange={(value) => value && setFilterValue(value)}
+          aria-label={`Filter ${entityLabel.toLowerCase()} by status`}
+          className="self-start"
+        >
+          {statusFilter.options.map((opt) => (
+            <ToggleGroupItem key={opt.value} value={opt.value} className="px-3 text-xs">
+              {opt.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+      )}
 
       {editing && (
         <div ref={formSectionRef} tabIndex={-1}>
